@@ -32,8 +32,8 @@ export interface DraftRepository {
 }
 
 /** Only input constraints are relaxed. Object/array/enum shapes remain guarded. */
-function editingSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
-  if (schema instanceof z.ZodEffects) return editingSchema(schema.innerType());
+function editingSchema(schema: z.core.$ZodType): z.ZodType<any> {
+  if (!(schema instanceof z.ZodType)) throw new Error("Unsupported draft schema");
   if (schema instanceof z.ZodString) return z.string();
   if (schema instanceof z.ZodNumber) return z.union([z.number().finite(), z.nan()]);
   if (schema instanceof z.ZodObject) {
@@ -44,7 +44,7 @@ function editingSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
   if (schema instanceof z.ZodArray) return z.array(editingSchema(schema.element));
   if (schema instanceof z.ZodOptional) return editingSchema(schema.unwrap()).optional();
   if (schema instanceof z.ZodNullable) return editingSchema(schema.unwrap()).nullable();
-  if (schema instanceof z.ZodDefault) return editingSchema(schema.removeDefault()).default(schema._def.defaultValue());
+  if (schema instanceof z.ZodDefault || schema instanceof z.ZodPrefault) return editingSchema(schema.unwrap()).default(schema.parse(undefined));
   if (schema instanceof z.ZodUnion) return z.union(schema.options.map(editingSchema) as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
   return schema;
 }

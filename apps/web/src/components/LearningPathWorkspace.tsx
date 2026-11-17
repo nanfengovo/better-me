@@ -57,7 +57,7 @@ const Recovery = z
       })
       .strict()
       .optional(),
-    drafts: z.record(Draft),
+    drafts: z.record(z.string(), Draft),
     operation: Operation.optional(),
     importOperation: z
       .object({ fingerprint: z.string(), id: z.string() })

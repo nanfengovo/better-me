@@ -195,7 +195,7 @@ const completion = z
     stream: z.literal(false).optional(),
     temperature: z.number().optional(),
     max_tokens: z.number().int().optional(),
-    extra_body: z.record(z.unknown()).optional(),
+    extra_body: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 

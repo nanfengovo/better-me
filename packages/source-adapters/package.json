@@ -41,7 +41,7 @@
     "@better-me/opportunities": "workspace:*",
     "parse5": "7.3.0",
     "saxes": "6.0.0",
-    "zod": "^3.25.67"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

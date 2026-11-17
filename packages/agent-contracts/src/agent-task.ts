@@ -52,7 +52,7 @@ const conversationTaskRecord=z.object({
   partialOutput:z.object({text:z.string(),finishReason:z.string().optional()}).optional(),
   outputArtifacts:z.array(TaskOutputArtifactSchema).optional(),
 });
-export const FreeChatTaskSchema:z.ZodType<FreeChatTask,z.ZodTypeDef,unknown>=conversationTaskRecord.extend({responseContract:ResumeCandidateResponseContractSchema.optional(),candidateSource:ResumeCandidateSourceBindingSchema.optional()}).superRefine(validateResumeCandidateBinding);
+export const FreeChatTaskSchema:z.ZodType<FreeChatTask,unknown>=conversationTaskRecord.extend({responseContract:ResumeCandidateResponseContractSchema.optional(),candidateSource:ResumeCandidateSourceBindingSchema.optional()}).superRefine(validateResumeCandidateBinding);
 export const ExperienceRefinementSchema=z.object({
   source:z.object({targetRef:z.lazy(()=>ResumeProposalTargetSchema),text:z.string(),label:z.string().max(2000),
     quote:z.object({exact:z.string().min(1),prefix:z.string().max(32),suffix:z.string().max(32),start:z.number().int().nonnegative(),end:z.number().int().positive()}).strict().optional(),
@@ -72,7 +72,7 @@ export const ExperienceRefineTaskCreateSchema=z.object({
 });
 export type ExperienceRefineTaskCreate=z.input<typeof ExperienceRefineTaskCreateSchema>;
 export type ExperienceRefineTask=Omit<FreeChatTask,"kind"> & {kind:"experience_refine";refinement:z.infer<typeof ExperienceRefinementSchema>;refinementReply?:WritingReply};
-export const ExperienceRefineTaskSchema:z.ZodType<ExperienceRefineTask,z.ZodTypeDef,unknown>=conversationTaskRecord.extend({kind:z.literal("experience_refine"),refinement:ExperienceRefinementSchema,refinementReply:WritingReplySchema.optional()});
+export const ExperienceRefineTaskSchema:z.ZodType<ExperienceRefineTask,unknown>=conversationTaskRecord.extend({kind:z.literal("experience_refine"),refinement:ExperienceRefinementSchema,refinementReply:WritingReplySchema.optional()});
 export type ConversationTask=FreeChatTask|ExperienceRefineTask;
 export const ProjectUnderstandingTaskCreateSchema=z.object({
   kind:z.literal("project_understanding"),workspaceKey:id,objective:z.string().min(1).max(12000),parentTaskId:id.optional(),rootScopeKey:id.optional(),
@@ -81,7 +81,7 @@ export const ProjectUnderstandingTaskCreateSchema=z.object({
 }).strict();
 export type ProjectUnderstandingTaskCreate=z.input<typeof ProjectUnderstandingTaskCreateSchema>;
 export type ProjectUnderstandingTask=Omit<FreeChatTask,"kind"|"conversation"|"turn"|"reply"> & {kind:"project_understanding";project:UnderstandingSession};
-export const ProjectUnderstandingTaskSchema:z.ZodType<ProjectUnderstandingTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,turn:true,reply:true}).extend({kind:z.literal("project_understanding"),project:UnderstandingSessionSchema});
+export const ProjectUnderstandingTaskSchema:z.ZodType<ProjectUnderstandingTask,unknown>=conversationTaskRecord.omit({conversation:true,turn:true,reply:true}).extend({kind:z.literal("project_understanding"),project:UnderstandingSessionSchema});
 /** Paging is explicit. A manifest handle grants no path and is not itself citable evidence. */
 export const ProjectUnderstandingTaskDecisionSchema=z.discriminatedUnion("kind",[
   z.object({kind:z.literal("read"),requests:z.array(z.object({
@@ -100,7 +100,7 @@ export type JdMatchTask=Omit<FreeChatTask,"kind"|"conversation"|"turn"|"reply"> 
   kind:"jd_match";matching:z.infer<typeof JdMatchMaterialSchema>;structuredJd:z.infer<typeof JdMatchStructuredSchema>;
   evidence:CareerTask["evidence"];result?:z.infer<typeof JdMatchResultSchema>;review?:z.infer<typeof JdMatchReviewSchema>;
 };
-export const JdMatchTaskSchema:z.ZodType<JdMatchTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,turn:true,reply:true}).extend({
+export const JdMatchTaskSchema:z.ZodType<JdMatchTask,unknown>=conversationTaskRecord.omit({conversation:true,turn:true,reply:true}).extend({
   kind:z.literal("jd_match"),matching:JdMatchMaterialSchema,structuredJd:JdMatchStructuredSchema,
   evidence:z.array(CareerTaskEvidenceSchema),result:JdMatchResultSchema.optional(),review:JdMatchReviewSchema.optional(),
 });
@@ -114,7 +114,7 @@ export type MockInterviewTask=Omit<FreeChatTask,"kind"> & {
   kind:"mock_interview";matching:z.infer<typeof JdMatchMaterialSchema>;evidence:CareerTask["evidence"];
   interview:{focus:z.infer<typeof MockInterviewFocusSchema>;parentSourceFingerprint:string;phase:"interview"|"evaluation";receipt?:z.infer<typeof MockInterviewReceiptSchema>};
 };
-export const MockInterviewTaskSchema:z.ZodType<MockInterviewTask,z.ZodTypeDef,unknown>=conversationTaskRecord.extend({
+export const MockInterviewTaskSchema:z.ZodType<MockInterviewTask,unknown>=conversationTaskRecord.extend({
   kind:z.literal("mock_interview"),matching:JdMatchMaterialSchema,evidence:z.array(CareerTaskEvidenceSchema),
   interview:z.object({focus:MockInterviewFocusSchema,parentSourceFingerprint:id,phase:z.enum(["interview","evaluation"]),receipt:MockInterviewReceiptSchema.optional()}).strict(),
 });
@@ -126,7 +126,7 @@ export const CoachGuidanceTaskCreateSchema=z.object({
 }).strict().superRefine((value,ctx)=>{if(JSON.stringify(value.request).length>1_000_000)ctx.addIssue({code:"custom",message:"coaching material budget exceeded; no bytes discarded"});});
 export type CoachGuidanceTaskCreate=z.input<typeof CoachGuidanceTaskCreateSchema>;
 export type CoachGuidanceTask=Omit<FreeChatTask,"kind"|"conversation"|"reply"> & {kind:"career_coach";request:CoachRequest;result?:CoachGeneration};
-export const CoachGuidanceTaskSchema:z.ZodType<CoachGuidanceTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({
+export const CoachGuidanceTaskSchema:z.ZodType<CoachGuidanceTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({
   kind:z.literal("career_coach"),request:CoachRequestSchema,
   result:z.object({payload:CoachPayloadSchema,model:z.object({provider:z.string(),name:z.string(),generatedAt:z.string()}).strict()}).strict().optional(),
 });
@@ -137,7 +137,7 @@ export const JdIntakeTaskCreateSchema=z.object({
 }).strict();
 export type JdIntakeTaskCreate=z.input<typeof JdIntakeTaskCreateSchema>;
 export type JdIntakeTask=Omit<FreeChatTask,"kind"|"conversation"|"reply"> & {kind:"jd_intake";request:JdIntakeRequest;result?:JdIntakeResult};
-export const JdIntakeTaskSchema:z.ZodType<JdIntakeTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("jd_intake"),request:JdIntakeRequestSchema,result:JdIntakeResultSchema.optional()});
+export const JdIntakeTaskSchema:z.ZodType<JdIntakeTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("jd_intake"),request:JdIntakeRequestSchema,result:JdIntakeResultSchema.optional()});
 export const JdOcrTaskCreateSchema=z.object({
   kind:z.literal("jd_ocr"),workspaceKey:id,objective:z.string().min(1).max(12000),parentTaskId:id.optional(),rootScopeKey:id.optional(),
   request:JdOcrRequestSchema,runtimeBinding:CareerRuntimeBindingSchema,budget:CareerTaskBudgetSchema.default(CAREER_TASK_DEFAULT_BUDGET),
@@ -145,7 +145,7 @@ export const JdOcrTaskCreateSchema=z.object({
 }).strict();
 export type JdOcrTaskCreate=z.input<typeof JdOcrTaskCreateSchema>;
 export type JdOcrTask=Omit<FreeChatTask,"kind"|"conversation"|"reply"> & {kind:"jd_ocr";request:JdOcrRequest;uploadedImageIds:string[];result?:JdOcrResult};
-export const JdOcrTaskSchema:z.ZodType<JdOcrTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("jd_ocr"),request:JdOcrRequestSchema,uploadedImageIds:z.array(z.string().regex(/^img_[a-f0-9]{32}$/)).max(6),result:JdOcrResultSchema.optional()});
+export const JdOcrTaskSchema:z.ZodType<JdOcrTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("jd_ocr"),request:JdOcrRequestSchema,uploadedImageIds:z.array(z.string().regex(/^img_[a-f0-9]{32}$/)).max(6),result:JdOcrResultSchema.optional()});
 export const StudioAnalysisTaskCreateSchema=z.object({
   kind:z.literal("studio_analysis"),workspaceKey:id,objective:z.string().min(1).max(12000),parentTaskId:id.optional(),rootScopeKey:id,
   request:StudioAnalysisRequestSchema,runtimeBinding:CareerRuntimeBindingSchema,budget:CareerTaskBudgetSchema.default(CAREER_TASK_DEFAULT_BUDGET),
@@ -153,18 +153,18 @@ export const StudioAnalysisTaskCreateSchema=z.object({
 }).strict();
 export type StudioAnalysisTaskCreate=z.input<typeof StudioAnalysisTaskCreateSchema>;
 export type StudioAnalysisTask=Omit<FreeChatTask,"kind"|"conversation"|"reply"> & {kind:"studio_analysis";request:StudioAnalysisRequest;result?:{output:Record<string,unknown>;contextId:string;inputHash:string;runtime:StudioAnalysisRequest["runtime"];adopted:false}};
-export const StudioAnalysisTaskSchema:z.ZodType<StudioAnalysisTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("studio_analysis"),request:StudioAnalysisRequestSchema,
-  result:z.object({output:z.record(z.unknown()),contextId:z.string(),inputHash:z.string(),runtime:StudioAnalysisRequestSchema.shape.runtime,adopted:z.literal(false)}).strict().optional()});
+export const StudioAnalysisTaskSchema:z.ZodType<StudioAnalysisTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("studio_analysis"),request:StudioAnalysisRequestSchema,
+  result:z.object({output:z.record(z.string(), z.unknown()),contextId:z.string(),inputHash:z.string(),runtime:StudioAnalysisRequestSchema.shape.runtime,adopted:z.literal(false)}).strict().optional()});
 export const StudioCommitteeTaskCreateSchema=StudioAnalysisTaskCreateSchema.extend({kind:z.literal("studio_committee"),request:StudioCommitteeRequestSchema});
 export type StudioCommitteeTaskCreate=z.input<typeof StudioCommitteeTaskCreateSchema>;
 export type StudioCommitteeTask=Omit<StudioAnalysisTask,"kind"|"request"|"result"> & {kind:"studio_committee";request:z.infer<typeof StudioCommitteeRequestSchema>;result?:CommitteeReport};
-export const StudioCommitteeTaskSchema:z.ZodType<StudioCommitteeTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({
+export const StudioCommitteeTaskSchema:z.ZodType<StudioCommitteeTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({
   kind:z.literal("studio_committee"),request:StudioCommitteeRequestSchema,result:CommitteeReportSchema.optional(),
 });
 export const InventoryTaskCreateSchema=JdIntakeTaskCreateSchema.extend({kind:z.literal("career_inventory"),request:InventoryProbeRequestSchema});
 export type InventoryTaskCreate=z.input<typeof InventoryTaskCreateSchema>;
 export type InventoryTask=Omit<JdIntakeTask,"kind"|"request"|"result"> & {kind:"career_inventory";request:z.infer<typeof InventoryProbeRequestSchema>;result?:z.infer<typeof InventoryProbeResultSchema>};
-export const InventoryTaskSchema:z.ZodType<InventoryTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("career_inventory"),request:InventoryProbeRequestSchema,result:InventoryProbeResultSchema.optional()});
+export const InventoryTaskSchema:z.ZodType<InventoryTask,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("career_inventory"),request:InventoryProbeRequestSchema,result:InventoryProbeResultSchema.optional()});
 export type AgentTask=CareerTask|ConversationTask|ProjectUnderstandingTask|JdMatchTask|MockInterviewTask|CoachGuidanceTask|JdIntakeTask|JdOcrTask|StudioAnalysisTask|StudioCommitteeTask|GrowthPracticeTask|InventoryTask;
 export type AgentTaskCreate=import("./career-task.js").CareerTaskCreate|FreeChatTaskCreate|ExperienceRefineTaskCreate|ProjectUnderstandingTaskCreate|JdMatchTaskCreate|MockInterviewTaskCreate|CoachGuidanceTaskCreate|JdIntakeTaskCreate|JdOcrTaskCreate|StudioAnalysisTaskCreate|StudioCommitteeTaskCreate|GrowthPracticeTaskCreate|InventoryTaskCreate;
 export const AgentTaskSchema=z.union([CareerTaskSchema,FreeChatTaskSchema,ExperienceRefineTaskSchema,ProjectUnderstandingTaskSchema,JdMatchTaskSchema,MockInterviewTaskSchema,CoachGuidanceTaskSchema,JdIntakeTaskSchema,JdOcrTaskSchema,StudioAnalysisTaskSchema,StudioCommitteeTaskSchema,GrowthPracticeTaskSchema,InventoryTaskSchema]);

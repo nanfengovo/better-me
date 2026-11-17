@@ -14,7 +14,7 @@
   "dependencies": {
     "@better-me/opportunities": "workspace:*",
     "@better-me/source-adapters": "workspace:*",
-    "zod": "^3.25.67"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

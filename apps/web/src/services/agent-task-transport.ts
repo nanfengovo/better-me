@@ -31,7 +31,7 @@ export const taskIssueText:Record<string,string>={
 
 export type TaskClientOptions={fetch?:typeof fetch;baseUrl?:string;pollMs?:number};
 /** Authenticated transport only; never dispatches a model or retries an inference. */
-export function createTaskTransport<T extends AgentTask>(schema:z.ZodType<T,z.ZodTypeDef,unknown>,options:TaskClientOptions={}){
+export function createTaskTransport<T extends AgentTask>(schema:z.ZodType<T,unknown>,options:TaskClientOptions={}){
   async function request(path:string,body?:unknown,signal?:AbortSignal){
     const lease=captureIdentityLease();lease.assert();
     if(!lease.ownerId)throw new AgentTaskClientError("请先登录 BetterMe 账号；未从浏览器直接调用其他模型。","identity_required");

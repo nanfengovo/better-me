@@ -60,8 +60,8 @@ export type ToolDefinition<I = unknown, O = unknown> = {
   readonly name: string;
   readonly version: number;
   readonly description: string;
-  readonly inputSchema: z.ZodType<I, z.ZodTypeDef, unknown>;
-  readonly outputSchema: z.ZodType<O, z.ZodTypeDef, unknown>;
+  readonly inputSchema: z.ZodType<I, unknown>;
+  readonly outputSchema: z.ZodType<O, unknown>;
   readonly effect: ToolEffect;
   readonly execute: (input: I, context: ToolHandlerContext) => O | Promise<O>;
   /** Trusted, read-only durable-receipt lookup after a failed write result. Never resubmit the mutation here. */

@@ -8,7 +8,7 @@ import type { ToolDefinition, TrustedToolContext, ToolResult } from "../tools.js
 export interface LangChainStructuredTool<TInput = any, TOutput = any> {
   readonly name: string;
   readonly description: string;
-  readonly schema: z.ZodType<TInput, z.ZodTypeDef, any>;
+  readonly schema: z.ZodType<TInput, any>;
   call(input: TInput, options?: { signal?: AbortSignal }): Promise<TOutput>;
   invoke(input: TInput, options?: { signal?: AbortSignal }): Promise<TOutput>;
   asOpenAiFunction(): {
@@ -84,7 +84,7 @@ export function zodToJsonSchemaObject(schema: z.ZodType<any>): Record<string, un
   };
 }
 
-function describeZodField(field: z.ZodType<any>): Record<string, unknown> {
+function describeZodField(field: z.core.$ZodType): Record<string, unknown> {
   if (field instanceof z.ZodOptional || field instanceof z.ZodNullable) {
     return describeZodField(field.unwrap());
   }

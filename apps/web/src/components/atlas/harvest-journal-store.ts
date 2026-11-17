@@ -23,7 +23,7 @@ type RunRow = z.infer<typeof JournalRunRowSchema>;
 type Limits = { runBytes?: number; totalBytes?: number; terminalRuns?: number };
 const corrupt = () => new HarvestJournalError("corrupt", "采集恢复记录损坏或版本不受支持，未开始网络操作；请保留记录并检查应用版本。");
 const conflict = (message: string) => new HarvestJournalError("conflict", message);
-function parsed<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown): T {
+function parsed<T>(schema: z.ZodType<T, unknown>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw corrupt();
   return result.data;

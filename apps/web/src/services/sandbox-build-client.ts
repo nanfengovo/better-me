@@ -517,7 +517,7 @@ const presetReply = z.object({ ok:z.literal(true), app:z.object({
   appId:z.string(), name:z.string(), nameEn:z.string(), icon:z.string(), version:z.string(), description:z.string(),
   codeHash:z.string().regex(/^[a-f0-9]{64}$/i), compiledAt:z.string().min(1),
   grantedScopes:z.array(z.enum(["selected_offers","backcheck_summary","job_snapshots"])), bundleHtml:z.string().min(1),
-  verifierVersion:z.literal("reviewed-builtin-v2"), dependencies:z.record(z.string()), verification:presetAudit,
+  verifierVersion:z.literal("reviewed-builtin-v2"), dependencies:z.record(z.string(), z.string()), verification:presetAudit,
 }), verification:presetAudit.optional() });
 
 export async function buildSandboxedMicroApp(input: SandboxBuildInput): Promise<BuiltMicroAppArtifact> {

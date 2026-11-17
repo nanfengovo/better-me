@@ -118,7 +118,7 @@ export class AtlasSourceServiceError extends Error {
     super(message); this.name = "AtlasSourceServiceError";
   }
 }
-function input<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown): T {
+function input<T>(schema: z.ZodType<T, unknown>, value: unknown): T {
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new AtlasSourceServiceError("invalid-input", "输入不符合来源工具契约，请检查 JSON、范围或限制。");
   return parsed.data;
@@ -162,7 +162,7 @@ async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 102
 
 /** Browser access to the real authenticated tool routes. Source configs remain inert data. */
 export function createAtlasSourceClient(endpoint: string, token: string) {
-  async function request<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
+  async function request<T>(path: string, schema: z.ZodType<T, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
     options.signal?.throwIfAborted(); const base = baseUrl(endpoint, token);
     if (key !== undefined) input(KeySchema, key);
     let response: Response;

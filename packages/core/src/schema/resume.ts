@@ -92,10 +92,10 @@ export const ResumeViewSchema = z.object({
     "skills",
     "education",
   ]),
-  sectionVisibility: z.record(ResumeSectionIdSchema, z.boolean()).optional(),
-  profileVisibility: z.record(ResumeProfileFieldSchema, z.boolean()).optional(),
+  sectionVisibility: z.partialRecord(ResumeSectionIdSchema, z.boolean()).optional(),
+  profileVisibility: z.partialRecord(ResumeProfileFieldSchema, z.boolean()).optional(),
   layout: ResumeLayoutSchema.optional(),
-  textStyles: z.record(z.array(TextStyleRangeSchema)).optional(),
+  textStyles: z.record(z.string(), z.array(TextStyleRangeSchema)).optional(),
   targetJdId: z.string().optional(),
   /** A job-specific wording snapshot, never a promotion into long-term career facts. */
   isolatedFactBase: FactBaseSchema.optional(),

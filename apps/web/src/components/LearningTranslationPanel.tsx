@@ -55,7 +55,7 @@ const Recovery = z
     model: z.string(),
     bilingual: z.boolean(),
     glossary: z.string().max(8000),
-    reviews: z.record(ReviewDraft),
+    reviews: z.record(z.string(), ReviewDraft),
     pending: Pending.optional(),
   })
   .strict();

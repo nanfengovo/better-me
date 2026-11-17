@@ -135,7 +135,7 @@ const CommitteeIssueSchema = z.object({ code: z.enum(["invalid_citation", "unrea
   "duplicate_claim", "missing_claim_assessment", "no_supporting_evidence", "inference_is_not_proof", "personal_contribution_unknown",
   "personal_contribution_denied", "design_is_not_implementation", "unsupported_number", "unsupported_rewrite", "invalid_protocol", "wrong_role"]),
   claimId: identifier.optional(), evidenceId: identifier.optional(), detail: z.string() }).strict();
-export const CommitteeReportSchema: z.ZodType<CommitteeReport, z.ZodTypeDef, unknown> = z.object({
+export const CommitteeReportSchema: z.ZodType<CommitteeReport, unknown> = z.object({
   schemaVersion: z.literal(1), binding: CommitteeBindingSchema, snapshotFingerprint: digest,
   status: z.enum(["completed", "partial", "cancelled", "budget_exhausted", "stale", "failed"]),
   claims: z.array(z.object({ schemaVersion: z.literal(1), claimId: identifier, claimHash: digest, snapshotFingerprint: digest,

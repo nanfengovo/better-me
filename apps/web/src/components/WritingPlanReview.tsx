@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import type { CareerTask } from "@better-me/agent-contracts";
 
-const unsentSchema=z.object({selected:z.array(z.string()).max(300),answers:z.record(z.string().max(4000))}).strict();
+const unsentSchema=z.object({selected:z.array(z.string()).max(300),answers:z.record(z.string(), z.string().max(4000))}).strict();
 /** Unsent text is local, confirmed text lives in the Host task. No stored boolean is consent. */
 export function WritingPlanReview({task,storage,onChange,disabled}:{task:CareerTask;storage:Storage;onChange:(answer:string)=>void;disabled:boolean}){
   const plan=task.writingPlan!;

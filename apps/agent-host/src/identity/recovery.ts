@@ -118,7 +118,7 @@ export class RecoveryCatalog {
       for (const item of plan.artifacts) manifest.artifacts.push({ ...await save({ base64: item.bytes.toString("base64") }), label: item.label });
       for (const raw of plan.continuity) {
         const value = structuredClone(raw);
-        const base = z.object({ workspaceKey: z.string().min(1), messages: z.array(z.record(z.unknown())), memories: z.array(z.record(z.unknown())), tasks: z.array(z.record(z.unknown())) }).passthrough().parse(value);
+        const base = z.object({ workspaceKey: z.string().min(1), messages: z.array(z.record(z.string(), z.unknown())), memories: z.array(z.record(z.string(), z.unknown())), tasks: z.array(z.record(z.string(), z.unknown())) }).passthrough().parse(value);
         Object.assign(value, { ownerId: this.ownerId, revision: 1, tracking: false, selection: { kind: "current", profileId: "", model: "" },
           messages: base.messages.map(message => ({ ...message, archived: true, resumeShared: false })),
           memories: base.memories.map(memory => ({ ...memory, valid: false, shared: false, reason: "旧资料恢复；复用前请重新核对并授权。" })),

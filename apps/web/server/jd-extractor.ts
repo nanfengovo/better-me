@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createLocalBridge, trustedBridgeWorkbench, readBridgeJson, bridgeFailure } from "./local-bridge";
 import type { Plugin } from "vite";
 import { load } from "cheerio";
 import { allowedJobUrl, normalizeJobShare, jobPostingPublication, readJdPublicationFields, type JdImportResult, type JdSourcePublication, type JobPlatform } from "../src/lib/jd-source";
@@ -521,15 +522,11 @@ function sendJson(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value));
 }
 
-let latestSyncedJob: {
-  title: string;
-  company: string;
-  salary?: string;
-  location?: string;
-  description: string;
-  sourceUrl?: string;
-  syncedAt: number;
-} | null = null;
+const localBridge = createLocalBridge({ injectCookies: async cookies => {
+  const { checkCdpRunning, launchRealChromeCdp, injectPlatformCookies } = await import("./jd-real-chrome-launcher");
+  if (!await checkCdpRunning()) await launchRealChromeCdp();
+  return injectPlatformCookies(cookies);
+} });
 
 const AUTO_BROWSER_CONTENT_SELECTORS = [
   ".job-sec-text",
@@ -749,58 +746,7 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
 }
 
 export async function jdExtractionMiddleware(request: IncomingMessage, response: ServerResponse, next: () => void, sessions: Pick<typeof browserSessionManager, "readOnce"> = browserSessionManager) {
-  if (request.url?.split("?")[0] === "/api/jd/sync-extension") {
-    if (request.method === "OPTIONS") {
-      response.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Max-Age": "86400",
-      });
-      response.end();
-      return;
-    }
-    if (request.method === "GET") {
-      response.writeHead(200, {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store",
-        "Access-Control-Allow-Origin": "*",
-      });
-      response.end(JSON.stringify({ ok: true, latest: latestSyncedJob }));
-      return;
-    }
-    if (request.method === "POST") {
-      const chunks: Buffer[] = [];
-      for await (const chunk of request) {
-        chunks.push(Buffer.from(chunk));
-      }
-      try {
-        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as Record<string, unknown>;
-        latestSyncedJob = {
-          title: String(body.title || "").trim() || "目标职位",
-          company: String(body.company || "").trim() || "目标企业",
-          salary: typeof body.salary === "string" ? body.salary.trim() : undefined,
-          location: typeof body.location === "string" ? body.location.trim() : undefined,
-          description: String(body.description || "").trim(),
-          sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl.trim() : undefined,
-          syncedAt: Date.now(),
-        };
-        response.writeHead(200, {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store",
-          "Access-Control-Allow-Origin": "*",
-        });
-        response.end(JSON.stringify({ ok: true, syncedJob: latestSyncedJob }));
-      } catch {
-        response.writeHead(400, {
-          "Content-Type": "application/json; charset=utf-8",
-          "Access-Control-Allow-Origin": "*",
-        });
-        response.end(JSON.stringify({ error: "Invalid JSON" }));
-      }
-      return;
-    }
-  }
+  if (await localBridge(request, response)) return;
   if (request.url?.split("?")[0] === "/api/jd/auto-browser-extract") {
     if (request.method !== "POST") { sendJson(response, 405, { error: "请使用 POST 提交岗位分享链接。" }); return; }
     if (!request.headers["content-type"]?.includes("application/json")) { sendJson(response, 415, { error: "仅接受 JSON 格式的岗位链接。" }); return; }
@@ -831,126 +777,28 @@ export async function jdExtractionMiddleware(request: IncomingMessage, response:
     }
     return;
   }
-  if (request.url?.split("?")[0] === "/api/jd/cookie-bridge") {
-    if (request.method === "OPTIONS") {
-      response.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Max-Age": "86400",
-      });
-      response.end();
-      return;
-    }
-    if (request.method === "GET") {
-      response.writeHead(200, {
-        "Content-Type": "application/json; charset=utf-8",
-        "Access-Control-Allow-Origin": "*",
-      });
-      response.end(JSON.stringify({ ok: true, message: "BetterMe Cookie Bridge ready" }));
-      return;
-    }
-    if (request.method === "POST") {
-      const chunks: Buffer[] = [];
-      for await (const chunk of request) {
-        chunks.push(Buffer.from(chunk));
-      }
-      try {
-        const text = Buffer.concat(chunks).toString("utf-8");
-        const rawData: any = JSON.parse(text);
-        let platform = "boss";
-        let cookies: any[] = [];
-        let port = 9222;
-
-        if (Array.isArray(rawData)) {
-          cookies = rawData;
-          const d = String(cookies[0]?.domain || "");
-          if (d.includes("zhipin")) platform = "boss";
-          else if (d.includes("liepin")) platform = "liepin";
-          else if (d.includes("51job")) platform = "51job";
-          else if (d.includes("linkedin")) platform = "linkedin";
-        } else if (typeof rawData === "object" && rawData !== null) {
-          if (typeof rawData.port === "number") port = rawData.port;
-          if (typeof rawData.platform === "string") {
-            const p = rawData.platform.toLowerCase();
-            if (p.includes("zhipin") || p === "boss") platform = "boss";
-            else if (p.includes("liepin")) platform = "liepin";
-            else if (p.includes("51job")) platform = "51job";
-            else if (p.includes("linkedin")) platform = "linkedin";
-            else platform = p;
-          }
-          if (Array.isArray(rawData.cookies)) {
-            cookies = rawData.cookies;
-          } else if (typeof rawData.cookies === "string") {
-            cookies = rawData.cookies
-              .split(";")
-              .map((c: string) => {
-                const parts = c.trim().split("=");
-                return { name: parts[0]?.trim(), value: parts.slice(1).join("=").trim() };
-              })
-              .filter((c: any) => Boolean(c.name));
-          } else if (typeof rawData.cookieString === "string") {
-            cookies = rawData.cookieString
-              .split(";")
-              .map((c: string) => {
-                const parts = c.trim().split("=");
-                return { name: parts[0]?.trim(), value: parts.slice(1).join("=").trim() };
-              })
-              .filter((c: any) => Boolean(c.name));
-          }
-        }
-
-        const { checkCdpRunning, launchRealChromeCdp, injectPlatformCookies } = await import("./jd-real-chrome-launcher");
-        const running = await checkCdpRunning(port);
-        if (!running) {
-          await launchRealChromeCdp(port);
-          await new Promise((r) => setTimeout(r, 600));
-        }
-
-        const result = await injectPlatformCookies(cookies, { defaultDomain: platform, port });
-        response.writeHead(result.success ? 200 : 400, {
-          "Content-Type": "application/json; charset=utf-8",
-          "Access-Control-Allow-Origin": "*",
-        });
-        response.end(JSON.stringify({ ...result, platform }));
-      } catch (err: any) {
-        response.writeHead(400, {
-          "Content-Type": "application/json; charset=utf-8",
-          "Access-Control-Allow-Origin": "*",
-        });
-        response.end(JSON.stringify({ success: false, error: err?.message || "Invalid JSON or cookie payload" }));
-      }
-      return;
-    }
-    response.writeHead(405, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-    });
-    response.end(JSON.stringify({ error: "Method Not Allowed" }));
-    return;
-  }
   if (request.url?.split("?")[0] === "/api/jd/real-chrome") {
-    const { getRealChromeStatus, launchRealChromeCdp, focusRealChromeWindow, killRealChromeCdp, openRealChromeTab, openRealChromeTabs, getPlatformAuthStatuses, openPlatformLoginTab, injectPlatformCookies } = await import("./jd-real-chrome-launcher");
+    if (!trustedBridgeWorkbench(request)) { sendJson(response, 403, { error: "浏览器控制仅允许本机工作台同源访问。" }); return; }
+    const { getRealChromeStatus, launchRealChromeCdp, focusRealChromeWindow, killRealChromeCdp, openRealChromeTab, openRealChromeTabs, getPlatformAuthStatuses, openPlatformLoginTab } = await import("./jd-real-chrome-launcher");
     if (request.method === "GET") {
       const status = await getRealChromeStatus();
       sendJson(response, 200, status);
       return;
     }
     if (request.method === "POST") {
-      let body: { action?: string; port?: number; url?: string; urls?: string[]; platform?: any; cookies?: any } = {};
+      let body: { action?: string; port?: number; url?: string; urls?: string[]; platform?: any; cookies?: any };
       try {
-        const chunks: Buffer[] = [];
-        for await (const chunk of request) chunks.push(Buffer.from(chunk));
-        body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
-      } catch {
-        // empty body
-      }
-      if (body.action === "inject-cookies") {
-        const cookies = Array.isArray(body.cookies) ? body.cookies : [];
-        const result = await injectPlatformCookies(cookies, { defaultDomain: body.platform, port: body.port });
-        sendJson(response, result.success ? 200 : 400, result);
-        return;
-      }
+        body = await readBridgeJson(request);
+        if (body.port !== undefined && (!Number.isInteger(body.port) || body.port < 1024 || body.port > 65535)) { sendJson(response, 400, { error: "浏览器端口无效。" }); return; }
+        if (!["launch", "restart", "kill", "platform-auth", "open-platform-login", "focus", "open-tab", "open-tabs", "inject-cookies"].includes(body.action ?? "")) { sendJson(response, 400, { error: "浏览器操作无效。" }); return; }
+        const validUrl = (value: unknown) => {
+          if (typeof value !== "string" || value.length > 2048) return false;
+          try { const url = new URL(value); return /^https?:$/.test(url.protocol) && !url.username && !url.password; } catch { return false; }
+        };
+        if (body.action === "open-tab" && !validUrl(body.url) || body.action === "open-tabs" && (!Array.isArray(body.urls) || !body.urls.length || body.urls.length > 32 || !body.urls.every(validUrl))) { sendJson(response, 400, { error: "请提供有效的 HTTP(S) 页面链接（最多 32 项）。" }); return; }
+        if (body.action === "open-platform-login" && body.platform !== undefined && !["boss", "liepin", "51job", "linkedin", "all"].includes(body.platform)) { sendJson(response, 400, { error: "招聘平台无效。" }); return; }
+      } catch (error) { bridgeFailure(response, error); return; }
+      if (body.action === "inject-cookies") { sendJson(response, 400, { error: "请通过 Cookie 桥接入口导入。" }); return; }
       if (body.action === "platform-auth") {
         const authOverview = await getPlatformAuthStatuses(body.port);
         sendJson(response, 200, authOverview);

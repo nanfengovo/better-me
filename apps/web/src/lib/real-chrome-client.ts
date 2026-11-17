@@ -1,3 +1,5 @@
+import { localBridgeHeaders } from "./local-bridge-client";
+
 export type RealChromeStatus = {
   running: boolean;
   port: number;
@@ -8,7 +10,7 @@ export type RealChromeStatus = {
 
 export async function getRealChromeStatus(signal?: AbortSignal): Promise<RealChromeStatus> {
   try {
-    const res = await fetch("/api/jd/real-chrome", { signal });
+    const res = await fetch("/api/jd/real-chrome", { headers: localBridgeHeaders, signal });
     if (!res.ok) throw new Error("获取真实浏览器状态失败");
     return (await res.json()) as RealChromeStatus;
   } catch (error) {
@@ -24,7 +26,7 @@ export async function getRealChromeStatus(signal?: AbortSignal): Promise<RealChr
 export async function launchRealChrome(signal?: AbortSignal): Promise<RealChromeStatus> {
   const res = await fetch("/api/jd/real-chrome", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
     body: JSON.stringify({ action: "launch" }),
     signal,
   });
@@ -38,7 +40,7 @@ export async function launchRealChrome(signal?: AbortSignal): Promise<RealChrome
 export async function restartRealChrome(signal?: AbortSignal): Promise<RealChromeStatus> {
   const res = await fetch("/api/jd/real-chrome", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
     body: JSON.stringify({ action: "restart" }),
     signal,
   });
@@ -53,7 +55,7 @@ export async function focusRealChrome(signal?: AbortSignal): Promise<boolean> {
   try {
     const res = await fetch("/api/jd/real-chrome", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "focus" }),
       signal,
     });
@@ -69,7 +71,7 @@ export async function openUrlInRealChrome(url: string, signal?: AbortSignal): Pr
   try {
     const res = await fetch("/api/jd/real-chrome", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "open-tab", url }),
       signal,
     });
@@ -85,7 +87,7 @@ export async function openUrlsInRealChrome(urls: string[], signal?: AbortSignal)
   try {
     const res = await fetch("/api/jd/real-chrome", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "open-tabs", urls }),
       signal,
     });
@@ -117,7 +119,7 @@ export async function getPlatformAuthOverview(signal?: AbortSignal): Promise<Pla
   try {
     const res = await fetch("/api/jd/real-chrome", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "platform-auth" }),
       signal,
     });
@@ -144,7 +146,7 @@ export async function openPlatformLogin(
   try {
     const res = await fetch("/api/jd/real-chrome", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "open-platform-login", platform }),
       signal,
     });
@@ -163,7 +165,7 @@ export async function bridgePlatformCookies(
   try {
     const res = await fetch("/api/jd/cookie-bridge", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...localBridgeHeaders, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal,
     });

@@ -131,7 +131,7 @@ export const CoachSubmissionSchema = z.object({
   practice: PracticeReceiptSchema.optional(),
 }).strict();
 export type CoachSubmission = z.infer<typeof CoachSubmissionSchema>;
-const ActivePlanSchema = z.object({ id: z.string().min(1).max(100), plan: CoachPlanSchema, startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), progress: z.record(CoachTaskProgressSchema) }).strict();
+const ActivePlanSchema = z.object({ id: z.string().min(1).max(100), plan: CoachPlanSchema, startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), progress: z.record(z.string(), CoachTaskProgressSchema) }).strict();
 const InterviewSessionSchema = z.object({ id: z.string().min(1).max(100), totalRounds: z.number().int().min(2).max(8),
   contextFingerprint: z.string().max(100), status: z.enum(["active", "completed", "stopped"]),
   turns: z.array(CoachInterviewTurnSchema).max(8), question: CoachInterviewSchema.shape.question,
@@ -152,6 +152,6 @@ export const CoachStateSchema = z.object({
   submissions: z.array(CoachSubmissionSchema),
   interview: InterviewSessionSchema.optional(), interviewHistory: z.array(InterviewSessionSchema).optional(),
   drills: z.array(DrillAttemptSchema).optional(),
-  practiceDrafts: z.record(z.string().max(20000)).optional(),
+  practiceDrafts: z.record(z.string(), z.string().max(20000)).optional(),
 }).strict();
 export type CoachState = z.infer<typeof CoachStateSchema>;

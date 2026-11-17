@@ -12,7 +12,7 @@ export const FxSnapshotSchema = z.object({
   id: z.string().trim().min(1).max(200),
   provider: z.string().trim().min(1).max(200),
   date: CalendarDateSchema,
-  ratesToCny: z.record(CurrencySchema, z.number().finite().positive()).refine(
+  ratesToCny: z.partialRecord(CurrencySchema, z.number().finite().positive()).refine(
     (rates) => rates.CNY === undefined || rates.CNY === 1,
     'A CNY-to-CNY rate must equal 1',
   ),

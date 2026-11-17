@@ -96,7 +96,7 @@ export function createMcpClientHttp<OwnerAccess>(options: {
     return { auth, connection, client };
   }
   async function previewCall(raw: unknown, ownerAccess: OwnerAccess) {
-    const input = z.object({ connectionId: opaque, kind: z.enum(["tool", "resource"]), name: z.string().min(1).max(2000), args: z.record(z.unknown()).default({}) }).strict().parse(raw), resolved = await connectionFor(input.connectionId, ownerAccess);
+    const input = z.object({ connectionId: opaque, kind: z.enum(["tool", "resource"]), name: z.string().min(1).max(2000), args: z.record(z.string(), z.unknown()).prefault({}) }).strict().parse(raw), resolved = await connectionFor(input.connectionId, ownerAccess);
     if (Buffer.byteLength(JSON.stringify(input.args)) > resolved.connection.server.maxInputBytes || allStrings(input.args).some(text => disclosureViolations(text).length) || (input.kind === "tool" ? !resolved.connection.server.allowedTools.includes(input.name) : !resolved.connection.server.allowedResources.includes(input.name) || Object.keys(input.args).length > 0)) throw new McpClientHttpError("mcp_call_not_allowlisted_or_safe", 403);
     const review = await resolved.client.review();
     const call: StoredMcpCall = { id: randomUUID(), auth: stamp(resolved.auth), connectionId: resolved.connection.id, kind: input.kind, name: input.name, args: structuredClone(input.args), inputHash: mcpCallInputHash(input.kind, input.name, input.args), toolsetHash: review.toolsetHash, manifestHash: review.manifestHash, expiresAt: new Date(Math.min(Date.parse(resolved.connection.expiresAt), Date.now() + 300_000)).toISOString(), phase: "awaiting_consent" };

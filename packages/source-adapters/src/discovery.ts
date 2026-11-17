@@ -16,7 +16,7 @@ function formatFor(url: string): SourceSampleFormat {
   const path = new URL(url).pathname.toLowerCase();
   return path.endsWith(".json") ? "json" : path.endsWith(".csv") ? "csv" : /\.(?:md|markdown)$/.test(path) ? "markdown" : "unknown";
 }
-function parseInput<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, input: unknown): T {
+function parseInput<T>(schema: z.ZodType<T, unknown>, input: unknown): T {
   const result = schema.safeParse(input); if (!result.success) throw new ToolError("invalid-input"); return result.data;
 }
 async function fetchText(url: string, execution: SourceDiscoveryExecution): Promise<{ url: string; body: string }> {

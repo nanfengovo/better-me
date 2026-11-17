@@ -5,7 +5,7 @@ import {
 } from "./snapshots.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
-const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([z.null(), z.boolean(), z.number().finite(), z.string(), z.array(JsonValueSchema), z.record(JsonValueSchema)]));
+const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([z.null(), z.boolean(), z.number().finite(), z.string(), z.array(JsonValueSchema), z.record(z.string(), JsonValueSchema)]));
 export const ReplayStepSchema = z.discriminatedUnion("kind", [
   z.object({ id: IntelligenceIdSchema, kind: z.literal("analysis"), operation: IntelligenceIdSchema, input: JsonValueSchema }).strict(),
   z.object({ id: IntelligenceIdSchema, kind: z.literal("effect"), operation: IntelligenceIdSchema, input: JsonValueSchema, effectKey: IntelligenceIdSchema }).strict(),

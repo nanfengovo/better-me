@@ -27,7 +27,7 @@ const scalar = z.string().trim().min(1).max(2000);
 const point = z.object({
   place_rank: z.number().int(), osm_type: z.enum(["node", "way", "relation"]), osm_id: z.number().int().positive().safe(),
   lat: scalar, lon: scalar, display_name: scalar, class: z.string().max(200).optional(), category: z.string().max(200).optional(), type: z.string().max(200).optional(),
-  address: z.record(z.string().max(2000)),
+  address: z.record(z.string(), z.string().max(2000)),
 }).passthrough();
 const payload = z.array(z.unknown()).max(5);
 const lookupText = (max: number) => z.string().refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.").transform(value => value.trim()).pipe(z.string().min(1).max(max));

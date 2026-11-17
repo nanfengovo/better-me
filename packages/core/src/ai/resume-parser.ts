@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   type FactBase,
   FactBaseSchema,
@@ -102,17 +103,17 @@ function isUnknownExperienceText(value: unknown): boolean {
   return typeof value === "string" && /^(?:不详|未知|未提供|未注明|待确认|N\/A|unknown|not specified)$/i.test(value.trim());
 }
 
-function aiFieldFormatError(issues: { path: (string | number)[]; message: string }[]): Error {
+function aiFieldFormatError(issues: { path: PropertyKey[]; message: string }[]): Error {
   const details = issues.map((issue) => {
     const path = issue.path.reduce<string>((result, part) => typeof part === "number"
-      ? `${result}[${part}]` : `${result}${result ? "." : ""}${part}`, "");
+      ? `${result}[${part}]` : `${result}${result ? "." : ""}${String(part)}`, "");
     return `${path || "根对象"}：${issue.message}`;
   });
   return new Error(`AI 返回的字段格式不符合要求：${details.join("；")}。未导入，请重试或核对原文。`);
 }
 
 // This validation view permits absence only, without creating placeholder facts.
-const AiIncompleteExperienceSchema = ExperienceSchema.innerType().partial({ start: true, end: true }).extend({
+const AiIncompleteExperienceSchema = z.object(ExperienceSchema.shape).partial({ start: true, end: true }).extend({
   org: LocalizedStringSchema.partial({ zh: true }).optional(),
   title: LocalizedStringSchema.partial({ zh: true }).optional(),
 });

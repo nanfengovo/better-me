@@ -6,6 +6,7 @@ import path from "node:path";
 import os from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { createRequire } from "node:module";
+import { z } from "zod";
 import { AgentRunManager } from "../src/runs/run-manager.ts";
 import { RuntimeRegistry } from "../src/runtime/registry.ts";
 import { WorkerAdapterRegistry } from "../src/runtime/worker-adapter.ts";
@@ -16,9 +17,6 @@ import { createToolRegistry } from "../../../packages/opportunities/src/tools.ts
 
 const hostRequire = createRequire(new URL("../package.json", import.meta.url));
 const { MemorySaver, Command } = hostRequire("@langchain/langgraph");
-// Match the ESM Zod instance used by the existing opportunities registry.
-// A CJS/ESM duplicate would make its instanceof guard reject the fixture itself.
-const { z } = await import(new URL("../../../packages/opportunities/node_modules/zod/dist/esm/index.js", import.meta.url).href);
 
 // Synthetic protocol replay: no real Claude, model, browser or user data access.
 const refusal = "The command needs user approval to run. You can check the Claude Code CLI version yourself by running this in your terminal: claude --version";

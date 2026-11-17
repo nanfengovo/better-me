@@ -70,7 +70,7 @@ export const RuntimeAgentInfoSchema = RuntimeAgentDefSchema.extend({
     version: z.enum(["passed", "failed", "skipped"]).default("skipped"),
     protocol: z.enum(["passed", "failed", "skipped"]).default("skipped"),
     auth: z.enum(["configured", "missing", "unsupported", "unknown"]).default("unknown"),
-  }).default({}),
+  }).prefault({}),
 });
 export type RuntimeAgentInfo = z.infer<typeof RuntimeAgentInfoSchema>;
 
@@ -99,7 +99,7 @@ export const AgentEventSchema = z.object({
   type: AgentEventTypeSchema,
   timestamp: z.string().datetime(),
   agentId: z.string().min(1).optional(),
-  payload: z.record(z.string(), JsonValueSchema).default({}),
+  payload: z.record(z.string(), JsonValueSchema).prefault({}),
 });
 export type AgentEvent = z.infer<typeof AgentEventSchema>;
 
@@ -133,7 +133,7 @@ export const ContextPackSchema = z.object({
   artifactRefs: z.array(z.string().min(1)).max(500).default([]),
   toolAllowlist: z.array(z.string().min(1).max(160)).max(100).default([]),
   redactedFields: z.array(z.string().min(1).max(160)).max(100).default([]),
-  content: z.record(z.string(), JsonValueSchema).default({}),
+  content: z.record(z.string(), JsonValueSchema).prefault({}),
   characterBudget: z.number().int().positive().max(1_000_000).default(40_000),
 });
 export type ContextPack = z.infer<typeof ContextPackSchema>;
@@ -254,7 +254,7 @@ export const MicroAppManifestSchema = z.object({
   name: z.string().min(1).max(80),
   nameEn: z.string().min(1).max(80),
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
-  dependencies: z.record(z.string(), z.string()).default({}),
+  dependencies: z.record(z.string(), z.string()).prefault({}),
   grantedScopes: z.array(MicroAppScopeSchema).min(1),
   pinnedToDock: z.boolean().default(true),
 });

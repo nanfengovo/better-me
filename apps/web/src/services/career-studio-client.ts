@@ -12,7 +12,7 @@ export class CareerStudioClientError extends Error {
 }
 export type StudioRequest = (route: string, body?: unknown, signal?: AbortSignal) => Promise<unknown>;
 const contextResponse = z.object({ context: StudioContextInputSchema.omit({ consent: true }).extend({ id: z.string(), ownerId: z.string(), session: z.string(),
-  createdAt: z.string().datetime(), expiresAt: z.string().datetime(), revoked: z.boolean(), hostGeneration: z.string().optional() }).strict(), revision: z.number().int().positive(), claimHashes: z.record(z.string()), limitations: z.array(z.string()) }).strict();
+  createdAt: z.string().datetime(), expiresAt: z.string().datetime(), revoked: z.boolean(), hostGeneration: z.string().optional() }).strict(), revision: z.number().int().positive(), claimHashes: z.record(z.string(), z.string()), limitations: z.array(z.string()) }).strict();
 
 /** Fixed paired Host only. No browser-stored token/context, arbitrary endpoint,
  * owner override, retry or alternate paid-model fallback. */

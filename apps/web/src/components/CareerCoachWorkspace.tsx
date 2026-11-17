@@ -24,8 +24,8 @@ import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-rec
 import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
 import { COACH_MODES } from "../lib/career-coach/types";
 
-const CoachViewRecoverySchema = z.object({ mode: z.enum(COACH_MODES), inputs: z.record(z.string().max(12000)),
-  selectedRecords: z.record(z.string()), taskId: z.string(), evidence: z.record(z.string().max(12000)), minutes: z.number().min(0).max(1440), decisions: z.record(z.string()) }).strict();
+const CoachViewRecoverySchema = z.object({ mode: z.enum(COACH_MODES), inputs: z.record(z.string(), z.string().max(12000)),
+  selectedRecords: z.record(z.string(), z.string()), taskId: z.string(), evidence: z.record(z.string(), z.string().max(12000)), minutes: z.number().min(0).max(1440), decisions: z.record(z.string(), z.string()) }).strict();
 const initialCoachView = (): z.infer<typeof CoachViewRecoverySchema> => ({ mode: "analysis", inputs: {}, selectedRecords: {}, taskId: "", evidence: {}, minutes: 30, decisions: {} });
 
 import { useUiPreferences } from "../lib/ui-preferences";

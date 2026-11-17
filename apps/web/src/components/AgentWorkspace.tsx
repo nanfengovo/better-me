@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { triggerAgentGuide } from "../lib/agent-guide";
 import { readRuntimeConnection } from "../lib/runtime-connection";
+import { localBridgeHeaders } from "../lib/local-bridge-client";
 import { isJdLinkOnly } from "../lib/jd-import";
 import { applyJdMetadata, extractAndParseJobLink, type ParsedJobInfo } from "../lib/jd-link-parser";
 import { defaultJdIntakeTaskClient } from "../services/jd-intake-task-client";
@@ -390,7 +391,7 @@ function AgentWorkspaceSession({
     let isCancelled = false;
     const checkSync = async () => {
       try {
-        const resp = await fetch("/api/jd/sync-extension");
+        const resp = await fetch("/api/jd/sync-extension", { headers: localBridgeHeaders });
         if (!resp.ok) return;
         const data = (await resp.json()) as { latest?: { title: string; company: string; salary?: string; location?: string; description: string; sourceUrl?: string; syncedAt: number } };
         if (data.latest && data.latest.syncedAt > lastProcessedSyncTimeRef.current) {

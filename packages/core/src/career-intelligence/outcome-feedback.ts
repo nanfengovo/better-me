@@ -85,9 +85,9 @@ export const OutcomeFeedbackReportSchema = z.object({ schemaVersion: z.literal(1
 
 export const OutcomeFeedbackSnapshotInputSchema = OutcomeFeedbackSnapshotSchema.omit({ schemaVersion: true, fingerprint: true, events: true, notes: true, resumes: true }).extend({
   resumes: z.array(ResumeOutcomeVersionSchema.omit({ claims: true }).extend({ claims: z.array(ResumeOutcomeVersionSchema.shape.claims.element.omit({ hash: true })).max(200) })).max(200),
-  events: z.array(OutcomeEventSchema.innerType().omit({ hash: true })).max(5000),
-  notes: z.array(InterviewFeedbackNoteSchema.innerType().omit({ transcriptHash: true, segments: true }).extend({
-    segments: z.array(InterviewFeedbackNoteSchema.innerType().shape.segments.element.omit({ hash: true })).min(1).max(500),
+  events: z.array(z.strictObject(OutcomeEventSchema.shape).omit({ hash: true })).max(5000),
+  notes: z.array(z.strictObject(InterviewFeedbackNoteSchema.shape).omit({ transcriptHash: true, segments: true }).extend({
+    segments: z.array(InterviewFeedbackNoteSchema.shape.segments.element.omit({ hash: true })).min(1).max(500),
   })).max(200),
 }).strict();
 export type OutcomeFeedbackSnapshotInput = Omit<OutcomeFeedbackSnapshot, "schemaVersion" | "fingerprint" | "events" | "notes" | "resumes"> & {

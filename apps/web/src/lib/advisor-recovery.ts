@@ -34,7 +34,7 @@ export const AdvisorRecoverySchema = z.object({
   jobSeed: RecoveryJobSchema.nullable(), currentJob: RecoveryJobSchema.nullable(), inputTitle: z.string(), inputCompany: z.string(), inputSalary: z.string(), inputLocation: z.string(), inputDescription: z.string(),
   sourceUrl: z.string().optional(), sourcePlatform: z.string().optional(), isEditingJob: z.boolean(), linkInputValue: z.string(),
   messages: z.array(RecoveryMessageSchema), inputMessage: z.string(), pendingReferences: z.array(RecoveryReferenceSchema), pendingAttachments: z.array(RecoveryImageSchema), pendingChatId: z.string().optional(),
-  threadId: z.string(), structuredJd: StructuredSchema.nullable(), proposals: z.array(ProposalSchema), decisions: z.record(DecisionSchema),
+  threadId: z.string(), structuredJd: StructuredSchema.nullable(), proposals: z.array(ProposalSchema), decisions: z.record(z.string(), DecisionSchema),
   editedText: z.string(), editingProposalId: z.string().nullable(),
   taskView: z.enum(["job", "resume", "career", "learning", "practice", "handoff"]), showCareerCoach: z.boolean(),
 }).strict();

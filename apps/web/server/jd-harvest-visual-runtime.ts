@@ -54,7 +54,7 @@ export async function localHarvestOcr(image: VisualImage, signal: AbortSignal): 
   return OcrResult.parse(JSON.parse(result)).map(line => ({ ...line, x: line.x * image.width, y: line.y * image.height, width: line.width * image.width, height: line.height * image.height }));
 }
 export function readComputerProposal(value: unknown): unknown {
-  const envelope = z.object({ status: z.literal("completed"), output: z.array(z.record(z.unknown())).max(20) }).parse(value);
+  const envelope = z.object({ status: z.literal("completed"), output: z.array(z.record(z.string(), z.unknown())).max(20) }).parse(value);
   const calls = envelope.output.filter(item => item.type === "computer_call");
   if (calls.length !== 1) return;
   const call = calls[0]!;

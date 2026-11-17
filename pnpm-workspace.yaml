@@ -5,6 +5,12 @@ packages:
 # 26.18 calls ElectronDownloadCacheMode (not exported by its declared get v3).
 # Scope the compatible API to the packager; keep Electron's own downloader intact.
 overrides:
+  # Mammoth's CLI-only argparse 1.0.3 pulls vulnerable lodash 3; stay on argparse 1.x.
+  'mammoth@1.13.0>argparse': 1.0.10
+  'app-builder-lib@26.18.0>ejs': 3.1.10
+  # v11 retains the named matcher API used by lint/build consumers; leave the
+  # unaffected v3/v5 callable APIs alone. Covered by build-filter regressions.
+  'minimatch@>=7 <11.0.1': 11.0.1
   'app-builder-lib@26.18.0>@electron/get': 5.1.0
   # v13 uses stable Node-API; v12's V8 API cannot compile with Electron 45.
   '@langchain/langgraph-checkpoint-sqlite@1.1.0>better-sqlite3': 13.0.0

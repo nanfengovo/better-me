@@ -1,5 +1,6 @@
 /** @jsxRuntime automatic */
 import { useEffect, useState } from "react";
+import { cookieBridgeBookmarklet, requestLocalBridgeGrant } from "../../lib/local-bridge-client";
 import {
   ShieldCheck,
   RefreshCw,
@@ -60,7 +61,7 @@ const PLATFORM_CONFIG: Record<
   },
 };
 
-const BOOKMARKLET_SCRIPT = `javascript:(function(){try{var raw=document.cookie||'';var list=raw.split(';').map(function(s){var idx=s.indexOf('=');if(idx===-1)return null;var name=s.slice(0,idx).trim();var value=s.slice(idx+1).trim();return name?{name:name,value:value,domain:location.hostname}:null;}).filter(Boolean);if(!list.length){alert('⚠️ 未在当前标签页读取到 Cookie，请先登录该招聘平台！');return;}fetch('http://127.0.0.1:5173/api/jd/cookie-bridge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({platform:location.hostname,cookies:list,url:location.href})}).then(function(res){return res.json();}).then(function(data){if(data.success){alert('🎉 成功同步 '+data.count+' 个 Cookie 到 BetterMe！平台：'+(data.platform||location.hostname));}else{alert('❌ 同步失败: '+(data.error||'未知错误'));}}).catch(function(err){alert('❌ 无法连接到 BetterMe 服务 (http://127.0.0.1:5173): '+err.message);});}catch(e){alert('❌ 发生异常: '+e.message);}})();`;
+// Generated only after an explicit action; credentials are never persisted.
 
 export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAuthHubProps) {
   const { t } = useUiPreferences();
@@ -75,6 +76,8 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
   const [bridgePlatform, setBridgePlatform] = useState<string>("auto");
   const [importing, setImporting] = useState(false);
   const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
+  const [bookmarklet, setBookmarklet] = useState("");
+  const [extensionOrigin, setExtensionOrigin] = useState("");
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -118,12 +121,15 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
 
   const handleCopyBookmarklet = async () => {
     try {
-      await navigator.clipboard.writeText(BOOKMARKLET_SCRIPT);
+      const grant = await requestLocalBridgeGrant("cookies");
+      const script = cookieBridgeBookmarklet(window.location.origin, grant.token);
+      setBookmarklet(script);
+      await navigator.clipboard.writeText(script);
       setCopiedBookmarklet(true);
-      setMessage("✅ 书签代码已复制到剪贴板！可新建书签粘贴使用。");
+      setMessage(t("✅ 单次授权书签已复制，10 分钟内有效；每次同步前请重新生成。", "Single-use bookmark copied. Valid for 10 minutes; regenerate before each sync."));
       setTimeout(() => setCopiedBookmarklet(false), 2500);
     } catch {
-      setMessage("复制失败，请手动选择代码复制。");
+      setMessage(t("授权或复制失败，请在本机工作台重试。", "Authorization or copy failed. Retry in the local workbench."));
     }
   };
 
@@ -305,6 +311,19 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
             )}
 
             <div className="cookie-bridge-grid">
+              <div className="cookie-bridge-card">
+                <label>
+                  {t("岗位同步扩展来源（完整 Origin）", "Job-sync extension origin (full Origin)")}
+                  <input value={extensionOrigin} onChange={event => setExtensionOrigin(event.target.value)} placeholder="chrome-extension://extension-id" />
+                </label>
+                <button type="button" disabled={!extensionOrigin.trim()} onClick={async () => {
+                  try {
+                    const grant = await requestLocalBridgeGrant("job", extensionOrigin.trim());
+                    await navigator.clipboard.writeText(JSON.stringify({ endpoint: window.location.origin + "/api/jd/sync-extension", ...grant }));
+                    setMessage(t("单次岗位同步授权已复制，10 分钟内有效；仅允许填写的来源写入。", "Single-use job-sync authorization copied. Valid for 10 minutes, restricted to the specified origin."));
+                  } catch { setMessage(t("生成或复制同步授权失败。", "Failed to generate or copy sync authorization.")); }
+                }}>{t("生成并复制单次同步授权", "Generate and copy one-time sync authorization")}</button>
+              </div>
               {/* Method 1: Bookmarklet */}
               <div className="cookie-bridge-card">
                 <div className="cookie-bridge-card-header">
@@ -315,12 +334,12 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
                   <span className="bridge-badge-fast">零插件 · 点击即同步</span>
                 </div>
                 <p className="bridge-card-desc">
-                  无需安装任何插件，直接使用浏览器原生书签栏。在日常浏览器中点击一次，即可将当前招聘网站的登录 Cookie 注入 BetterMe。
+                  {t("先点击生成单次授权，再拖到书签栏或粘贴到书签。仅限招聘网站，10 分钟内有效，用后失效；旧书签需重新生成。", "Generate a single-use authorization before dragging or copying. Recruitment sites only, expires in 10 minutes. Regenerate old bookmarks.")}
                 </p>
 
                 <div className="bookmarklet-action-row">
                   <a
-                    href={BOOKMARKLET_SCRIPT}
+                    href={bookmarklet || "#"}
                     className="bookmarklet-pill-link"
                     title="拖动我到书签栏"
                     onClick={(e) => {
@@ -337,7 +356,7 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
                     onClick={handleCopyBookmarklet}
                   >
                     {copiedBookmarklet ? <Check size={14} /> : <Copy size={14} />}
-                    <span>{copiedBookmarklet ? "已复制脚本" : "复制书签代码"}</span>
+                    <span>{copiedBookmarklet ? "已复制脚本" : "生成并复制书签代码"}</span>
                   </button>
                 </div>
 

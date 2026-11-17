@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { StudioModelRequestSchema, type StudioModelPurpose } from "./career-studio.js";
 
-const payload = z.object({ contract: z.record(z.unknown()), data: z.unknown() }).strict().refine(value => Object.hasOwn(value, "data"), "Complete data is required.");
+const payload = z.object({ contract: z.record(z.string(), z.unknown()), data: z.unknown() }).strict().refine(value => Object.hasOwn(value, "data"), "Complete data is required.");
 export const StudioAnalysisRequestSchema = StudioModelRequestSchema.extend({ payload }).strict();
 export type StudioAnalysisRequest = z.infer<typeof StudioAnalysisRequestSchema>;
 export const studioAnalysisRuntime = (model: string) => ({ kind: "model" as const,

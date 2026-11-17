@@ -50,7 +50,7 @@ export const MapBucketSchema = z.object({
 }, "City reference buckets require their complete precision labels.");
 
 /** The actual JSON response contract, including nested domain/value validation. */
-export const JobQueryResultSchema: z.ZodType<JobQueryResult, z.ZodTypeDef, unknown> = z.object({
+export const JobQueryResultSchema: z.ZodType<JobQueryResult, unknown> = z.object({
   queryId: z.string().regex(/^query_[a-f0-9]{64}$/), snapshotVersion: CountSchema, asOf: TimestampSchema,
   normalizedQuery: JobQuerySchema,
   totalJobs: CountSchema, companyCount: CountSchema, mappedJobs: CountSchema, unlocatedJobs: CountSchema, locationPinCount: CountSchema,

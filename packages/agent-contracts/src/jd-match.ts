@@ -27,7 +27,7 @@ export const JdMatchDecisionSchema=z.discriminatedUnion("kind",[
   z.object({kind:z.literal("read_evidence"),handle:id,offset:z.number().int().nonnegative(),length:z.number().int().positive().max(4000)}).strict(),
   z.object({kind:z.literal("match"),proposals:z.array(JdMatchProposalSchema.omit({id:true})).max(1000),report:report.optional()}).strict(),
 ]);
-export const JdMatchReviewSchema=z.record(z.discriminatedUnion("status",[
+export const JdMatchReviewSchema=z.record(z.string(), z.discriminatedUnion("status",[
   z.object({status:z.literal("accepted")}).strict(),
   z.object({status:z.literal("rejected"),reason:z.string().optional()}).strict(),
   z.object({status:z.literal("edited"),editedSuggestion:z.string().min(1)}).strict(),

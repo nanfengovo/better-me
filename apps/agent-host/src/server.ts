@@ -614,7 +614,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         return jsonResponse(res, 413, { error: "request_body_too_large" });
       }
       if (err?.name === "ZodError") {
-        return jsonResponse(res, 400, { error: "invalid_request", details: err.errors });
+        return jsonResponse(res, 400, { error: "invalid_request", details: err.issues });
       }
       // Provider/IO errors may contain prompts, paths or credentials from a private owner.
       // Installation-wide logs must not become a second, unscoped memory store.

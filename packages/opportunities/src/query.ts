@@ -50,11 +50,11 @@ export const JobQuerySchema = z.object({
     allowCityEstimate: z.boolean().default(false), includeUnknown: z.boolean().default(false),
   }).strict().optional(),
   viewport: z.object({ enabled: z.boolean(), bounds: BoundsSchema }).strict().optional(),
-  sort: z.object({ field: z.enum(["relevance", "salary", "distance", "updated"]).default("relevance"), direction: z.enum(["asc", "desc"]).default("desc") }).strict().default({}),
+  sort: z.object({ field: z.enum(["relevance", "salary", "distance", "updated"]).default("relevance"), direction: z.enum(["asc", "desc"]).default("desc") }).strict().prefault({}),
   mapLevel: z.enum(["country", "region", "city", "location"]).default("city"),
   /** Request the host's offline city distribution projection; office/distance facts remain separate. */
   mapCityReferences: z.boolean().optional(),
-  page: z.object({ cursor: z.string().max(500).optional(), limit: z.number().int().min(1).max(200).default(30) }).strict().default({}),
+  page: z.object({ cursor: z.string().max(500).optional(), limit: z.number().int().min(1).max(200).default(30) }).strict().prefault({}),
 }).strict();
 export type JobQuery = z.infer<typeof JobQuerySchema>;
 export type JobQueryInput = z.input<typeof JobQuerySchema>;

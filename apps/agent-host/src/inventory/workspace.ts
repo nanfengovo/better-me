@@ -8,7 +8,7 @@ import type { OwnedStore } from "../identity/owned-store.js";
 
 const key = "private-career-inventory-v1";
 const ledgerSchema = z.object({workspaceKey:z.literal(key),revision:z.number().int().nonnegative(),
-  sessions:z.record(InventorySessionSchema), profile:InventoryProfileSchema}).strict();
+  sessions:z.record(z.string(), InventorySessionSchema), profile:InventoryProfileSchema}).strict();
 type Ledger = z.infer<typeof ledgerSchema>;
 type Access = () => Promise<boolean>;
 const fail = (message:string):never => { throw new IdentityError(409,message); };

@@ -7,7 +7,7 @@ import { AgentTaskClientError, createTaskTransport } from "./agent-task-transpor
 import { assertTaskScope } from "./agent-task-scope";
 import type { UnderstandingRuntime } from "./understanding-client";
 
-async function call<T>(path:string, schema:z.ZodType<T,z.ZodTypeDef,unknown>, body?:unknown) {
+async function call<T>(path:string, schema:z.ZodType<T,unknown>, body?:unknown) {
   const lease=captureIdentityLease();lease.assert();if(!lease.ownerId)throw Error("请先登录本人账号。");
   const res=await ownedFetch(agentOrigin()+"/api/v1/agent/inventory"+path,{method:body===undefined?"GET":"POST",
     headers:{"Content-Type":"application/json",Authorization:"Bearer "+(readRuntimeConnection()?.agentToken??"better-me-agent-token")},

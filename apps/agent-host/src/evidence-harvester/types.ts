@@ -47,7 +47,7 @@ export const MicroFactEntrySchema = z.object({ id, subscriptionId: id, repositor
 export type MicroFactEntry = z.infer<typeof MicroFactEntrySchema>;
 export const HarvesterStateSchema = z.object({ version: z.literal(1), revision: z.number().int().nonnegative(), ownerId: id,
   subscriptions: z.array(RepositorySubscriptionSchema).max(100), entries: z.array(MicroFactEntrySchema).max(5000),
-  operations: z.record(z.object({ hash: digest, targetId: id }).strict()) }).strict();
+  operations: z.record(z.string(), z.object({ hash: digest, targetId: id }).strict()) }).strict();
 export type HarvesterState = z.infer<typeof HarvesterStateSchema>;
 
 /** Storage contains only acquisition subscriptions and candidate artifacts, not
