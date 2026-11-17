@@ -113,6 +113,8 @@ export interface ServerOptions {
   identityDirectory?: string;
   /** Controlled-clock acceptance seam; never exposed in production HTTP or CLI. */
   learningClock?: () => number;
+  /** Trusted isolated QA seam; HTTP cannot select a training author or executable. */
+  learningTrainingAuthor?: import("./growth/training-model.js").TrainingAuthor;
   /** Trusted PDF converter installation/QA seam. No HTTP executable, URL or credentials. */
   learningTranslationEngine?: LearningTranslationEngine;
   /** Trusted installation configuration, never accepted from an HTTP request. */
@@ -239,6 +241,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const getLearning = () => {
       learningKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-material-tasks-v1") });
       return learning ??= new LearningPaths({ ownerId: principal.id, directory: path.join(root, "growth-learning-v1"), kernel: learningKernel, clock: opts.learningClock,
+        trainingAuthor: opts.learningTrainingAuthor,
         translationEngine: opts.learningTranslationEngine ?? createPdf2zhEngine({ python: process.env["BETTERME_PDF2ZH_PYTHON"], assets: process.env["BETTERME_PDF2ZH_ASSETS"] }) });
     };
     const getGrowthJourneys = () => {

@@ -83,6 +83,7 @@ export class LearningStore {
           "PRAGMA trusted_schema=OFF; PRAGMA synchronous=FULL; PRAGMA journal_mode=DELETE; CREATE TABLE IF NOT EXISTS owner(id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY, body TEXT NOT NULL, bytes BLOB NOT NULL); CREATE TABLE IF NOT EXISTS paths(id TEXT PRIMARY KEY, body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL)",
         );
         database.exec("CREATE TABLE IF NOT EXISTS translations(id TEXT PRIMARY KEY, body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS translation_artifacts(job_id TEXT NOT NULL, kind TEXT NOT NULL, bytes BLOB NOT NULL, PRIMARY KEY(job_id,kind))");
+        database.exec("CREATE TABLE IF NOT EXISTS training_kits(id TEXT PRIMARY KEY, body TEXT NOT NULL, active INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS training_requests(id TEXT PRIMARY KEY)");
         database
           .prepare("INSERT OR IGNORE INTO owner VALUES(1,?)")
           .run(this.ownerId);

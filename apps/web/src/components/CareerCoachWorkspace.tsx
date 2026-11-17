@@ -9,6 +9,7 @@ import { addCoachRecord, addCoachSubmission, adoptCoachPlan, contextFingerprint,
 import { confirmedGoal, confirmGoal, planChanges } from "../lib/career-coach/journey";
 import { CareerPractice } from "./CareerPractice";
 import { CareerDrills } from "./CareerDrills";
+import { TrainingKitPanel } from "./TrainingKitPanel";
 import { useCareerCoach } from "../lib/career-coach/use-career-coach";
 import type { CoachRepository } from "../lib/career-coach/storage";
 import type { CoachContext, CoachGenerate, CoachInterviewFeedback, CoachMode, CoachPlan, CoachRecord, CoachRequest, CoachSettings, CoachState, CoachSubmission, CoachTaskStatus } from "../lib/career-coach/types";
@@ -387,6 +388,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         <p>仅在点击生成时发送已选资料与本次输入，关闭授权不影响已有记录。</p></div>
       <div className="coach-storage"><strong>只保存在此浏览器 · 当前简历视图</strong><p>{state.records.length} 条模型记录 · {state.submissions.length} 条学习提交</p><button type="button" className="coach-text-button" onClick={() => void reset()} disabled={!ready || busy}>清除成长记录</button></div>
     </div></details><main className="coach-main">
+      {mode === "plan" && <TrainingKitPanel confirmedGoal={goal?.goal} />}
       {!ready && <p role="status">正在读取本地成长记录…</p>}
       {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { if (window.confirm("已下载需要保留的草稿？重新读取会替换当前内容。")) { invalidate(); void reload(); } }}>重新读取记录</button></div>}
       {error && <div className="coach-alert" role="alert"><strong>{t("这一步尚未完成", "This step is incomplete")}</strong><p>{error}</p><button type="button" onClick={onOpenConfig}>{t("检查模型配置", "Check model configuration")}</button></div>}

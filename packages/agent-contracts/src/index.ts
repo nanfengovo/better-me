@@ -283,6 +283,7 @@ export * from "./growth-practice.js";
 export * from "./growth-journey.js";
 export * from "./learning-path.js";
 export * from "./learning-translation.js";
+export * from "./training-kit.js";
 export * from "./jd-match.js";
 export * from "./mock-interview.js";
 export * from "./jd-intake.js";

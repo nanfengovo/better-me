@@ -14,6 +14,7 @@ import {
   type LearningMaterial,
   type LearningCitation,
   type LearningCommand,
+  TrainingPlan, TrainingView, TrainingSummary, TrainingFeedback, type TrainingStart, type TrainingCommand,
 } from "@better-me/agent-contracts";
 import {
   agentOrigin,
@@ -42,7 +43,7 @@ export function createLearningClient(
         redirect: "error", // A 307 must never forward owner material or a one-job credential.
         signal: AbortSignal.any([
           lease.signal,
-          AbortSignal.timeout(45_000),
+          AbortSignal.timeout(suffix === "/training/plan" || suffix === "/training/build" ? 225_000 : 45_000),
           ...(signal ? [signal] : []),
         ]),
         headers: {
@@ -386,7 +387,30 @@ export function createLearningClient(
       throw new Error("译稿字节、长度或哈希不一致");
     return bytes;
   }
+  const kitShape=z.object({kit:TrainingView}).strict();
+  const training = {
+    async plan(input:TrainingStart,signal?:AbortSignal) {
+      return (await json("/training/plan",z.object({plan:TrainingPlan}).strict(),input,signal)).value.plan;
+    },
+    async build(planId:string,requestId:string,signal?:AbortSignal) {
+      const r=await json("/training/build",kitShape,{planId,requestId,consent:true},signal);return own(r.value.kit,r.ownerId);
+    },
+    async list(signal?:AbortSignal) {
+      const r=await json("/training",z.object({kits:z.array(TrainingSummary).max(24)}).strict(),undefined,signal);
+      return r.value.kits.map(k=>own(k,r.ownerId));
+    },
+    async get(id:string,signal?:AbortSignal) {
+      const r=await json("/training/"+encodeURIComponent(id),kitShape,undefined,signal);
+      if(r.value.kit.id!==id)throw new Error("training_identity_mismatch");return own(r.value.kit,r.ownerId);
+    },
+    async command(id:string,command:TrainingCommand,signal?:AbortSignal) {
+      const r=await json("/training/"+encodeURIComponent(id)+"/commands",z.object({kit:TrainingView.optional(),feedback:TrainingFeedback.optional()}).strict(),command,signal);
+      if(r.value.kit){if(r.value.kit.id!==id)throw new Error("training_identity_mismatch");own(r.value.kit,r.ownerId);}
+      return r.value;
+    },
+  };
   return {
+    training,
     materials,
     material,
     importMaterial,

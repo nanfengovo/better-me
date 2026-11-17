@@ -24,10 +24,13 @@ import {
   pathPresentation,
 } from "./learning-path-state.js";
 import { LearningTranslations, type LearningTranslationEngine } from "./learning-translations.js";
+import { TrainingKits } from "./training-kits.js";
+import type { TrainingAuthor } from "./training-model.js";
 
 export class LearningPaths {
   private readonly store: LearningStore;
   readonly translations: LearningTranslations;
+  readonly training: TrainingKits;
   private time() {
     return this.options.clock?.() ?? Date.now();
   }
@@ -41,9 +44,11 @@ export class LearningPaths {
       kernel: AgentTaskKernel;
       clock?: () => number;
       translationEngine?: LearningTranslationEngine;
+      trainingAuthor?: TrainingAuthor;
     },
   ) {
     this.store = new LearningStore(options.ownerId, options.directory);
+    this.training = new TrainingKits(this.store, options.trainingAuthor, options.clock);
     this.translations = new LearningTranslations(this.store, options.translationEngine);
   }
   importMaterial(input: unknown, access: CareerTaskAccess) {
@@ -605,10 +610,12 @@ export class LearningPaths {
     return material;
   }
   invalidateSession(session: string) {
+    this.training.invalidate(session);
     this.translations.invalidate(session);
     this.store.invalidate(session);
   }
   async close() {
+    this.training.close();
     await this.translations.close();
     await this.store.close();
   }

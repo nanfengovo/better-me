@@ -177,20 +177,22 @@ async function requestJson(path: "/api/version" | "/api/tags" | "/api/show" | "/
   }
 }
 
-async function requireLocalOnlyProtocol(signal: AbortSignal): Promise<void> {
+async function requireLocalOnlyProtocol(signal: AbortSignal, training = false): Promise<void> {
   // Only this daemon release's request-side :local enforcement has been audited.
   // Do not infer support from a newer version, and never cache it across a restart.
   const protocol = await requestJson("/api/version", AbortSignal.any([signal, AbortSignal.timeout(5000)]), KiB);
-  if (!record(protocol) || protocol.version !== "0.40.15") fail("coding_local_transport_unavailable");
+  // Training also verified d63b7026 (0.40.16): modelref + /api/chat resolution
+  // and force-local guard are unchanged from 02480ca2. The legacy lab stays pinned.
+  if (!record(protocol) || !(protocol.version === "0.40.15" || training && protocol.version === "0.40.16")) fail("coding_local_transport_unavailable");
 }
 
 /** The trusted local daemon is the authority for its installed model manifest;
  * reporting a loopback HTTP origin alone isn't sufficient (cloud aliases exist). */
-export async function resolveLocalCodingModel(model: string, signal: AbortSignal): Promise<string> {
+export async function resolveLocalCodingModel(model: string, signal: AbortSignal, training = false): Promise<string> {
   active(signal);
   if (!allowedModel(model)) fail("coding_model_not_local");
   const limit = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-  await requireLocalOnlyProtocol(limit);
+  await requireLocalOnlyProtocol(limit, training);
   const metadata = await requestJson("/api/tags", limit, 512 * KiB);
   if (!record(metadata) || !Array.isArray(metadata.models) || metadata.models.length > 4096) return fail("coding_model_metadata_invalid");
   const matches = metadata.models.filter((e: unknown) => record(e) && (e.name === model || e.model === model));
@@ -208,6 +210,24 @@ export async function resolveLocalCodingModel(model: string, signal: AbortSignal
     !(typeof details.model_info["general.parameter_count"] === "number" && Number.isSafeInteger(details.model_info["general.parameter_count"])
       && details.model_info["general.parameter_count"] > 0)) return fail("coding_model_not_local");
   active(signal); return digest;
+}
+
+/** Structured planning/content on the very same local-only wire as code generation.
+ * This is not an HTTP endpoint: the host, not a guest, owns the schema and instructions. */
+export async function localCodingJson(model: string, pin: string, system: string, data: unknown, format: object, signal: AbortSignal): Promise<unknown> {
+  const linked = AbortSignal.any([signal, AbortSignal.timeout(90_000)]);
+  if (!allowedModel(model) || !digestValue(pin) || await resolveLocalCodingModel(model, linked, true) !== pin) fail("coding_model_changed");
+  const wire = model + ":local";
+  const body = JSON.stringify({model:wire, stream:false, think:false, truncate:false, shift:false, format,
+    options:{temperature:0,num_ctx:8192,num_predict:1800},messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(data)}]});
+  if (Buffer.byteLength(body) > 48 * KiB) fail("coding_request_limit");
+  await requireLocalOnlyProtocol(linked,true);
+  const raw = await requestJson("/api/chat",linked,64*KiB,body);
+  if (!record(raw) || raw.model !== wire || Object.hasOwn(raw,"remote_host") || Object.hasOwn(raw,"remote_model") ||
+    raw.done !== true || raw.done_reason !== "stop" || !record(raw.message) || raw.message.role !== "assistant" ||
+    raw.message.tool_calls !== undefined || typeof raw.message.content !== "string" || Buffer.byteLength(raw.message.content)>24*KiB ||
+    await resolveLocalCodingModel(model,linked,true) !== pin) return fail("coding_invalid_model_output");
+  try { return JSON.parse(raw.message.content); } catch { return fail("coding_invalid_model_output"); }
 }
 
 const instructions = [

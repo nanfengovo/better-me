@@ -2,6 +2,10 @@
 
 ## 当前焦点
 
+2026-11-17 本人新授权“推送，发布，更新readme”：沿现有 agent-os 发布训练工坊，README 与 v1.2.0 说明/版本已准备。当前卡点：需实际核对本次 Windows/四平台发布门；49ad513 的旧 CI 有 Windows 夹具失败，不能继承旧绿灯或先标 Release 已发布。本机正跑完整 pnpm test；既有82项定向/23桌面及双端实测详见训练报告。下一步：限定文件普通提交推送，跟踪同 SHA Actions，全部门通过后打正式标签；不强推、不动 main、私人资料或正式服务。必读附加：docs/releases/v1.2.0.md、docs/reports/personal-training-workshop-2026-11-17.md。
+
+2026-11-17 学习提升已接入「按需训练工坊」：用户授权诊断、选方向再构建；真实本机模型可生成练习画布或在 QuickJS 编写计算程序。已用隔离账号跑通 Web/原生 Electron 保留、重开、换题和服务重启；无云调用、未改私人记录。卡点/边界：无实时语音，不认证专业能力或长期成效。下一步：本人可在「学习提升」输入一个具体困难试用；不主动扩权或重启既有服务。此条必读附加：`docs/reports/personal-training-workshop-2026-11-17.md`。
+
 2026-11-15 本人要求“启动起来”后，已正常启动相邻 BetterMe.app，并通过桌面可访问性界面实际确认“欢迎回来”登录页和账号/第三方登录控件可见，不是仅有进程或首页200。复用原Web(::1:5173)、Host(5179)、岗位(5178)、OIDC(18000)及Ollama(11434)；桌面启动器另在127.0.0.1:5173启动其配套Web，未关闭原进程。两个Web→Host、带授权的Host/岗位健康、OIDC discovery、Ollama版本、主入口和App模块均200。未登录/授权模型、读取业务记录、重置账号或重启原服务；登录后主工作区仍需本人进入，不把登录页当完整业务验收。本次启动无新增必读附加。
 
 2026-11-15 本人要求“合并，远端为准”：现有 `agent-os` 从 `95256e2` 快进到 `39d4174`，20 个远端提交已合入，HEAD 与 origin/agent-os 一致。5 个冲突文件（本文件、decisionLog、App、AutopilotStudioWorkspace、CareerTaskPanel）完整采用远端；依赖旧本地接口的 UnifiedCareerTaskSurface 及 career-task-panel 测试同样采用远端。其余无冲突本地改动与新增文件保持未提交。原 56 个已跟踪改动和 60 个新增文件完整保留在 stash `86b0f021e1bbe1bd79ef88e6f434219db3d85181`，逐字节备份说明见 `/Users/feng/Documents/Private/简历/简历Agent/.remote-sync-backup-20261115-Bu8n9q/README.md`。下方被替换的本地 UI 功能历史记录不代表这些入口仍在当前 App 中接通。

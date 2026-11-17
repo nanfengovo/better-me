@@ -950,6 +950,7 @@ test("career growth is reachable inside the existing agent workspace and returns
     assert.ok(task);
     await flush(() => task.click());
     assert.equal(fixture.querySelector(".coach-header h1")?.textContent, title);
+    if (tab === "学习提升") assert.ok(fixture.querySelector('[aria-label="按需训练工坊"]'), "Learning opens the actual training workshop, not a separate mock page");
   }
   assert.equal(fixture.querySelector(".career-coach-entry-nav"), null, "do not repeat the top-level navigation");
   assert.equal(fixture.querySelector(".coach-tabs"), null, "single-mode tasks need no duplicate mode navigation");

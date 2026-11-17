@@ -26,6 +26,9 @@ export async function handleLearning(
     }
   }
   if (req.method === "GET") {
+    if (suffix === "/training") return send(res,200,{kits:await learning.training.list(access)});
+    const kit = /^\/training\/([a-f0-9-]{36})$/.exec(suffix);
+    if (kit) return send(res,200,{kit:await learning.training.get(kit[1]!,access)});
     if (suffix === "/translations/backend") return send(res, 200, { backend: await learning.translations.backend(access) });
     if (suffix === "/translations/backend/cloud") return send(res, 200, { backend: await learning.translations.backend(access,"cloud") });
     if (suffix === "/translations") return send(res, 200, { jobs: await learning.translations.list(access) });
@@ -86,6 +89,18 @@ export async function handleLearning(
       !/^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] ?? "")
     )
       return send(res, 415, { error: "json_required" });
+    if (suffix === "/training/plan" || suffix === "/training/build") {
+      const stop=new AbortController(), disconnected=()=>{if(!res.writableEnded)stop.abort();};
+      res.once("close",disconnected);
+      try {
+        const granted={...access,signal:stop.signal};
+        const result=suffix.endsWith("/plan")?{plan:await learning.training.plan(await body(8192),granted)}:{kit:await learning.training.build(await body(1024),granted)};
+        if(!res.destroyed)send(res,201,result);
+        return;
+      } finally {res.off("close",disconnected);}
+    }
+    const kit = /^\/training\/([a-f0-9-]{36})\/commands$/.exec(suffix);
+    if (kit) return send(res,200,await learning.training.command(kit[1]!,await body(8192),access));
     if (suffix === "/translations"){
       const raw=await body(32768);
       if(raw && typeof raw==="object" && "request" in raw){

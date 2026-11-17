@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { generateLocalCodingCandidate, resolveLocalCodingModel, verifyCodingCandidate, type CodingGenerateInput } from "../src/sandbox/coding-engine.js";
+import { generateLocalCodingCandidate, localCodingJson, resolveLocalCodingModel, verifyCodingCandidate, type CodingGenerateInput } from "../src/sandbox/coding-engine.js";
 
 const live = () => new AbortController().signal;
 test("one immutable oracle per fresh guest; JSON object order is irrelevant but nested types and array order are not", async () => {
@@ -23,6 +23,22 @@ const localShow = (extra = {}) => Response.json({ details: { format: "gguf" },
 const supported = () => Response.json({ version: "0.40.15" });
 const reply = (extra = {}) => Response.json({ model: wireModel, done: true, done_reason: "stop",
   message: { role: "assistant", content: JSON.stringify({ source: "input => input" }) }, ...extra });
+
+test("structured training on audited .16: only exact local wire, no bare retries or delivery after a changed pin",async t=>{
+  let after=false,mode="valid",sent:string[]=[];
+  t.mock.method(globalThis,"fetch",async(url:string,init:RequestInit)=>{
+    assert.equal(new URL(url).origin,"http://127.0.0.1:11434");
+    if(url.endsWith("/api/version"))return Response.json({version:"0.40.16"});
+    if(url.endsWith("/api/tags"))return after&&mode==="drift"?tags({digest:"b".repeat(64)}):tags();
+    if(url.endsWith("/api/show"))return localShow();
+    assert.equal(init.redirect,"error");assert.equal(init.credentials,"omit");
+    sent.push(JSON.parse(String(init.body)).model);after=true;
+    return reply(mode==="remote"?{remote_host:"remote.invalid"}:mode==="cut"?{done_reason:"length"}:{});
+  });
+  const call=()=>localCodingJson(model,digest,"instruction",{goal:"synthetic"},{type:"object"},live());
+  assert.deepEqual(await call(),{source:"input => input"});assert.deepEqual(sent,[wireModel]);
+  for(mode of ["drift","remote","cut"]){after=false;sent=[];await assert.rejects(call(),/coding_invalid_model_output/);assert.deepEqual(sent,[wireModel]);}
+});
 
 test("the daemon version is an explicit protocol allowlist, not a semver guess; unsupported versions see no task", async t => {
   let advertised: unknown, paths: string[] = [];
