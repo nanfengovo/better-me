@@ -161,26 +161,32 @@ test("late account/session invalidity rejects response publication", async t => 
 
 test("a model ignoring AbortSignal is bounded and late promise resolution is discarded", async t => {
   // The production deadline covers Git capture as well as generation. Keep a
-  // deliberately slow preparation step, but drive THIS test's 200ms deadline
+  // deliberately >2s preparation step, but drive THIS test's 200ms deadline
   // only after a real complete() handshake. Otherwise CPU contention can
   // legitimately exhaust the deadline before the model was ever dispatched.
   const capture = GitEvidenceSource.prototype.capture;
-  t.mock.method(GitEvidenceSource.prototype, "capture", async function (this: GitEvidenceSource, ...args: Parameters<GitEvidenceSource["capture"]>) { await delay(250); return capture.apply(this, args); });
+  t.mock.method(GitEvidenceSource.prototype, "capture", async function (this: GitEvidenceSource, ...args: Parameters<GitEvidenceSource["capture"]>) { await delay(2100); return capture.apply(this, args); });
   const deadline = new AbortController(), nativeTimeout = AbortSignal.timeout.bind(AbortSignal); let deadlineRequests = 0;
   t.mock.method(AbortSignal, "timeout", (milliseconds: number) => { if (milliseconds !== 200) return nativeTimeout(milliseconds); deadlineRequests++; return deadline.signal; });
   let started!: () => void, release!: (value: string) => void, modelSignal: AbortSignal | undefined;
   const ready = new Promise<void>(resolve => { started = resolve; });
   const f = await fixture(t, { complete: async input => { modelSignal = input.signal; assert.equal(input.budget.maxActiveMs, 200); started(); return new Promise(resolve => { release = resolve; }); } });
-  const sub = await f.subscribe({ ...policy(), maxActiveMs: 200 }), commit = await f.commit(content), start = Date.now(), running = f.service.capture(sub.id, commit, f.access);
+  const sub = await f.subscribe({ ...policy(), maxActiveMs: 200 }), commit = await f.commit(content), running = f.service.capture(sub.id, commit, f.access);
   const first = await Promise.race([ready.then(() => "model-started"), running.then(entry => `capture-finished:${entry.errorCode}`)]);
   assert.equal(first, "model-started"); assert.equal(deadlineRequests, 1); assert.equal(f.calls(), 1); assert.equal(modelSignal?.aborted, false);
-  deadline.abort(new DOMException("Synthetic 200ms capture deadline elapsed", "TimeoutError"));
-  const entry = await running;
-  assert.equal(entry.status, "failed"); assert.ok(Date.now() - start < 2000); assert.equal(f.calls(), 1);
-  assert.equal(entry.errorCode, "harvester_cancelled_or_timed_out"); assert.equal(modelSignal?.aborted, true); assert.equal(entry.citations.length, 0); assert.equal(f.writes(), 0);
-  const beforeLateResolution = f.ledger.read(); release(response()); await next(); await next();
-  assert.deepEqual(f.ledger.read(), beforeLateResolution, "late valid model output cannot publish or change the failed entry");
-  assert.equal((await f.service.capture(sub.id, commit, f.access)).status, "failed"); assert.equal(f.calls(), 1, "a timed-out attempt is not automatically retried");
+  try {
+    deadline.abort(new DOMException("Synthetic 200ms capture deadline elapsed", "TimeoutError"));
+    // Cancellation must settle without the model promise or a second timer.
+    // Do not count real Git/SQLite setup as model cancellation latency.
+    const settled = await Promise.race([running.then(entry => ({ entry })), next().then(() => undefined)]);
+    assert.ok(settled, "an aborted capture must settle before the next event-loop turn while the model remains unresolved");
+    const { entry } = settled;
+    assert.equal(entry.status, "failed"); assert.equal(f.calls(), 1);
+    assert.equal(entry.errorCode, "harvester_cancelled_or_timed_out"); assert.equal(modelSignal?.aborted, true); assert.equal(entry.citations.length, 0); assert.equal(f.writes(), 0);
+    const beforeLateResolution = f.ledger.read(); release(response()); await next(); await next();
+    assert.deepEqual(f.ledger.read(), beforeLateResolution, "late valid model output cannot publish or change the failed entry");
+    assert.equal((await f.service.capture(sub.id, commit, f.access)).status, "failed"); assert.equal(f.calls(), 1, "a timed-out attempt is not automatically retried");
+  } finally { release(response()); await running; }
 });
 
 test("restart preserves historical inbox but pauses every execution authorization", async t => {

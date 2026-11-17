@@ -2,7 +2,7 @@
 
 ## 当前焦点
 
-2026-11-17 本人新授权“推送，发布，更新readme”：沿现有 agent-os 发布训练工坊，README 与 v1.2.0 说明/版本已准备。当前卡点：需实际核对本次 Windows/四平台发布门；49ad513 的旧 CI 有 Windows 夹具失败，不能继承旧绿灯或先标 Release 已发布。本机正跑完整 pnpm test；既有82项定向/23桌面及双端实测详见训练报告。下一步：限定文件普通提交推送，跟踪同 SHA Actions，全部门通过后打正式标签；不强推、不动 main、私人资料或正式服务。必读附加：docs/releases/v1.2.0.md、docs/reports/personal-training-workshop-2026-11-17.md。
+2026-11-17 本人新授权“推送，发布，更新readme”：沿现有 agent-os 发布训练工坊，README 与 v1.2.0 说明/版本已在功能提交 5afb22b 普通推送，未夹带原有语音研究。本机完整普通套件 5,099通过/20条件跳过/0失败，独立PDF1/1、简历质量64/64、类型16/16、零warning lint、桌面23/23、runtime10/10及双端构建9/9通过。同 SHA Actions 44087472335 四平台/Docker/生产构建已过，Windows 两条夹具失败：取消用例计入真实Git准备、Vite短路径首页403。已做大于两秒准备红绿回归、取消失效变异检验及实际Vite Windows分支 alias/realpath 对照，仅修夹具与前置门，不改生产预算/权限。当前卡点：修正后原生Windows完整门待验，不能先标Release已发布。下一步：普通推送修正、全门通过后打标签并核实附件；不强推、不动main、私人资料或正式服务。必读附加：docs/releases/v1.2.0.md、docs/reports/training-workshop-release-2026-11-17.md。
 
 2026-11-17 学习提升已接入「按需训练工坊」：用户授权诊断、选方向再构建；真实本机模型可生成练习画布或在 QuickJS 编写计算程序。已用隔离账号跑通 Web/原生 Electron 保留、重开、换题和服务重启；无云调用、未改私人记录。卡点/边界：无实时语音，不认证专业能力或长期成效。下一步：本人可在「学习提升」输入一个具体困难试用；不主动扩权或重启既有服务。此条必读附加：`docs/reports/personal-training-workshop-2026-11-17.md`。
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -8,7 +8,10 @@ import test from "node:test";
 import { createServer } from "vite";
 
 test("Vite denies sensitive fixture files even with import/raw query variants", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "betterme-vite-deny-"));
+  // Windows TEMP can contain a RUNNER~1 8.3 alias. Patched Vite intentionally
+  // rejects '~' paths even inside fs.allow; use the actual long path instead
+  // of weakening the deny policy or accepting a false-positive homepage 403.
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), "betterme-vite-deny-")));
   const marker = "synthetic-denied-file-marker";
   await writeFile(path.join(root, ".env"), marker);
   await writeFile(path.join(root, "index.html"), "<p>synthetic fixture</p>");
@@ -17,7 +20,8 @@ test("Vite denies sensitive fixture files even with import/raw query variants", 
   try {
     await server.listen();
     const origin = `http://127.0.0.1:${(server.httpServer!.address() as AddressInfo).port}`;
-    assert.equal((await fetch(origin)).status, 200);
+    const homepage = await fetch(origin);
+    assert.equal(homepage.status, 200, `canonical fixture homepage must be served: ${root}; ${await homepage.text()}`);
     for (const query of ["", "?raw", "?import&raw", "?import&url&inline"]) {
       const response = await fetch(`${origin}/.env${query}`);
       assert.equal(response.status, 403, query);
