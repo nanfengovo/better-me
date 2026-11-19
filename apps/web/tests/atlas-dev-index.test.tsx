@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { setImmediate as nextTurn } from "node:timers/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import test, { afterEach, mock } from "node:test";
 import { ATLAS_DEV_JOB_INDEX_PATH as CLIENT_PATH, parseDevJobIndexBootstrap, requestDevJobIndex } from "../src/components/atlas/dev-index-bootstrap.ts";
 import {
@@ -13,6 +13,7 @@ import {
   createDevJobIndexBroker, createDevJobIndexMiddleware, defaultJobAtlasDataDirectory, jobServiceLaunchArgs,
   probeJobServiceOrigin, publicDevIndexError,
 } from "../server/atlas-dev-index.ts";
+import { resolveJobAtlasDataDirectory } from "../server/job-atlas-paths.ts";
 
 const directory = join(tmpdir(), "better-me-dev-index-synthetic");
 const token = "a".repeat(43);
@@ -27,9 +28,10 @@ test("a dev page missing the index helper explains the one-command startup inste
 
 test("development bootstrap stays on the fixed loopback index and outside the repository", () => {
   const syntheticHome = join(tmpdir(), "betterme-synthetic-home");
-  const dataDirectory = join(syntheticHome, "Library", "Application Support", "BetterMe", "job-atlas");
+  const dataDirectory = resolveJobAtlasDataDirectory({ home: syntheticHome });
   assert.equal(CLIENT_PATH, ATLAS_DEV_JOB_INDEX_PATH);
   assert.equal(defaultJobAtlasDataDirectory(syntheticHome), dataDirectory);
+  assert.ok(isAbsolute(dataDirectory));
   assert.equal(dataDirectory.includes(`${join("简历", "简历Agent")}`), false);
   assert.deepEqual(jobServiceLaunchArgs({
     dataDirectory: defaultJobAtlasDataDirectory(syntheticHome), port: "5178", origins,

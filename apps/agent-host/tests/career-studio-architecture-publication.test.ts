@@ -70,9 +70,16 @@ async function setup(t: test.TestContext) {
     handlers.set(ownerId, handler); return handler;
   };
   open("owner-a"); open("owner-b");
+  // The private SQLite and filesystem fixture shares the Windows test runner.
+  // Give the full sequence one deadline without imposing a short HTTP deadline on each request.
+  const fixtureSignal = AbortSignal.any([t.signal, AbortSignal.timeout(90_000)]);
   const request = async <T = Record<string, unknown>>(route: string, body: unknown, owner = "owner-a", session = "session-a") => {
-    const response = await fetch(`${origin}/api/v1/agent/career-studio${route}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Fixture-Owner": owner, "X-Fixture-Session": session }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
-    return { status: response.status, data: await response.json() as T };
+    try {
+      const response = await fetch(`${origin}/api/v1/agent/career-studio${route}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Fixture-Owner": owner, "X-Fixture-Session": session }, body: JSON.stringify(body), signal: fixtureSignal });
+      return { status: response.status, data: await response.json() as T };
+    } catch (cause) {
+      throw new Error(`Fixture request failed for ${route}`, { cause });
+    }
   };
   const context = async (owner = "owner-a", session = "session-a") => {
     const created = await request<{ context: StudioContext }>("/context/create", { workspaceKey: "design-workspace", resumeId: "design-resume", sourceFingerprint: "b".repeat(64), consent: true,
