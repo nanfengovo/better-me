@@ -43,12 +43,22 @@ export function meteredCodingGenerator(meter: ModelUsageMeter, inner: CodingGene
 }
 
 export function meteredTrainingAuthor(meter: ModelUsageMeter, inner: TrainingAuthor): TrainingAuthor {
+  const reviewWriting = inner.reviewWriting;
+  const recommendTransfer = inner.recommendTransfer;
   return {
+    ...(recommendTransfer ? {
+      recommendTransfer: (...args: Parameters<typeof recommendTransfer>) =>
+        measure(meter, `training-transfer-recommendation:${args[0]}`, () => recommendTransfer(...args)),
+    } : {}),
+    ...(reviewWriting ? {
+      reviewWriting: (...args: Parameters<typeof reviewWriting>) =>
+        measure(meter, `training-writing-review:${args[0]}`, () => reviewWriting(...args)),
+    } : {}),
     pin: (model, signal) => inner.pin(model, signal),
-    diagnose: (model, pin, goal, evidence, signal) =>
-      measure(meter, `training-diagnose:${model}`, () => inner.diagnose(model, pin, goal, evidence, signal)),
-    design: (plan, pin, kind, signal) =>
-      measure(meter, `training-design:${plan.model ?? "local"}`, () => inner.design(plan, pin, kind, signal)),
+    diagnose: (...args) =>
+      measure(meter, `training-diagnose:${args[0]}`, () => inner.diagnose(...args)),
+    design: (...args) =>
+      measure(meter, `training-design:${args[0].model ?? "local"}`, () => inner.design(...args)),
     program: (plan, pin, kind, signal, previous) =>
       measure(meter, `training-program:${plan.model ?? "local"}`, () => inner.program(plan, pin, kind, signal, previous)),
   };

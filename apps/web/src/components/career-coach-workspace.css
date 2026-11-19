@@ -67,6 +67,10 @@
 .career-coach .coach-primary { color:var(--ui-on-action,#fff); background:var(--ui-action,#285b44); border-color:var(--ui-action,#285b44); font-weight:550; }
 .career-coach .coach-primary:hover:not(:disabled) { background:var(--ui-action-hover,#326451); border-color:var(--ui-action-hover,#326451); }
 .coach-result { margin-bottom:20px; }
+.coach-training blockquote,.coach-feedback blockquote { margin:10px 0; padding:8px 12px; border-left:3px solid var(--coach-accent); overflow-wrap:anywhere; }
+.coach-training-source { margin:12px 0; overflow-wrap:anywhere; }
+.coach-training-source .coach-prewrap { max-height:320px; overflow:auto; }
+.coach-training .coach-compose textarea { min-height:64px; }
 .coach-result>h3 { font-size:17px; margin-bottom:12px; }
 .coach-summary { font-size:16px; line-height:1.8; margin-bottom:22px!important; }
 .coach-result-meta { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:var(--ui-text-muted,#637082); font-size:11px; padding:0 2px 9px; }

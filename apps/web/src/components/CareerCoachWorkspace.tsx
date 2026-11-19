@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { z } from "zod";
 import type { LlmConfig } from "@better-me/core";
-import type { CoachGuidanceTask, ResumeEditContext } from "@better-me/agent-contracts";
+import type { CoachGuidanceTask, ResumeEditContext, CoachTrainingTarget, TrainingView } from "@better-me/agent-contracts";
 import { ArrowRight, BookOpen, Check, Compass, Download, MessageSquare, ShieldCheck, Sparkles, Target, X } from "lucide-react";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { findResumeContextSource, type ResumeProposalWrite } from "../lib/resume-agent-context";
-import { addCoachRecord, addCoachSubmission, adoptCoachPlan, contextFingerprint, createCoachRecord, getCoachProgress, goalFingerprint, updateCoachTask } from "../lib/career-coach/state";
+import { addCareerTrainingTarget, addCareerTrainingEvidence, addCoachRecord, addCoachSubmission, adoptCoachPlan, contextFingerprint, createCoachRecord, getCoachProgress, goalFingerprint, updateCoachTask } from "../lib/career-coach/state";
 import { confirmedGoal, confirmGoal, planChanges } from "../lib/career-coach/journey";
 import { CareerPractice } from "./CareerPractice";
+import { SavedTrainingEvidence } from "./StudioExercise";
 import { CareerDrills } from "./CareerDrills";
-import { TrainingKitPanel } from "./TrainingKitPanel";
+import { CareerTrainingPanel, type TrainingRequirementSelection } from "./CareerTrainingPanel";
 import { useCareerCoach } from "../lib/career-coach/use-career-coach";
 import type { CoachRepository } from "../lib/career-coach/storage";
 import type { CoachContext, CoachGenerate, CoachInterviewFeedback, CoachMode, CoachPlan, CoachRecord, CoachRequest, CoachSettings, CoachState, CoachSubmission, CoachTaskStatus } from "../lib/career-coach/types";
@@ -35,7 +36,7 @@ export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
   embedded?: boolean;
   onOpenResume?: () => void;
-  modeRequest?: { mode: CoachMode; id: number };
+  modeRequest?: { mode: CoachMode; id: number; trainingRequirement?: TrainingRequirementSelection };
   onModeChange?: (mode: CoachMode) => void;
   resumeEditContext?: ResumeEditContext;
   job: DrawerJobContext | null;
@@ -59,6 +60,12 @@ const MODES = [
 ] as const;
 const STATUS: Record<CoachTaskStatus, string> = { todo: "未开始", in_progress: "进行中", submitted: "已提交", self_completed: "本人自评完成" };
 const messageOf = (error: unknown) => error instanceof Error ? error.message : "操作未完成，请重试；原记录未被清除。";
+
+function trainingSubmissionTitle(training: NonNullable<CoachSubmission["training"]>) {
+  const round = training.round === "practice" ? "首练" : "换题复测";
+  const note = training.transferEvidenceVersion ? " · 含下一练建议" : training.writingVersion ? " · 含作答点评" : "";
+  return `训练观察 · ${round}${note} · v${training.version.slice(0, 8)}`;
+}
 
 function Points({ title, items }: { title: string; items: string[] }) {
   return items.length ? <div className="coach-points"><h4>{title}</h4><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></div> : null;
@@ -89,7 +96,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const hostTask = useRef<CoachGuidanceTask | undefined>(undefined);
   const [resumeCandidate, setResumeCandidate] = useState<{request:CoachRequest;scope:string;task:CoachGuidanceTask;apply?:(next:CoachState,record:CoachRecord)=>CoachState}>();
   const [resumeConsent, setResumeConsent] = useState(false);
-  const { state, ready, persistenceError, conflict, update, reload, clear } = useCareerCoach(workspaceKey, repository);
+  const { state, ready, persistenceError, conflict, update, reload, clear, flush } = useCareerCoach(workspaceKey, repository);
   const recovery = useWorkspaceRecovery(`coach-view:${workspaceKey}`, CoachViewRecoverySchema, initialCoachView);
   const [mode, setMode] = useRecoveryField(recovery, "mode");
   const workspaceElement = useRef<HTMLElement>(null);
@@ -235,7 +242,30 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const activePlanRecord = state.records.find(record => record.id === state.activePlan?.id);
   const reusablePlan = activePlanRecord?.basis.contextFingerprint === fingerprint
     && (!activePlanRecord.basis.agentMemoryIds?.length || shareAgentMemory) ? state.activePlan?.plan : undefined;
+  const bindTrainingTarget = async (target: CoachTrainingTarget) => {
+    update(current => addCareerTrainingTarget(current, target));
+    await flush();
+  };
+  const reviewTrainingEvidence = async (kit: TrainingView, signal: AbortSignal) => {
+    if (!kit.career || disabled) throw new Error("成长记录尚未就绪，请稍后重试。");
+    update(current => addCareerTrainingEvidence(current, kit));
+    await flush();
+    if (signal.aborted) return;
+    if (stateRef.current.activePlan?.id === kit.career.planId) {
+      setTaskId(kit.career.taskId);
+      setMode("review");
+      setNotice("已将训练作答与题目版本保存为原任务的学习提交，可以请求反馈。");
+    } else setNotice("已将训练作答保存到原版计划任务，可在旧计划与进度中查看。");
+  };
+  const useTrainingRequirement = (quote: string) => {
+    const previous = recovery.value.inputs.plan ?? "";
+    if (previous.includes(quote)) return;
+    const text = [previous, `本人选择的岗位要求：${quote}\n请围绕这条要求规划可核验的学习任务。`].filter(Boolean).join("\n\n");
+    if (text.length > 12000) { setError("学习重点超过 12000 字，请先精简。"); return; }
+    setInput(text, "plan");
+  };
   const carryToPlan = (text: string, source?: CoachRecord) => {
+    if (text.length > 12000) { setError("反馈和证据超过学习重点的长度上限，请先核对并选取本轮要点。原提交仍可回看。"); return; }
     if (source && source.basis.contextFingerprint !== fingerprint) { setError("该反馈的资料授权已变化，不能自动带入新请求；旧记录仍可回看。"); return; }
     carriedSources.current = source ? [source.id] : [];
     invalidate(true); setMode("plan"); recovery.field("selectedRecords", records => ({ ...records, plan: "" })); setInput(text, "plan");
@@ -388,7 +418,10 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         <p>仅在点击生成时发送已选资料与本次输入，关闭授权不影响已有记录。</p></div>
       <div className="coach-storage"><strong>只保存在此浏览器 · 当前简历视图</strong><p>{state.records.length} 条模型记录 · {state.submissions.length} 条学习提交</p><button type="button" className="coach-text-button" onClick={() => void reset()} disabled={!ready || busy}>清除成长记录</button></div>
     </div></details><main className="coach-main">
-      {mode === "plan" && <TrainingKitPanel confirmedGoal={goal?.goal} />}
+      {mode === "plan" && <CareerTrainingPanel state={state} job={job} confirmedGoal={goal?.goal}
+        selectedTaskId={selectedTask?.id} onSelectTask={setTaskId}
+        requested={modeRequest?.trainingRequirement} onUseRequirement={useTrainingRequirement}
+        disabled={disabled || Boolean(persistenceError)} onBind={bindTrainingTarget} onReview={reviewTrainingEvidence} />}
       {!ready && <p role="status">正在读取本地成长记录…</p>}
       {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { if (window.confirm("已下载需要保留的草稿？重新读取会替换当前内容。")) { invalidate(); void reload(); } }}>重新读取记录</button></div>}
       {error && <div className="coach-alert" role="alert"><strong>{t("这一步尚未完成", "This step is incomplete")}</strong><p>{error}</p><button type="button" onClick={onOpenConfig}>{t("检查模型配置", "Check model configuration")}</button></div>}
@@ -422,7 +455,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
           {state.activePlan && state.activePlan.id !== latest.id && <div className="coach-feedback"><h4>与当前方案的实际差异</h4><Points title="新增或修改的任务" items={planChanges(state.activePlan.plan, candidate).added} /><Points title="不再沿用的任务（旧进度保留）" items={planChanges(state.activePlan.plan, candidate).removed} /><p>{planChanges(state.activePlan.plan, candidate).goalChanged ? "计划目标有调整；" : "计划目标未变；"}{planChanges(state.activePlan.plan, candidate).budgetChanged ? "时间预算已调整" : "时间预算未变"}</p></div>}
           <button type="button" className="coach-primary" disabled={disabled || state.activePlan?.id === latest.id} onClick={() => void adopt()}><Check size={17} />{state.activePlan?.id === latest.id ? "已采纳此方案" : state.activePlan ? "确认替换当前方案" : "采纳此学习方案"}</button></section> : <Empty title="让长期目标有每周的落点" text="设置周期与可用时间，生成包含阶段、任务、交付物和验收条件的方案。模型超出时间预算的结果不会被采用。" />}
         {!!state.planHistory?.length && <details className="coach-result"><summary>旧计划与进度 · {state.planHistory.length} 版</summary><div className="coach-history-scroll">{[...state.planHistory].reverse().map((version, index) => <details key={`${version.id}:${index}`}><summary>{version.plan.title} · {version.startDate}</summary><PlanContent plan={version.plan} /><p>原任务状态：{Object.entries(version.progress).map(([id, item]) => `${id}：${STATUS[item.status]}`).join("；")}</p><p>关联提交：{state.submissions.filter(item => item.planId === version.id).length} 次</p>
-          {state.submissions.filter(item => item.planId === version.id).map(item => <details key={item.id}><summary>{new Date(item.createdAt).toLocaleString()} · {item.practice ? `实际测试 ${item.practice.checks.filter(check => check.passed).length}/${item.practice.checks.length}` : "本人提交证据"}</summary><pre className="coach-code">{item.evidence}</pre>{item.practice && <details><summary>完整提交代码</summary><pre className="coach-code">{item.practice.source}</pre></details>}<p>当次模型参考：{JSON.stringify(state.records.find(record => record.id === item.feedbackRecordId)?.payload ?? "未评价")}</p></details>)}
+          {state.submissions.filter(item => item.planId === version.id).map(item => <details key={item.id}><summary>{new Date(item.createdAt).toLocaleString()} · {item.practice ? `实际测试 ${item.practice.checks.filter(check => check.passed).length}/${item.practice.checks.length}` : item.training ? trainingSubmissionTitle(item.training) : "本人提交证据"}</summary>{item.training ? <SavedTrainingEvidence text={item.evidence} /> : <pre className="coach-code">{item.evidence}</pre>}{item.practice && <details><summary>完整提交代码</summary><pre className="coach-code">{item.practice.source}</pre></details>}<p>当次模型参考：{JSON.stringify(state.records.find(record => record.id === item.feedbackRecordId)?.payload ?? "未评价")}</p></details>)}
         </details>)}</div></details>}</>}
       {mode === "review" && (state.activePlan ? <>
         <div className="coach-metrics"><div><strong>{progress.selfCompleted}/{progress.total}</strong><span>本人自评完成</span></div><div><strong>{progress.submitted}</strong><span>待本人核对的提交</span></div><div><strong>{progress.overdue}</strong><span>已过计划周界</span></div><div><strong>{progress.totalMinutes}</strong><span>记录投入 / 分钟</span></div></div>
@@ -435,8 +468,8 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         </section><section className="coach-result"><h3>当前任务的学习提交</h3>{submissions.length === 0 && <p>还没有提交。完成一小步后，把可阅读的证据留在这里。</p>}{[...submissions].reverse().map((submission) => {
           const record = state.records.find((item) => item.id === submission.feedbackRecordId);
           const feedback = record?.payload.kind === "review" ? record.payload : undefined;
-          return <article className="coach-submission" key={submission.id}><small>{new Date(submission.createdAt).toLocaleString()} · {submission.minutes} 分钟{ submission.practice ? ` · 实际测试 ${submission.practice.checks.filter(check => check.passed).length}/${submission.practice.checks.length}` : " · 本人提交，未自动运行"}</small><details><summary>查看本次证据与代码</summary><pre className="coach-code coach-history-scroll">{submission.evidence}</pre></details>{feedback ? <div className="coach-feedback"><span className="coach-badge">{({ insufficient: "证据不足", needs_revision: "还需修改", ready_for_self_check: "可以进入本人自查" })[feedback.evidenceAssessment]}</span><p>{feedback.summary}</p><Points title="证据中的优势" items={feedback.strengths} /><Points title="改进建议" items={feedback.improvements} /><Points title="下一步" items={feedback.nextActions} /><Points title="本人核对问题" items={feedback.checkQuestions} />
-            <button type="button" disabled={disabled} onClick={() => carryToPlan(`本人请求基于这次提交和模型参考反馈调整方案；不要当能力认证：\n提交ID：${submission.id}\n${submission.evidence}\n反馈：${feedback.summary}\n${feedback.nextActions.join("\n")}`, record)}>用实践反馈调整方案</button></div> : <p className="coach-muted">已保留提交，尚无模型反馈。</p>}<button type="button" disabled={disabled} onClick={() => reviewSubmission(submission)}>{feedback ? "重新请求反馈" : "请求模型反馈"}</button></article>;
+          return <article className="coach-submission" key={submission.id}><small>{new Date(submission.createdAt).toLocaleString()} · {submission.minutes} 分钟{ submission.practice ? ` · 实际测试 ${submission.practice.checks.filter(check => check.passed).length}/${submission.practice.checks.length}` : submission.training ? ` · ${trainingSubmissionTitle(submission.training)}` : " · 本人提交，未自动运行"}</small><details><summary>查看本次证据与代码</summary>{submission.training ? <SavedTrainingEvidence text={submission.evidence} /> : <pre className="coach-code coach-history-scroll">{submission.evidence}</pre>}</details>{feedback ? <div className="coach-feedback"><span className="coach-badge">{({ insufficient: "证据不足", needs_revision: "还需修改", ready_for_self_check: "可以进入本人自查" })[feedback.evidenceAssessment]}</span><p>{feedback.summary}</p><Points title="证据中的优势" items={feedback.strengths} /><Points title="改进建议" items={feedback.improvements} /><Points title="下一步" items={feedback.nextActions} /><Points title="本人核对问题" items={feedback.checkQuestions} />
+            <button type="button" disabled={disabled} onClick={() => carryToPlan(`本人请求基于这次提交和模型参考反馈调整方案；不要当能力认证：\n提交ID：${submission.id}\n${submission.evidence}\n反馈：${feedback.summary}\n${feedback.nextActions.join("\n")}`, record)}>用实践反馈调整方案</button></div> : <p className="coach-muted">已保留提交，尚无模型反馈。</p>}<button type="button" disabled={disabled} onClick={() => reviewSubmission(submission)}>{submission.training ? "共享练习证据并请求反馈" : feedback ? "重新请求反馈" : "请求模型反馈"}</button></article>;
         })}</section></> : <Empty title="先采纳一份学习方案" text="学习监督只跟踪你明确采纳的任务。到学习方案生成并采纳后，再提交证据、复盘和自评完成。" action={<button type="button" className="coach-primary" onClick={() => setMode("plan")}>去制定学习方案<ArrowRight size={16} /></button>} />)}
       {mode === "interview" && <>
         {!state.settings.goal.trim() && <div className="coach-prerequisite"><Target size={16} /><span>设置目标岗位或想练习的方向，再开始面试。</span><button type="button" onClick={() => setSetupOpen(true)}>设置目标</button></div>}

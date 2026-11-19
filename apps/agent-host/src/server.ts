@@ -46,6 +46,7 @@ import { createChatGptHandler } from "./chatgpt/http.js";
 import { createHash } from "node:crypto";
 import { IdentityService, IdentityError, type Principal } from "./identity/service.js";
 import { OwnedStore } from "./identity/owned-store.js";
+import { CoachStateSchema, resolveCareerTrainingTarget } from "@better-me/agent-contracts/career-coach";
 import { handleInventory } from "./inventory/http.js";
 import { RecoveryCatalog } from "./identity/recovery.js";
 import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
@@ -194,6 +195,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     // principal.id is server-generated and authenticated, never a request path/body field.
     const root = path.join(identityRoot, "owners", principal.id);
     const recovery = new RecoveryCatalog(root, principal.id);
+    const store = new OwnedStore(path.join(root, "records"), principal.id,
+      (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined));
     const understanding = new ProjectUnderstandingService({ storageDir: path.join(root, "understanding"), turnTimeoutMs: opts.understandingTurnTimeoutMs,
       recovered: id => recovery.session(id),
       broker: new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
@@ -259,6 +262,12 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       learningKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-material-tasks-v1") });
       return learning ??= new LearningPaths({ ownerId: principal.id, directory: path.join(root, "growth-learning-v1"), kernel: learningKernel, clock: opts.learningClock,
         trainingAuthor: meteredTrainingAuthor(modelUsage, opts.learningTrainingAuthor ?? localTrainingAuthor),
+        trainingCareerTarget: async (ref, access) => {
+          if (!await access.valid()) return undefined;
+          const saved = await store.read("growth", ref.workspaceKey);
+          const state = CoachStateSchema.safeParse(saved?.value);
+          return state.success && await access.valid() ? resolveCareerTrainingTarget(state.data, ref) : undefined;
+        },
         translationEngine: meteredTranslationEngine(modelUsage, opts.learningTranslationEngine ?? createPdf2zhEngine({ python: process.env["BETTERME_PDF2ZH_PYTHON"], assets: process.env["BETTERME_PDF2ZH_ASSETS"] })) });
     };
     const getGrowthJourneys = () => {
@@ -271,8 +280,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const invalidateGrowthSession = async (session: string) => { growthJourneys?.invalidateSession(session); learning?.invalidateSession(session); await growthKernel?.invalidateSession(session); await learningKernel?.invalidateSession(session); };
     let runManager: AgentRunManager | undefined;
     const getRunManager = () => runManager ??= new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode });
-    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, getLearning, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
-      (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
+    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, getLearning, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store,
       getRunManager,
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
       handleRouting: createRoutingHandler({ service: routing, readBody, sendJson: jsonResponse }),

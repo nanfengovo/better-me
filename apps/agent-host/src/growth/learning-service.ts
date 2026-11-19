@@ -24,7 +24,7 @@ import {
   pathPresentation,
 } from "./learning-path-state.js";
 import { LearningTranslations, type LearningTranslationEngine } from "./learning-translations.js";
-import { TrainingKits } from "./training-kits.js";
+import { TrainingKits, type TrainingTargetResolver } from "./training-kits.js";
 import type { TrainingAuthor } from "./training-model.js";
 
 export class LearningPaths {
@@ -45,10 +45,11 @@ export class LearningPaths {
       clock?: () => number;
       translationEngine?: LearningTranslationEngine;
       trainingAuthor?: TrainingAuthor;
+      trainingCareerTarget?: TrainingTargetResolver;
     },
   ) {
     this.store = new LearningStore(options.ownerId, options.directory);
-    this.training = new TrainingKits(this.store, options.trainingAuthor, options.clock);
+    this.training = new TrainingKits(this.store, options.trainingAuthor, options.clock, options.trainingCareerTarget);
     this.translations = new LearningTranslations(this.store, options.translationEngine);
   }
   importMaterial(input: unknown, access: CareerTaskAccess) {

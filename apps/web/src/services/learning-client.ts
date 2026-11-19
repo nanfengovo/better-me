@@ -14,7 +14,7 @@ import {
   type LearningMaterial,
   type LearningCitation,
   type LearningCommand,
-  TrainingPlan, TrainingView, TrainingSummary, TrainingFeedback, type TrainingStart, type TrainingCommand,
+  TrainingPlan, TrainingView, TrainingSummary, TrainingFeedback, type TrainingStart, type TrainingCommand, type TrainingAction,
 } from "@better-me/agent-contracts";
 import {
   agentOrigin,
@@ -24,6 +24,8 @@ import {
 } from "../lib/identity";
 import { readRuntimeConnection } from "../lib/runtime-connection";
 
+const trainingModelTimeout = 225_000;
+
 export function createLearningClient(
   options: { baseUrl?: string; fetch?: typeof fetch } = {},
 ) {
@@ -31,6 +33,7 @@ export function createLearningClient(
     suffix: string,
     body?: unknown,
     signal?: AbortSignal,
+    timeout = 45_000,
   ) {
     const lease = captureIdentityLease();
     lease.assert();
@@ -43,7 +46,7 @@ export function createLearningClient(
         redirect: "error", // A 307 must never forward owner material or a one-job credential.
         signal: AbortSignal.any([
           lease.signal,
-          AbortSignal.timeout(suffix === "/training/plan" || suffix === "/training/build" ? 225_000 : 45_000),
+          AbortSignal.timeout(timeout),
           ...(signal ? [signal] : []),
         ]),
         headers: {
@@ -67,8 +70,9 @@ export function createLearningClient(
     schema: z.ZodType<T>,
     body?: unknown,
     signal?: AbortSignal,
+    timeout?: number,
   ) {
-    const { result, lease } = await response(suffix, body, signal);
+    const { result, lease } = await response(suffix, body, signal, timeout);
     const value = schema.parse(await result.json());
     lease.assert();
     return { value, ownerId: lease.ownerId };
@@ -390,10 +394,11 @@ export function createLearningClient(
   const kitShape=z.object({kit:TrainingView}).strict();
   const training = {
     async plan(input:TrainingStart,signal?:AbortSignal) {
-      return (await json("/training/plan",z.object({plan:TrainingPlan}).strict(),input,signal)).value.plan;
+      return (await json("/training/plan",z.object({plan:TrainingPlan}).strict(),input,signal,trainingModelTimeout)).value.plan;
     },
-    async build(planId:string,requestId:string,signal?:AbortSignal) {
-      const r=await json("/training/build",kitShape,{planId,requestId,consent:true},signal);return own(r.value.kit,r.ownerId);
+    async build(planId: string, requestId: string, signal?: AbortSignal, actions?: TrainingAction[]) {
+      const r = await json("/training/build", kitShape, { planId, requestId, consent: true, ...(actions ? { actions } : {}) }, signal, trainingModelTimeout);
+      return own(r.value.kit, r.ownerId);
     },
     async list(signal?:AbortSignal) {
       const r=await json("/training",z.object({kits:z.array(TrainingSummary).max(24)}).strict(),undefined,signal);
@@ -404,7 +409,8 @@ export function createLearningClient(
       if(r.value.kit.id!==id)throw new Error("training_identity_mismatch");return own(r.value.kit,r.ownerId);
     },
     async command(id:string,command:TrainingCommand,signal?:AbortSignal) {
-      const r=await json("/training/"+encodeURIComponent(id)+"/commands",z.object({kit:TrainingView.optional(),feedback:TrainingFeedback.optional()}).strict(),command,signal);
+      const inference = command.action === "recommend-transfer" || command.action === "review-writing";
+      const r=await json("/training/"+encodeURIComponent(id)+"/commands",z.object({kit:TrainingView.optional(),feedback:TrainingFeedback.optional()}).strict(),command,signal,inference ? trainingModelTimeout : undefined);
       if(r.value.kit){if(r.value.kit.id!==id)throw new Error("training_identity_mismatch");own(r.value.kit,r.ownerId);}
       return r.value;
     },

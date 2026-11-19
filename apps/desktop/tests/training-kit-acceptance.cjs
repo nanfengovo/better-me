@@ -52,41 +52,33 @@ async function waitForStep(p, label, timeout) {
       }),
   ]);
 }
-async function newKit(p, kind, real) {
-  if (real) {
-    const [g, e] =
-      kind === "canvas"
-        ? [
-            "我想把复杂概念讲给非技术同事听",
-            "给同事讲缓存时总在堆术语，举不出生活里的例子；希望反复练习解释。",
-          ]
-        : kind === "rewrite"
-          ? [
-              "把英文工作邮件写简短",
-              "为显得礼貌而写得冗长，缩短时总是忘记请求和截止日期。",
-            ]
-          : [
-              "学会估算并行项目的交付时间",
-              "单项能算，碰到并行依赖就容易把所有工期都加起来。",
-            ];
-    await p.getByLabel("想提升什么？").fill(g);
-    await p.getByLabel("哪一次尝试让你觉得卡住了？").fill(e);
-    await click(p, "同意并分析难点");
-    await waitForStep(p, "认可方向，构建试用版", 150000);
-    await click(p, "认可方向，构建试用版");
-  } else {
-    await click(
-      p,
-      kind === "canvas"
-        ? "一分钟汇报"
-        : kind === "rewrite"
-          ? "英文邮件改写"
-          : "项目排期推演",
-    );
-    await click(p, "试用示例工具");
-  }
+async function newKit(p, kind) {
+  await panel(p).getByText("只体验，不调用模型", { exact: true }).click();
+  await click(p, kind === "canvas" ? "一分钟汇报" : kind === "rewrite" ? "英文邮件改写" : "项目排期推演");
+  await click(p, "试用示例工具");
   await waitForStep(p, "保留此版本", 220000);
   return (await panel(p).getByRole("heading", { level: 2 }).innerText()).trim();
+}
+// Exercise the authored controls as delivered. Real local models can choose a
+// different interaction for the same learning goal on another verified model build.
+async function newStudio(p) {
+  await p.getByLabel("想提升什么？").fill("希望按现场约束安排舞台换景、遮幕和灯光交接，每次换情境再练一次");
+  await click(p, "同意并分析难点");
+  await waitForStep(p, "认可方向，构建试用版", 150000);
+  await click(p, "认可方向，构建试用版");
+  await waitForStep(p, "保留此版本", 220000);
+  const region = panel(p);
+  for (const order of await region.getByRole("button", { name: "采用当前顺序" }).all()) await order.click();
+  for (const input of await region.getByRole("spinbutton").all()) await input.fill("10");
+  for (const input of await region.getByRole("textbox").all()) {
+    const isCode = await input.evaluate(el => el.classList.contains("training-code"));
+    await input.fill(isCode ? "input => input" : "先对照遮幕、灯光与换景的交接要求，核对在场人员。");
+  }
+  await click(p, "提交本次作答");
+  await region.getByRole("region", { name: "逐项反馈" }).waitFor();
+  await click(p, "保留此版本");
+  await region.getByRole("button", { name: "按这条建议继续练" }).first().waitFor();
+  return (await region.getByRole("heading", { level: 2 }).innerText()).trim();
 }
 async function openSaved(p, title) {
   const b = panel(p)
@@ -127,7 +119,7 @@ async function openSaved(p, title) {
     const web = await context.newPage();
     await web.goto(url + pagePath);
     await workshop(web);
-    const email = await newKit(web, "rewrite", real);
+    const email = await newKit(web, "rewrite");
     const text = panel(web).getByRole("textbox", { name: "你的英文邮件" });
     const originalEmail = await panel(web)
       .locator(".training-data li")
@@ -174,7 +166,7 @@ async function openSaved(p, title) {
     await click(native, "提交本次作答");
     await panel(native).getByText("原答与练习记录 · 2").waitFor();
     await click(native, "返回工坊");
-    const schedule = await newKit(native, "dependency", real);
+    const schedule = await newKit(native, "dependency");
     const slider = panel(native).getByRole("slider");
     await slider.press("Home");
     for (let i = 0; i < 5; i++) await slider.press("ArrowRight");
@@ -223,7 +215,7 @@ async function openSaved(p, title) {
     await panel(web).getByText("原答与练习记录 · 2").waitFor();
     await click(web, "返回工坊");
     await web.setViewportSize({ width: 1040, height: 810 });
-    const canvas = await newKit(web, "canvas", real);
+    const canvas = await newKit(web, "canvas");
     const writers = panel(web).getByRole("textbox"),
       choices = panel(web).getByRole("combobox");
     assert.ok((await writers.count()) > 0);
@@ -239,8 +231,19 @@ async function openSaved(p, title) {
     await click(web, "保留此版本");
     await web.getByText(/已保留这个版本/).waitFor();
     await panel(web).screenshot({ path: path.join(output, "web-canvas.png") });
+    let studio;
+    if (real) {
+      await click(web, "返回工坊");
+      studio = await newStudio(web);
+      await panel(web).screenshot({ path: path.join(output, "web-studio.png") });
+      await click(web, "返回工坊");
+      await openSaved(web, studio);
+      await panel(web).getByRole("button", { name: "按这条建议继续练" }).first().click();
+      await panel(web).getByText("移除作答引用", { exact: true }).waitFor();
+    }
     const receipt = {
-      engine: real ? "local-ollama" : "built-in-examples",
+      engine: real ? "built-in-examples-and-local-studio" : "built-in-examples",
+      studio,
       email,
       schedule,
       canvas,

@@ -15,6 +15,19 @@ const bob = {
   username: "learning-b",
   displayName: "Learning B",
 };
+
+test("transfer inference has the generation deadline while consulting the first attempt remains a short request", async t => {
+  activatePrincipal(alice);
+  const durations: number[] = [];
+  t.mock.method(AbortSignal, "timeout", (ms: number) => {
+    durations.push(ms);
+    return new AbortController().signal;
+  });
+  const client = createLearningClient({ baseUrl: "http://learning-client.invalid", fetch: async () => Response.json({}) });
+  await client.training.command(alice.id, { action: "recommend-transfer", revision: 4, consent: true, requestId: crypto.randomUUID() });
+  await client.training.command(alice.id, { action: "view-practice", revision: 2 });
+  assert.deepEqual(durations, [225_000, 45_000]);
+});
 const bytes = new TextEncoder().encode("原创资料：已有成功回执不重复派送。");
 const hash = createHash("sha256").update(bytes).digest("hex");
 const material = {

@@ -13,7 +13,7 @@ import { ResumePreview } from "./components/ResumePreview";
 import { BookOpenCheck } from "lucide-react";
 import { inventorySource } from "./lib/inventory-source";
 import { inventoryClient } from "./services/inventory-client";
-import { inventoryKey, type InventoryView } from "@better-me/agent-contracts";
+import { careerJobSnapshotVersion, inventoryKey, type InventoryView } from "@better-me/agent-contracts";
 import "./components/career-inventory.css";
 import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { AutoSaveControls } from "./components/AutoSaveControls";
@@ -24,6 +24,7 @@ const ResumeDesignPanel = lazy(() => import("./components/ResumeDesignPanel").th
 const ImportSourceReview = lazy(() => import("./components/ImportSourceReview").then(module => ({ default: module.ImportSourceReview })));
 import { DEFAULT_LLM_CONFIG } from "./lib/llm-config";
 import type { DrawerJobContext } from "./components/JdMatchDrawer";
+import type { TrainingRequirementSelection } from "./components/CareerTrainingPanel";
 import { AgentTaskNavigation, type AgentTaskView } from "./components/AgentTaskNavigation";
 import { openSystemSettings } from "./lib/settings-navigation";
 import type { MatchProposal, ResumeTextReference } from "./services/agent-client";
@@ -116,7 +117,7 @@ export function App() {
   const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, protectEdit, saveReviewedVersion, readOfficialForReview, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const { page, setPage, workspaceTab, setWorkspaceTab, agentMode, setAgentMode, recovery: navigationRecovery } = useWorkspaceNavigation();
   const [studioInitialized, setStudioInitialized] = useState(agentMode === "studio");
-  const [agentNavigation, setAgentNavigation] = useState<{ view: AgentTaskView; id: number }>();
+  const [agentNavigation, setAgentNavigation] = useState<{ view: AgentTaskView; id: number; trainingRequirement?: TrainingRequirementSelection }>();
   function openAgentArea(area: "growth" | "studio") {
     if (area === "studio") setStudioInitialized(true);
     setAgentMode(area);
@@ -427,6 +428,15 @@ export function App() {
     }
     setPage("agent");
   }
+  function openGrowthRequirement(job: DrawerJobContext, quote: string) {
+    setIsJdMatchOpen(false);
+    setJdSelection(null);
+    openAgentWorkspace(job);
+    setAgentNavigation(previous => ({
+      view: "learning", id: (previous?.id ?? 0) + 1,
+      trainingRequirement: { quote, snapshotVersion: careerJobSnapshotVersion(job) },
+    }));
+  }
   function refreshJobRecommendations() {
     const current = docRef.current;
     const view = current?.resumeViews.find(item => item.id === current.activeResumeId);
@@ -683,8 +693,8 @@ export function App() {
         }}
         onClose={() => setInventoryOpen(false)} onConfirmed={setInventoryReview} onRefine={() => { setInventoryOpen(false); setWorkspaceTab("content"); showResumeEditor(); }} /></Suspense>}
       {isAiConfigOpen && <Suspense fallback={null}><AiConfigModal isOpen={isAiConfigOpen} onClose={() => setIsAiConfigOpen(false)} config={llmConfig} onSave={handleSaveLlmConfig} onChooseAgentSource={() => openSystemSettings("tools")} rootScopeKey={doc.documentId ?? activeResume.id} /></Suspense>}
-      {isJdMatchOpen && !jdSelection && <Suspense fallback={null}><JdMatchModal workspaceKey={doc.documentId ?? activeResume.id} onImportResume={() => setIsImportModalOpen(true)} onEditResume={editResumeForMatching} onSaveOpportunity={({ text, provenance }) => { setOpportunitySeed({ token: crypto.randomUUID(), description: text, title: provenance?.title, sourceUrl: provenance?.url, sourcePlatform: provenance?.platform, collectedAt: provenance?.observedAt, sourcePublishedAt: provenance?.sourcePublishedAt, sourcePublishedText: provenance?.sourcePublishedText }); setIsJdMatchOpen(false); setPage("opportunities"); }} isOpen={isJdMatchOpen && !jdSelection} onClose={() => setIsJdMatchOpen(false)} resume={projected} llmConfig={llmConfig} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onOpenConfig={() => { setIsJdMatchOpen(false); openSystemSettings("connections"); }} /></Suspense>}
-      {jdSelection && isJdMatchOpen && <Suspense fallback={null}><JdMatchModal workspaceKey={doc.documentId ?? activeResume.id} onImportResume={() => setIsImportModalOpen(true)} onEditResume={editResumeForMatching} key={jdSelection.token} initialText={jdSelection.text} initialSource={jdSelection.source} isOpen={isJdMatchOpen} onClose={() => { setIsJdMatchOpen(false); setJdSelection(null); }} resume={projected} llmConfig={llmConfig} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onOpenConfig={() => { setIsJdMatchOpen(false); setJdSelection(null); openSystemSettings("connections"); }} /></Suspense>}
+      {isJdMatchOpen && !jdSelection && <Suspense fallback={null}><JdMatchModal onGrowthRequirement={openGrowthRequirement} workspaceKey={doc.documentId ?? activeResume.id} onImportResume={() => setIsImportModalOpen(true)} onEditResume={editResumeForMatching} onSaveOpportunity={({ text, provenance }) => { setOpportunitySeed({ token: crypto.randomUUID(), description: text, title: provenance?.title, sourceUrl: provenance?.url, sourcePlatform: provenance?.platform, collectedAt: provenance?.observedAt, sourcePublishedAt: provenance?.sourcePublishedAt, sourcePublishedText: provenance?.sourcePublishedText }); setIsJdMatchOpen(false); setPage("opportunities"); }} isOpen={isJdMatchOpen && !jdSelection} onClose={() => setIsJdMatchOpen(false)} resume={projected} llmConfig={llmConfig} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onOpenConfig={() => { setIsJdMatchOpen(false); openSystemSettings("connections"); }} /></Suspense>}
+      {jdSelection && isJdMatchOpen && <Suspense fallback={null}><JdMatchModal onGrowthRequirement={openGrowthRequirement} workspaceKey={doc.documentId ?? activeResume.id} onImportResume={() => setIsImportModalOpen(true)} onEditResume={editResumeForMatching} key={jdSelection.token} initialText={jdSelection.text} initialSource={jdSelection.source} isOpen={isJdMatchOpen} onClose={() => { setIsJdMatchOpen(false); setJdSelection(null); }} resume={projected} llmConfig={llmConfig} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onOpenConfig={() => { setIsJdMatchOpen(false); setJdSelection(null); openSystemSettings("connections"); }} /></Suspense>}
       <LazyResumeImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} llmConfig={llmConfig} onImportSuccess={handleImportResumeSuccess} onOpenAiConfig={() => { setIsImportModalOpen(false); openSystemSettings("connections"); }} />
       {isHistoryOpen && <Suspense fallback={null}><VersionHistoryPanel history={history} currentDocument={doc} persistenceStatus={status} onCheckpoint={checkpoint} onRestore={restoreVersion} onRestoreField={restoreVersionField} onClose={() => setIsHistoryOpen(false)} /></Suspense>}
       {isAgentDrawerOpen && <Suspense fallback={null}><JdMatchDrawer

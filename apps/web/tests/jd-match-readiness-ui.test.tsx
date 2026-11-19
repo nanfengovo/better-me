@@ -14,6 +14,7 @@ import {registerTestIdentity} from "../../agent-host/tests/fixtures/identity";
 import {activatePrincipal} from "../src/lib/identity";
 import {ocrImage,ocrText} from "../../agent-host/tests/fixtures/jd-ocr";
 import type {TaskImage,CareerTaskModelOutput} from "../../agent-host/src/kernel/model-protocol";
+import type { DrawerJobContext } from "../src/components/JdMatchDrawer";
 import { Window } from "happy-dom";
 import {
   createDefaultResumeView,
@@ -131,6 +132,7 @@ async function mount(
   activeModelCalls=calls;
   const wire:{path:string;method:string;body?:Record<string,unknown>}[]=[];
   const saved: { text: string; provenance: unknown }[] = [];
+  const growth: { job: DrawerJobContext; quote: string }[] = [];
   const copied: string[] = [];
   const callbacks = { imported: 0, edited: 0, closed: 0 };
   let currentResume = initialResume;
@@ -168,10 +170,11 @@ async function mount(
       onClose() { callbacks.closed += 1; }, onOpenConfig() {}, onOpenNetworkSettings() {},
       onImportResume() { callbacks.imported += 1; }, onEditResume() { callbacks.edited += 1; },
       onSaveOpportunity(draft) { saved.push(draft); },
+      onGrowthRequirement(job, quote) { growth.push({ job, quote }); },
     })));
   };
   await render();
-  return { calls,wire, saved, copied, callbacks, render };
+  return { calls,wire, saved, copied, callbacks, render, growth };
 }
 
 afterEach(async () => {
@@ -192,6 +195,22 @@ after(async () => {
     if (descriptor) Object.defineProperty(globalThis, key, descriptor);
     else Reflect.deleteProperty(globalThis, key);
   }
+});
+
+test("an exact selected JD requirement opens growth from the original draft without a model request", async () => {
+  const { calls, growth } = await mount();
+  const description = "任职要求：\n熟悉 C# 和接口开发\n能处理 EF Core 并发更新冲突";
+  await editJd(description);
+  const choices = [...dom.document.querySelectorAll("li")];
+  const row = choices.find(item => item.textContent?.includes("能处理 EF Core 并发更新冲突"));
+  assert.ok(row);
+  const link = row.querySelector("button");
+  assert.equal(link?.textContent?.trim(), "加入成长计划");
+  await flush(() => link!.click());
+  assert.equal(growth.length, 1);
+  assert.equal(growth[0]!.job.description, description);
+  assert.equal(growth[0]!.quote, "能处理 EF Core 并发更新冲突");
+  assert.equal(calls.length, 0);
 });
 
 test("actual screenshot button keeps original bytes, pauses, restores originals after unmount and manually resumes without adopting JD",async()=>{

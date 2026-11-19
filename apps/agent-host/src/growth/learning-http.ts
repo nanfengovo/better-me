@@ -89,18 +89,25 @@ export async function handleLearning(
       !/^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] ?? "")
     )
       return send(res, 415, { error: "json_required" });
-    if (suffix === "/training/plan" || suffix === "/training/build") {
+    const kit = /^\/training\/([a-f0-9-]{36})\/commands$/.exec(suffix);
+    if (kit || suffix === "/training/plan" || suffix === "/training/build") {
       const stop=new AbortController(), disconnected=()=>{if(!res.writableEnded)stop.abort();};
       res.once("close",disconnected);
       try {
         const granted={...access,signal:stop.signal};
-        const result=suffix.endsWith("/plan")?{plan:await learning.training.plan(await body(8192),granted)}:{kit:await learning.training.build(await body(1024),granted)};
-        if(!res.destroyed)send(res,201,result);
+        if (kit) {
+          const result = await learning.training.command(kit[1]!, await body(8192), granted);
+          if (!res.destroyed) send(res, 200, result);
+        } else if (suffix === "/training/plan") {
+          const plan = await learning.training.plan(await body(8192), granted);
+          if (!res.destroyed) send(res, 201, { plan });
+        } else {
+          const exercise = await learning.training.build(await body(1024), granted);
+          if (!res.destroyed) send(res, 201, { kit: exercise });
+        }
         return;
       } finally {res.off("close",disconnected);}
     }
-    const kit = /^\/training\/([a-f0-9-]{36})\/commands$/.exec(suffix);
-    if (kit) return send(res,200,await learning.training.command(kit[1]!,await body(8192),access));
     if (suffix === "/translations"){
       const raw=await body(32768);
       if(raw && typeof raw==="object" && "request" in raw){

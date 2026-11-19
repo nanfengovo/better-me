@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { TrainingKind, TrainingAdvice } from "@better-me/agent-contracts";
+import type { TrainingExampleKind, TrainingAdvice } from "@better-me/agent-contracts";
 import { LearningStore } from "../src/growth/learning-store.js";
 import { TrainingKits } from "../src/growth/training-kits.js";
 import {
@@ -28,7 +28,7 @@ const build = (planId: string) => ({
   planId,
   consent: true,
 });
-function harness(kind: TrainingKind, overrides: Partial<TrainingAuthor> = {}) {
+function harness(kind: TrainingExampleKind, overrides: Partial<TrainingAuthor> = {}) {
   const counts = { plan: 0, design: 0, code: 0 };
   const author: TrainingAuthor = {
     pin: async () => "a".repeat(64),
@@ -53,7 +53,7 @@ function harness(kind: TrainingKind, overrides: Partial<TrainingAuthor> = {}) {
   return { author, counts };
 }
 async function setup(
-  kind: TrainingKind,
+  kind: TrainingExampleKind,
   overrides: Partial<TrainingAuthor> = {},
 ) {
   const dir = await mkdtemp(path.join(tmpdir(), "betterme-training-test-")),
@@ -426,4 +426,144 @@ test("unconfirmed model transport outcomes do not spend the repair attempt or re
     await h.close();
     await h.clean();
   }
+});
+
+test("goal alone reaches the local studio author and preserves per-action feedback across a different transfer", async (t) => {
+  const requests: { format: { properties: Record<string, { enum?: string[] }> }; messages: { content: string }[] }[] = [];
+  const model = "fixture-local", digest = "b".repeat(64);
+  const goal = "从车票时间线重建换乘顺序并解释依据";
+  const practice = {
+    brief: "合成车票", situation: "两张车票显示先到北站，再到南站。",
+    steps: [
+      { mode: "order", constraints: [{ before: "北站", after: "南站" }], prompt: "排出经过的站点", followUp: "找出首段终点", extend: "中间加站会如何改变顺序？" },
+      { mode: "write", prompt: "用一句话指出依据", followUp: "哪张票提供了依据？", extend: "换一个人解释是什么顺序" },
+    ],
+  };
+  const transfer = {
+    brief: "改签后的票", situation: "车票改签后，去河口前要在山城换乘。",
+    steps: [{ ...practice.steps[0], constraints: [{ before: "山城", after: "河口" }] }],
+  };
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    if (url.endsWith("/api/version")) return Response.json({ version: "0.40.16" });
+    if (url.endsWith("/api/tags")) return Response.json({ models: [{ name: model, model, digest, size: 10 }] });
+    if (url.endsWith("/api/show")) return Response.json({ details: { format: "gguf" },
+      model_info: { "general.architecture": "synthetic", "general.parameter_count": 1 } });
+    assert.equal(url, "http://127.0.0.1:11434/api/chat");
+    const body = JSON.parse(String(init.body));
+    requests.push(body);
+    const reply = body.format.properties.route ? { route: "studio", needsCode: false, needsOrder: true, needsQuantity: false, needsWriting: true, codeSignature: { input: "integer", output: "integer" }, observation: "先用两张票观察", nextStep: "重建一次换乘记录" }
+      : { title: "重建换乘", orderMode: "sequence",
+        practice: { brief: practice.brief, situation: practice.situation, first: { mode: "order", firstEvents: [{ name: "北站", observation: "首段到达" }],
+          between: [], lastEvents: [{ name: "南站", observation: "次段到达" }], additionalEvent: "西站增停" }, second: practice.steps[1], extra: [] },
+        transfer: { brief: transfer.brief, situation: transfer.situation, first: { mode: "order", firstEvents: [{ name: "山城", observation: "改签中转" }],
+          between: [], lastEvents: [{ name: "河口", observation: "终点下车" }], additionalEvent: "列车临停" }, second: practice.steps[1], extra: [] },
+      };
+    return Response.json({ done: true, done_reason: "stop", model: model + ":local",
+      message: { role: "assistant", content: JSON.stringify(reply) } });
+  });
+  const dir = await mkdtemp(path.join(tmpdir(), "betterme-studio-wire-"));
+  const id = randomUUID(), root = path.join(dir, "owner");
+  let now = Date.now(), store = new LearningStore(id, root), kits = new TrainingKits(store, localTrainingAuthor, () => now);
+  try {
+    const plan = await kits.plan({ requestId: randomUUID(), engine: { type: "local", model }, goal, consent: true }, a);
+    assert.equal(plan.evidence, "");
+    assert.equal(plan.advice.route, "studio");
+    assert.deepEqual(requests[0]!.format.properties.route!.enum, ["studio", "simple", "clarify"]);
+    const kit = await kits.build(build(plan.id), a);
+    assert.equal(JSON.parse(requests[1]!.messages[1]!.content).goal, goal);
+    assert.deepEqual(kit.screen.fields.map(f => f.control), ["order", "write"]);
+    const submit = async (first: boolean, revision: number) => kits.command(kit.id, {
+      action: first ? "explore" : "submit", revision, round: "practice",
+      answer: { parts: { part1: JSON.stringify(first ? ["南站 · 次段到达", "北站 · 首段到达"] : ["北站 · 首段到达", "南站 · 次段到达"]), part2: "依据两段车票" } },
+    }, a);
+    const missed = await submit(true, kit.revision);
+    const fixed = await submit(false, missed.kit!.revision);
+    assert.deepEqual(missed.feedback?.evidence?.map(e => e.status), ["missed", "recorded"]);
+    assert.match(missed.feedback!.evidence![0]!.nextStep, /北站.*南站/);
+    assert.equal(missed.feedback!.evidence![1]!.nextStep, "哪张票提供了依据？");
+    assert.match(fixed.feedback!.evidence![0]!.nextStep, /西站增停/);
+    const kept = await kits.command(kit.id, { action: "keep", revision: fixed.kit!.revision }, a);
+    kits.close();
+    await store.close();
+    now += 86_400_001;
+    store = new LearningStore(id, root);
+    kits = new TrainingKits(store, localTrainingAuthor, () => now);
+    const next = await kits.get(kit.id, a);
+    assert.equal(next.stage, "retest");
+    assert.notEqual(next.questionVersion, kit.questionVersion);
+    assert.deepEqual(next.attempts, [], "the independent retest withholds the earlier answer and feedback");
+    const finished = await kits.command(kit.id, { action: "submit", round: "retest", revision: next.revision,
+      answer: { parts: { part1: JSON.stringify(["山城 · 改签中转", "河口 · 终点下车"]), part2: "改签记录中的换乘地点" } } }, a);
+    assert.equal(finished.kit!.stage, "complete");
+    assert.deepEqual(finished.kit!.attempts[0], kept.kit!.attempts[0]);
+    assert.deepEqual(finished.kit!.attempts.map(attempt => attempt.usedPreview), [true, false]);
+    assert.equal(requests.length, 2);
+    const follow = await kits.plan({ requestId: randomUUID(), engine: { type: "local", model }, goal,
+      followFrom: { kitId: kit.id, version: kit.version, round: "practice", key: "part1" }, consent: true }, a);
+    await kits.build(build(follow.id), a);
+    for (const request of requests.slice(2)) {
+      const material = JSON.parse(request.messages[1]!.content);
+      assert.deepEqual(material.previousAction, {
+        questionLabel: kit.screen.fields[0]!.label, answer: JSON.stringify(["北站 · 首段到达", "南站 · 次段到达"]),
+        usedPreview: true, status: "met", detail: fixed.feedback!.evidence![0]!.detail,
+        nextStep: fixed.feedback!.evidence![0]!.nextStep,
+      });
+      assert.ok(!request.messages[1]!.content.includes(kit.id));
+    }
+    assert.equal(requests.length, 4);
+  } finally {
+    kits.close();
+    await store.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("generated code exercises freeze typed cases only after the private reference runs successfully", async (t) => {
+  const model = "fixture-local", pin = "c".repeat(64);
+  const first = (x: number) => ({ mode: "code", followUp: "用负数尝试", extend: "增加零作为边界", inputs: [x, x + 1] });
+  const reply = {
+    title: "计算平方", codeContract: { task: "给一个整数返回它的平方",
+      referenceSource: "return value * value;", workedExample: { input: -2, expected: 4 } },
+    practice: { sourceLabel: "坐标距离", first: first(-2), extra: [] },
+    transfer: { sourceLabel: "另一组坐标", first: first(3), extra: [] },
+  };
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.endsWith("/api/version")) return Response.json({ version: "0.40.16" });
+    if (url.endsWith("/api/tags")) return Response.json({ models: [{ name: model, model, digest: pin, size: 10 }] });
+    if (url.endsWith("/api/show")) return Response.json({ details: { format: "gguf" },
+      model_info: { "general.architecture": "synthetic", "general.parameter_count": 1 } });
+    assert.equal(url, "http://127.0.0.1:11434/api/chat");
+    return Response.json({ done: true, done_reason: "stop", model: model + ":local",
+      message: { role: "assistant", content: JSON.stringify(reply) } });
+  });
+  const design = (signature: NonNullable<TrainingAdvice["codeSignature"]> = { input: "integer", output: "integer" }) => localTrainingAuthor.design({
+    id: randomUUID(), goal: "按指定单参合同亲自写函数", evidence: "", modelCalls: 1, origin: "local", model,
+    advice: { route: "studio", practiceActions: ["code"], codeSignature: signature,
+      observation: "先观察函数输出", nextStep: "试写函数" },
+  }, pin, "studio", new AbortController().signal);
+  const frozen = validateDesign(await design(), "studio");
+  assert.equal(frozen.kind, "studio");
+  assert.ok(!JSON.stringify(frozen).includes("return value"));
+  const step = frozen.scenes[0]!.steps[0]!;
+  assert.equal(step.mode, "code");
+  assert.deepEqual(step.cases[0], { input: -2, expected: 4 });
+  const transfer = frozen.scenes[1]!.steps[0]!;
+  assert.equal(transfer.mode, "code");
+  assert.equal(transfer.prompt, step.prompt);
+  assert.deepEqual(transfer.cases, [{ input: 3, expected: 9 }, { input: 4, expected: 16 }]);
+  reply.codeContract.workedExample.expected = 9;
+  await assert.rejects(design(), /reference_mismatch/);
+  Object.assign(reply.codeContract.workedExample, { expected: "4" });
+  await assert.rejects(design(), /number/);
+
+  Object.assign(reply.codeContract, { task: "返回布尔值的反值", referenceSource: "v => !v",
+    workedExample: { input: true, expected: false } });
+  Object.assign(reply.practice.first, { inputs: [true] });
+  Object.assign(reply.transfer.first, { inputs: [true] });
+  const binary = validateDesign(await design({ input: "boolean", output: "boolean" }), "studio");
+  assert.equal(binary.kind, "studio");
+  const a = binary.scenes[0]!.steps[0]!, b = binary.scenes[1]!.steps[0]!;
+  assert(a.mode === "code" && b.mode === "code");
+  assert.deepEqual(a.cases, [{ input: true, expected: false }]);
+  assert.deepEqual(b.cases, [{ input: false, expected: true }]);
 });

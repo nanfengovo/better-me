@@ -6,7 +6,7 @@ import { useAgentRouting } from "../lib/agent-routing";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
 import {alignJdWithResume,decomposeJdText,type InterviewDefenseStrategy,type LlmConfig,type ProjectedResume} from "@better-me/core";
-import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
+import { careerJobSnapshotVersion, careerTrainingRequirements, type ResumeEditContext, type ResumeProposalTarget } from "@better-me/agent-contracts";
 import {
   Bot,
   Check,
@@ -48,6 +48,7 @@ import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentAutoSpeechToggle, AgentSpeechControl, useAgentSpeech, useSessionAutoSpeech } from "./AgentSpeechControl";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
+import type { TrainingRequirementSelection } from "./CareerTrainingPanel";
 import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
 import { AgentExternalHandoff } from "./AgentExternalHandoff";
 import { extractJobLink } from "../lib/job-link";
@@ -76,7 +77,7 @@ export interface AgentWorkspaceProps {
   workspaceKey?: string;
   active?: boolean;
   onActivate?:()=>void;
-  navigationRequest?: { view: AgentTaskView; id: number };
+  navigationRequest?: { view: AgentTaskView; id: number; trainingRequirement?: TrainingRequirementSelection };
   onOpenArea?: (area: "growth" | "studio") => void;
   job: DrawerJobContext | null;
   resume: ProjectedResume | null;
@@ -136,18 +137,18 @@ function AgentWorkspaceSession({
   const [taskObjective, setTaskObjective] = useState<string>();
   const [taskView, setTaskView] = useRecoveryField(recovery, "taskView");
   const speech = useAgentSpeech(`advisor:${privateKey(workspaceKey)}`, active && !showCareerCoach && taskView !== "handoff" && !showCareerTask);
-  const [coachRequest, setCoachRequest] = useState<{ mode: CoachMode; id: number }>();
-  function selectTask(view: AgentTaskView) {
+  const [coachRequest, setCoachRequest] = useState<{ mode: CoachMode; id: number; trainingRequirement?: TrainingRequirementSelection }>();
+  function selectTask(view: AgentTaskView, trainingRequirement?: TrainingRequirementSelection) {
     interviewRecovery.field("open",false);
     setShowCareerTask(false);
     setTaskView(view);
     const mode: CoachMode | undefined = view === "resume" ? "resume" : view === "career" ? "analysis" : view === "learning" ? "plan" : view === "practice" ? "interview" : undefined;
     setShowCareerCoach(Boolean(mode));
-    if (mode) setCoachRequest(previous => ({ mode, id: (previous?.id ?? 0) + 1 }));
+    if (mode) setCoachRequest(previous => ({ mode, id: (previous?.id ?? 0) + 1, trainingRequirement }));
   }
   const selectTaskRef = useRef(selectTask);
   selectTaskRef.current = selectTask;
-  useEffect(() => { if (navigationRequest) selectTaskRef.current(navigationRequest.view); }, [navigationRequest]);
+  useEffect(() => { if (navigationRequest) selectTaskRef.current(navigationRequest.view, navigationRequest.trainingRequirement); }, [navigationRequest]);
   const [careerCoachInitialized, setCareerCoachInitialized] = useState(false);
   useEffect(() => { if (showCareerCoach) setCareerCoachInitialized(true); }, [showCareerCoach]);
   useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, [setTaskView, setShowCareerCoach]);
@@ -1107,6 +1108,21 @@ function AgentWorkspaceSession({
       sourceUrl, sourcePlatform,
     };
   }, [currentJob, isSetupMode, inputDescription, inputTitle, inputCompany, inputSalary, inputLocation, sourceUrl, sourcePlatform, t]);
+  const linkableRequirements = useMemo(() => new Set(
+    careerCoachJob?.description && careerCoachJob.description.length <= 30_000
+      ? careerTrainingRequirements(careerCoachJob).map(item => item.originalQuote) : [],
+  ), [careerCoachJob]);
+  function linkRequirement(quote: string) {
+    if (!careerCoachJob || !linkableRequirements.has(quote)) return;
+    interviewRecovery.field("open", false);
+    setShowCareerTask(false);
+    setTaskView("learning");
+    setShowCareerCoach(true);
+    setCoachRequest(previous => ({
+      mode: "plan", id: (previous?.id ?? 0) + 1,
+      trainingRequirement: { quote, snapshotVersion: careerJobSnapshotVersion(careerCoachJob) },
+    }));
+  }
 
   function openCareerTask(objective?:string){
     if(sidebar){sidebar.requestTask({job:careerCoachJob,objective});return;}
@@ -2248,6 +2264,8 @@ function AgentWorkspaceSession({
                   if (leftViewMode === "jd") showLeftPage("chat");
                   void handleSendMessage(`针对这个岗位的缺口项“${jdItem}”，帮我制定一套高情商的面试应答与能力迁移策略`);
                 }}
+                linkableRequirements={linkableRequirements}
+                onLinkRequirement={linkRequirement}
                 onSetActiveDiffProposalId={setActiveDiffProposalId}
                 onDecision={handleDecision}
                 onStartEdit={startEdit}

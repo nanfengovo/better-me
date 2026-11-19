@@ -6,9 +6,11 @@ import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
 import type { LlmConfig } from "@better-me/core";
 import type { ResumeEditContext } from "@better-me/agent-contracts";
+import { careerJobSnapshotVersion, careerTrainingRequirements, type TrainingView, type TrainingWritingReview } from "@better-me/agent-contracts";
+import { resolveCareerTrainingTarget } from "@better-me/agent-contracts/career-coach";
 import type { CoachGeneration, CoachGenerate, CoachPayload, CoachRequest, CoachState } from "../src/lib/career-coach/types";
 import { createMemoryCoachRepository, type CoachRepository } from "../src/lib/career-coach/storage";
-import { addCoachRecord, adoptCoachPlan, contextFingerprint, createCoachRecord, createCoachState } from "../src/lib/career-coach/state";
+import { addCareerTrainingEvidence, addCareerTrainingTarget, addCoachRecord, adoptCoachPlan, contextFingerprint, createCoachRecord, createCoachState } from "../src/lib/career-coach/state";
 import { confirmGoal } from "../src/lib/career-coach/journey";
 import { BetterMeAgentProvider } from "../src/lib/betterme-agent/react";
 import { createMemoryAgentRepository } from "../src/lib/betterme-agent/storage";
@@ -287,6 +289,205 @@ test("review failure preserves a saved evidence submission and does not claim ve
   assert.equal(saved?.submissions[0]?.feedbackRecordId, undefined);
   assert.ok(body().textContent?.includes("合成模型暂时不可用"));
   assert.match(body().textContent ?? "", /自评|不.*认证|不代表.*认证/);
+});
+
+test("a selected JD requirement binds an adopted task to the workshop and returns original attempts for explicit review", async t => {
+  const { activatePrincipal } = await import("../src/lib/identity");
+  const { defaultLearningClient } = await import("../src/services/learning-client");
+  const ownerId = "11111111-1111-4111-8111-111111111111";
+  const selectedJob = { id: "jd-fixture", title: ".NET 后端", company: "合成企业", description: "任职要求：\n熟悉 API 开发\n能处理 EF Core 并发更新冲突" };
+  const quote = "能处理 EF Core 并发更新冲突";
+  const repository = await configuredRepository(state => {
+    const adopted = withPlan(state, true);
+    const plan = structuredClone(adopted.activePlan!.plan);
+    const task = plan.phases[0]!.tasks[0]!;
+    task.title = "并发更新模拟";
+    task.acceptanceCriteria = ["冲突后重新读取并检验余量"];
+    return { ...adopted, activePlan: { ...adopted.activePlan!, plan },
+      records: adopted.records.map(record => record.id === adopted.activePlan!.id ? { ...record, payload: plan } : record) };
+  });
+  const requests: CoachRequest[] = [];
+  let kit: TrainingView | undefined;
+  let linked: TrainingView["career"];
+  const version = "a".repeat(64), questionVersion = "b".repeat(64);
+  try {
+    activatePrincipal({ id: ownerId, username: "fixture", displayName: "Fixture" });
+    t.mock.method(defaultLearningClient.training, "list", async () => kit?.saved ? [{
+      id: kit.id, ownerId, title: kit.title, version, origin: "example", stage: kit.stage, career: kit.career,
+    }] : []);
+    t.mock.method(defaultLearningClient.training, "plan", async input => {
+      const saved = (await repository.load(fixtureKey))!;
+      assert.ok(input.careerTarget);
+      linked = resolveCareerTrainingTarget(saved, input.careerTarget!);
+      assert.equal(linked?.requirement.quote, quote);
+      assert.equal(linked?.taskId, "task-1");
+      assert.equal(input.goal, linked?.competency);
+      return { id: "22222222-2222-4222-8222-222222222222", goal: input.goal, evidence: input.evidence,
+        career: linked, origin: "example", modelCalls: 0,
+        advice: { route: "concurrency", observation: "合成诊断", nextStep: "练习" } };
+    });
+    t.mock.method(defaultLearningClient.training, "build", async () => {
+      kit = { id: "33333333-3333-4333-8333-333333333333", ownerId, title: "合成并发练习",
+        goal: linked!.competency, focus: "并发冲突", kind: "concurrency", version, origin: "example",
+        modelCalls: 0, verifiedCases: 7, saved: false, revision: 0, stage: "practice", attempts: [],
+        career: linked, questionVersion, screen: { brief: "仓库扣减", instruction: "预测冲突和余量", notes: ["初始余量 10，A 扣 6，B 想扣 5"],
+          fields: [
+            {control:"choose", key:"part1", label:"首次保存结果", options:["并发冲突，重新读取","保存成功"]},
+            {control:"choose", key:"part2", label:"冲突后如何决定", options:["余量不足，拒绝第二次扣减","重新核对后提交"]},
+            {control:"number", key:"part3", label:"最终余量", min:0, max:10, initial:0},
+          ] } };
+      return kit;
+    });
+    t.mock.method(defaultLearningClient.training, "command", async (_id, command) => {
+      if (command.action === "submit") {
+        assert.deepEqual(command.answer, { parts: { part1:"并发冲突，重新读取", part2:"余量不足，拒绝第二次扣减", part3:"4" } });
+        const feedback = { met: true, detail: "余量为 4" };
+        kit = { ...kit!, stage: "waiting", revision: 1, dueAt: new Date(Date.now() + 86400000).toISOString(),
+          attempts: [{ round: "practice", at: new Date().toISOString(), answer: command.answer, usedPreview: false, feedback, questionVersion, question: kit!.screen }] };
+        return { kit, feedback };
+      }
+      assert.equal(command.action, "keep");
+      kit = { ...kit!, revision: 2, saved: true };
+      return { kit };
+    });
+    t.mock.method(defaultLearningClient.training, "get", async () => kit!);
+    await mount({ repository, job: selectedJob, modeRequest: { mode: "plan", id: 1, trainingRequirement: {quote, snapshotVersion: careerJobSnapshotVersion(selectedJob)} },
+      generate: async request => { requests.push(request); return generated(request.mode); } });
+    assert.match(body().textContent ?? "", new RegExp(quote));
+    await click(/确认能力目标并打开工坊/);
+    assert.equal((await repository.load(fixtureKey))?.trainingTargets?.[0]?.quote, quote);
+    assert.equal((await repository.load(fixtureKey))?.submissions.length, 0);
+    await click(/并发冲突与库存扣减/);
+    await click(/试用示例工具/);
+    await fill(/首次保存结果/, "并发冲突，重新读取");
+    await fill(/冲突后如何决定/, "余量不足，拒绝第二次扣减");
+    await fill(/最终余量/, "4");
+    await click(/提交本次作答/);
+    await click(/保留此版本/);
+    kit = { ...kit!, revision: 3 }; // Another window updated the saved kit after it was displayed.
+    await click(/保存这些原答用于本任务复盘/);
+    assert.equal((await repository.load(fixtureKey))!.submissions.length, 0);
+    assert.match(body().textContent ?? "", /另一窗口更新/);
+    await click(/返回工坊/);
+    await click(/合成并发练习 · v/);
+    await click(/保存这些原答用于本任务复盘/);
+    const saved = (await repository.load(fixtureKey))!;
+    const submission = saved.submissions[0]!;
+    assert.equal(submission.taskId, "task-1");
+    assert.equal(submission.planId, saved.activePlan?.id);
+    assert.equal(submission.training?.questionVersion, questionVersion);
+    assert.match(submission.evidence, /初始余量 10/);
+    assert.match(submission.evidence, new RegExp(quote));
+    assert.equal(JSON.parse(submission.evidence).origin, "example");
+    assert.equal(requests.length, 0);
+    await click(/共享练习证据并请求反馈/);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.mode, "review");
+    assert.match(requests[0]?.submission?.evidence ?? "", new RegExp(quote));
+    // Same task ID in a replacement plan must never receive the original retest.
+    await flush(() => root?.unmount()); root = undefined;
+    const previous = (await repository.load(fixtureKey))!;
+    const replacement = createCoachRecord(generated("plan"), { mode: "plan", settings: previous.settings,
+      input: "替换方案", confirmedGoal: previous.goalConfirmations!.at(-1) });
+    const replaced = adoptCoachPlan(addCoachRecord(previous, replacement), replacement.id, "2026-11-20");
+    await repository.save({ ...replaced, revision: previous.revision + 1 }, previous.revision);
+    const retestVersion = "c".repeat(64);
+    kit = { ...kit!, stage: "complete", revision: 4, questionVersion: retestVersion,
+      attempts: [...kit!.attempts, { ...kit!.attempts[0]!, round: "retest", questionVersion: retestVersion,
+        question: { ...kit!.screen, notes: ["换场景，余量充足"] },
+      }] };
+    await mount({ repository, job: selectedJob, modeRequest: { mode: "plan", id: 2 }, generate: async request => { requests.push(request); return generated(request.mode); } });
+    await fill(/计划版本/, previous.activePlan!.id);
+    await click(/合成并发练习 · v/);
+    await click(/保存这些原答用于本任务复盘/);
+    const afterRetest = (await repository.load(fixtureKey))!;
+    assert.deepEqual(afterRetest.submissions.map(item => item.planId), [previous.activePlan!.id, previous.activePlan!.id]);
+    assert.equal(afterRetest.submissions[1]?.training?.questionVersion, retestVersion);
+    assert.equal(afterRetest.activePlan?.progress["task-1"]?.status, "todo");
+    await click(/保存这些原答用于本任务复盘/);
+    assert.equal((await repository.load(fixtureKey))!.submissions.length, 2, "saving the same retest again is idempotent");
+    assert.equal(requests.length, 1);
+  } finally {
+    if (root) await flush(() => root?.unmount());
+    root = undefined;
+    activatePrincipal(undefined);
+  }
+});
+
+test("requesting a career snapshot after feedback or rewriting preserves earlier evidence and its review", async () => {
+  const repository = await configuredRepository(state => withPlan(state, true));
+  const adopted = (await repository.load(fixtureKey))!;
+  const job = { id: "fixture-design", title: "后端开发", company: "合成企业", description: "任职要求：\n能说明设计取舍" };
+  const requirement = careerTrainingRequirements(job)[0]!;
+  const now = new Date().toISOString();
+  const targetId = crypto.randomUUID();
+  const state = addCareerTrainingTarget(adopted, {
+    id: targetId, goalId: adopted.goalConfirmations!.at(-1)!.id, planId: adopted.activePlan!.id, taskId: "task-2",
+    job, quote: requirement.originalQuote, itemId: requirement.id, criterionIndex: 0, competency: "说明设计约束", createdAt: now,
+  });
+  const questionVersion = "b".repeat(64);
+  const screen: TrainingView["screen"] = { brief: "评估规则拆分", instruction: "说明选择理由", notes: ["两条规则半年改过一次"],
+    fields: [{ control: "write", key: "part1", label: "是否现在拆分？" }] };
+  const answer = "我会立即拆分，因为一定更容易维护。";
+  const kit: TrainingView = { id: crypto.randomUUID(), ownerId: crypto.randomUUID(), title: "评估规则拆分", goal: "说明设计约束",
+    career: resolveCareerTrainingTarget(state, { workspaceKey: fixtureKey, targetId }), kind: "studio", focus: "解释取舍",
+    version: "a".repeat(64), origin: "local", model: "fixture", modelDigest: "c".repeat(64), modelCalls: 2, verifiedCases: 0,
+    saved: true, revision: 2, stage: "waiting", screen, questionVersion,
+    attempts: [{ round: "practice", at: now, question: screen, questionVersion, answer: { parts: { part1: answer } },
+      feedback: { met: false, detail: "保留原答", evidence: [{ key: "part1", status: "recorded", detail: "保留原答", nextStep: "解释取舍" }] },
+      usedPreview: false }] };
+  const initial = addCareerTrainingEvidence(state, kit);
+  assert.equal(initial.submissions[0]?.training?.writingVersion, undefined);
+  assert.equal(addCareerTrainingEvidence(initial, { ...kit, revision: 3 }), initial);
+  const originalSubmission = { ...initial.submissions[0]!, feedbackRecordId: "review-of-original" };
+  const originalWithFeedback = { ...initial, submissions: [originalSubmission] };
+  const review: TrainingWritingReview = { key: "part1", questionVersion, quote: "一定更容易维护", comment: "这里缺少变化频率的依据。",
+    revisionPrompt: "结合半年一次的变化说明适用条件。", model: kit.model!, modelDigest: kit.modelDigest!, createdAt: now };
+  kit.attempts[0]!.writingReviews = [review];
+  const withReview = addCareerTrainingEvidence(originalWithFeedback, kit);
+  assert.equal(addCareerTrainingEvidence(withReview, kit), withReview);
+  review.rewrite = { answer: "先保留两条规则，等出现独立变化的需求再考虑拆分。", at: now };
+  const revised = addCareerTrainingEvidence(withReview, kit);
+  assert.equal(addCareerTrainingEvidence(revised, kit), revised);
+  assert.equal(revised.submissions.length, 3);
+  assert.equal(revised.submissions[0], originalSubmission);
+  assert.equal(JSON.parse(revised.submissions[0]!.evidence).attempts[0].writingReviews, undefined);
+  const snapshots = revised.submissions.slice(1).map(s => JSON.parse(s.evidence).attempts[0]);
+  assert.equal(snapshots[0].writingReviews[0].rewrite, undefined);
+  assert.equal(snapshots[1].writingReviews[0].rewrite.answer, review.rewrite.answer);
+  assert.equal(snapshots[1].answer.parts.part1, answer);
+  assert.notEqual(revised.submissions[1]!.training!.writingVersion, revised.submissions[2]!.training!.writingVersion);
+  assert.ok(revised.submissions.every(s => s.planId === adopted.activePlan!.id && s.taskId === "task-2"));
+  await repository.save({ ...revised, revision: adopted.revision + 1 }, adopted.revision);
+  assert.deepEqual((await repository.load(fixtureKey))!.submissions, revised.submissions);
+
+  const transferQuestion = { ...screen, brief: "给另一种变化节奏作判断", notes: ["业务每周增加一条规则"] };
+  const retestVersion = "d".repeat(64);
+  kit.attempts.push({ ...kit.attempts[0]!, question: transferQuestion, round: "retest", at: new Date(Date.parse(now) + 86_400_000).toISOString(),
+    questionVersion: retestVersion, answer: { parts: { part1: "每周新增规则，需要能单独替换的实现。" } },
+    writingReviews: undefined, aids: { preview: false, practiceReference: false } });
+  kit.stage = "complete";
+  const retested = addCareerTrainingEvidence(revised, kit);
+  kit.transferDecision = { direction: "extend", nextGoal: "判断一个月内增删多条规则时的回退成本。", actions: ["write"],
+    reasons: [
+      { evidenceId: "practice.part1", reason: "先前将拆分当成默认选择。" },
+      { evidenceId: "rewrite.part1", reason: "改写给出了暂不拆分的条件。" },
+      { evidenceId: "retest.part1", reason: "新情境中能依据每周变化的频率说明选择，可加上回退成本。" },
+    ], evidenceVersion: "e".repeat(64), model: kit.model!, modelDigest: kit.modelDigest!, createdAt: kit.attempts[1]!.at };
+  assert.equal(retested.submissions.length, 4);
+  assert.equal(JSON.parse(retested.submissions[3]!.evidence).transferDecision, undefined);
+  const recommended = addCareerTrainingEvidence(retested, kit);
+  assert.equal(addCareerTrainingEvidence(recommended, kit), recommended);
+  const receipt = recommended.submissions.at(-1)!;
+  assert.equal(recommended.submissions.length, 5);
+  assert.equal(receipt.training!.transferEvidenceVersion, kit.transferDecision.evidenceVersion);
+  const evidence = JSON.parse(receipt.evidence);
+  assert.equal(evidence.goal, kit.goal);
+  assert.deepEqual(evidence.transferDecision, kit.transferDecision);
+  assert.deepEqual(evidence.attempts[1].aids, { preview: false, practiceReference: false });
+  assert.equal(evidence.attempts[1].questionVersion, retestVersion);
+  await repository.save({ ...recommended, revision: adopted.revision + 2 }, adopted.revision + 1);
+  assert.deepEqual((await repository.load(fixtureKey))!.submissions, recommended.submissions);
 });
 
 test("interview saves the actual answer before feedback and retries without duplicate turns", async () => {

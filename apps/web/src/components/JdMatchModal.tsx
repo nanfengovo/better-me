@@ -1,10 +1,11 @@
 import { useUiPreferences } from "../lib/ui-preferences";
 import { InventoryJobCheck } from "./InventoryJobCheck";
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { isBossDescriptionCollapsed, snapshotFailureMessage } from "../lib/jd-capture-diagnostics";
 import {
   getJdMatchReadiness,
+  decomposeJdText,
   type JdMatchReport,
   type LlmConfig,
   type ProjectedResume,
@@ -63,6 +64,8 @@ import {defaultJdMatchTaskClient} from "../services/jd-match-task-client";
 import {useAgentTaskRuntime} from "../lib/agent-task-runtime";
 import {defaultJdOcrTaskClient,ocrManifest} from "../services/jd-ocr-task-client";
 import type {JdOcrTask} from "@better-me/agent-contracts";
+import { careerTrainingRequirements } from "@better-me/agent-contracts";
+import type { DrawerJobContext } from "./JdMatchDrawer";
 
 async function closeTrackedBrowserSession(sessionId: string): Promise<void> {
   const key = `session:${sessionId}`;
@@ -88,6 +91,7 @@ type Props = {
   initialText?: string;
   initialSource?: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
   onSaveOpportunity?: (draft: { text: string; provenance: JdProvenance | null }) => void;
+  onGrowthRequirement?: (job: DrawerJobContext, quote: string) => void;
 };
 
 const SAMPLE_JD = `【外企/高端智能装备】高级工业软件研发工程师 (.NET / C#)
@@ -116,6 +120,7 @@ export function JdMatchModal({
   initialText,
   initialSource,
   onSaveOpportunity,
+  onGrowthRequirement,
 }: Props) {
   const { t, locale } = useUiPreferences();
   const {agent}=useBetterMeAgent(),routing=useAgentRouting();
@@ -132,6 +137,14 @@ export function JdMatchModal({
   const [draftEdited, setDraftEdited] = useState(false);
   const [jdText, setJdText] = useState(initialDraft.text);
   const [provenance, setProvenance] = useState<JdProvenance | null>(initialDraft.provenance);
+  const trainingSource = useMemo(() => {
+    if (!jdText.trim() || jdText.length > 30_000 || isJdLinkOnly(jdText)) return undefined;
+    const parsed = decomposeJdText(jdText, { title: provenance?.title ?? initialSource?.title });
+    const job: DrawerJobContext = { title: parsed.title || t("岗位草稿", "Job draft"), company: parsed.company, description: jdText,
+      location: parsed.location || undefined, sourceUrl: provenance?.url ?? initialSource?.url,
+      sourcePlatform: provenance?.platform ?? initialSource?.platform };
+    return { job, items: careerTrainingRequirements(job) };
+  }, [jdText, provenance, initialSource, t]);
   const [shareInput, setShareInput] = useState(initialDraft.shareInput);
   const [tab, setTab] = useState<"text" | "link" | "screenshot">("text");
   const [screenshots, setScreenshots] = useState<JdScreenshot[]>([]);
@@ -1066,6 +1079,20 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
 
           {/* Report Results */}
           {restoredReport&&report&&<p role="status" aria-label="报告恢复状态" className="text-xs text-slate-500">{t("已读取本机已有报告 · 未重新请求模型", "Loaded the existing local report · No new model request")}</p>}
+          {onGrowthRequirement && trainingSource && trainingSource.items.length > 0 && (
+                <details className="rounded-xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer text-sm font-medium">{t("按岗位原句选择成长任务", "Choose a requirement for your growth plan")}</summary>
+                  <ul className="mt-3 space-y-3">
+                    {trainingSource.items.map(item => <li key={item.id} className="flex flex-wrap items-start justify-between gap-2 text-sm">
+                      <span className="min-w-0 flex-1">{item.originalQuote}</span>
+                      <button type="button" className="studio-button shrink-0" disabled={loading || closingBrowser} onClick={() => {
+                        invalidateAcquisition();
+                        onGrowthRequirement(trainingSource.job, item.originalQuote);
+                      }}>{t("加入成长计划", "Link to growth plan")}</button>
+                    </li>)}
+                  </ul>
+                </details>
+          )}
           {report && readiness.ready && (
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
               {/* Score & Summary Banner */}

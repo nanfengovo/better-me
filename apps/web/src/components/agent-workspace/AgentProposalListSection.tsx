@@ -29,6 +29,8 @@ export interface AgentProposalListSectionProps {
   showGapsSummary: boolean;
   onToggleGapsSummary: () => void;
   onAskGap: (jdItem: string) => void;
+  linkableRequirements?: ReadonlySet<string>;
+  onLinkRequirement?: (jdItem: string) => void;
   onSetActiveDiffProposalId: (id: string | null) => void;
   onDecision: (proposalId: string, status: "accepted" | "rejected") => void;
   onStartEdit: (proposal: MatchProposal) => void;
@@ -53,6 +55,8 @@ export function AgentProposalListSection({
   showGapsSummary,
   onToggleGapsSummary,
   onAskGap,
+  linkableRequirements,
+  onLinkRequirement,
   onSetActiveDiffProposalId,
   onDecision,
   onStartEdit,
@@ -133,6 +137,7 @@ export function AgentProposalListSection({
                     <span className={`font-medium ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>{g.jdItem}</span>
                     <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}> · {g.rationale}</span>
                   </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => onAskGap(g.jdItem)}
@@ -140,6 +145,10 @@ export function AgentProposalListSection({
                   >
                     {t("问顾问", "Ask")}
                   </button>
+                  {onLinkRequirement && linkableRequirements?.has(g.jdItem) && <button type="button"
+                    onClick={() => onLinkRequirement(g.jdItem)}
+                    className={`text-[11px] cursor-pointer hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>{t("加入成长计划", "Link to growth plan")}</button>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -281,6 +290,9 @@ export function AgentProposalListSection({
               <Lightbulb size={12} className="text-amber-400 shrink-0 mt-0.5" />
               <span>{proposal.rationale}</span>
             </p>
+            {onLinkRequirement && linkableRequirements?.has(proposal.jdItem) && <button type="button"
+              className={`text-[11px] cursor-pointer hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
+              onClick={() => onLinkRequirement(proposal.jdItem)}>{t("加入成长计划", "Link to growth plan")}</button>}
 
             {/* Diff Comparison Accordion when Locating */}
             {isDiffOpen && (

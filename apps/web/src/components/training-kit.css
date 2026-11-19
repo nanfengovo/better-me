@@ -134,3 +134,60 @@
   outline: 2px solid var(--ui-accent, #428973);
   outline-offset: 2px;
 }
+.training-demos > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.training-demos > summary svg {
+  vertical-align: middle;
+  margin-inline-end: 0.35rem;
+}
+.training-examples { margin-top: 0.55rem; }
+.training-order {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.training-order legend { font-weight: 550; }
+.training-order ol { margin: 0.45rem 0; padding-inline-start: 1.6rem; }
+.training-order li { margin: 0.25rem 0; }
+.training-order li > span { display: inline-block; min-width: min(12rem, 55%); margin-inline-end: 0.5rem; }
+.training-order li button { padding: 0.25rem; margin-inline-start: 0.25rem; }
+.training-observations { margin: 0.5rem 0; padding-inline-start: 1.6rem; }
+.training-observations li + li { margin-top: 0.75rem; }
+.training-observations li > span { display: inline-block; margin-inline-start: 0.5rem; font-size: 0.8em; }
+.training-observations li > button { margin-top: 0.35rem; }
+.training-kit .training-code { font-family: ui-monospace, monospace; tab-size: 2; }
+.training-origin { border-inline-start: 3px solid var(--ui-accent, #428973); padding-inline-start: 0.75rem; }
+.training-origin p { margin-block: 0.25rem; }
+.training-origin pre { margin: 0.4rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.training-origin summary { cursor: pointer; }
+.training-action-picker { width: 100%; }
+.training-action-picker summary { cursor: pointer; }
+.training-action-picker > div { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.5rem 0; }
+.training-action-picker label { flex: 1 1 12rem; }
+.training-writing-consent, .training-writing { margin-block: 0.6rem; }
+.training-writing-consent summary { cursor: pointer; }
+.training-writing-input, .training-writing-versions { margin-block: 0.6rem; }
+.training-writing-input dt, .training-writing-versions dt { font-weight: 600; margin-top: 0.35rem; }
+.training-writing-input dd, .training-writing-versions dd, .training-writing-record blockquote {
+  margin: 0.25rem 0; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.training-writing-record blockquote { border-inline-start: 3px solid var(--ui-accent, #428973); padding-inline-start: 0.75rem; }
+.training-writing-versions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 0.6rem; }
+.training-writing-versions > div { background: var(--ui-surface-soft, rgba(101, 144, 131, 0.13)); padding: 0.45rem 0.7rem; border-radius: 8px; }
+.training-writing label { display: grid; gap: 0.3rem; margin-block: 0.5rem; }
+.training-transfer, .training-transfer-report { display: grid; gap: 0.65rem; justify-items: start; min-width: 0; }
+.training-transfer { border-block: 1px solid var(--ui-border, #89959a); padding-block: 1rem; }
+.training-transfer h4, .training-transfer-report h4 { margin: 0; }
+.training-transfer-goal { font-size: 1.08rem; font-weight: 600; }
+.training-transfer-reasons { display: grid; gap: 0.65rem; list-style: none; padding: 0; }
+.training-transfer-input, .training-transfer-report details { width: 100%; }
+.training-transfer-input section { margin-block: 0.75rem; }
+.training-transfer-input summary, .training-transfer-reasons summary { cursor: pointer; }
+.training-transfer-source { border-inline-start: 2px solid var(--ui-border, #89959a); padding-inline-start: 0.65rem; margin-block: 0.4rem; }
+.training-transfer-source blockquote { margin: 0.35rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.training-transfer-material { white-space: pre-wrap; }

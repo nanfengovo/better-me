@@ -4,6 +4,7 @@ import {
   type TrainingAnswer,
   type TrainingFeedback,
   type TrainingKind,
+  type TrainingExampleKind,
   type TrainingView,
 } from "@better-me/agent-contracts";
 import { executeTransform } from "../capabilities/sandbox.js";
@@ -16,6 +17,14 @@ import {
   canvasSource,
   validateCanvas,
 } from "./training-canvas.js";
+import {
+  concurrencyAuthoredCases, concurrencyContract, concurrencyExample, concurrencyFeedback,
+  concurrencyFixtures, concurrencyScreen, concurrencySource, validateConcurrency,
+} from "./training-concurrency.js";
+
+import {
+  studioAuthoredCases, studioFeedback, studioFixtures, studioScreen, validateStudio,
+} from "./training-studio.js";
 
 type Graph = Extract<TrainingDesign, { kind: "dependency" }>["scenes"][number];
 type Words = Extract<TrainingDesign, { kind: "rewrite" }>["scenes"][number];
@@ -37,6 +46,7 @@ export const programContract = {
     "Input {text:string}. Return ONE integer: number of English words matched by /[a-z]+(?:'[a-z]+)*/gi, including repetitions. Empty text returns 0.",
   dependency:
     "One object: tasks is a topologically sorted array of {id:string,days:number,after:string[]}; changedTaskId is a string id, NEVER a number; extraDays is the nonnegative integer to add. Duration of t is t.days + (t.id === changedTaskId ? extraDays : 0). Finish = duration plus MAX predecessor finish (roots start at 0). Return MAX finish over ALL tasks as one integer. There is no date parsing or rounding.",
+  concurrency: concurrencyContract,
 };
 // Interaction instructions are part of the host's control contract, not prose
 // a generator can change into a different task (e.g. an essay in a number box).
@@ -58,7 +68,9 @@ export function validateDesign(raw: unknown, kind: TrainingKind) {
   if (!parsed.success || parsed.data.kind !== kind)
     learningFail("training_design_invalid", 422);
   const d = parsed.data;
-  if (d.kind === "rewrite") {
+  if (d.kind === "studio") {
+    validateStudio(d);
+  } else if (d.kind === "rewrite") {
     const originals = d.scenes.map((s) => tokens(s.passage).join(" "));
     const requested = d.scenes.map((s) =>
       s.anchors
@@ -84,6 +96,9 @@ export function validateDesign(raw: unknown, kind: TrainingKind) {
     }
   } else if (d.kind === "canvas") {
     validateCanvas(d);
+  } else if (d.kind === "concurrency") {
+    validateConcurrency(d);
+    d.title = "乐观并发与数据一致性";
   } else {
     const shapes = d.scenes.map((s) => {
       const ids = s.tasks.map((t) => t.id),
@@ -113,7 +128,8 @@ export function validateDesign(raw: unknown, kind: TrainingKind) {
   return d;
 }
 
-export const examples: Record<TrainingKind, TrainingDesign> = {
+export const examples: Record<TrainingExampleKind, TrainingDesign> = {
+  concurrency: concurrencyExample,
   canvas: {
     kind: "canvas",
     title: "一分钟工作汇报台",
@@ -218,6 +234,7 @@ export const examples: Record<TrainingKind, TrainingDesign> = {
 };
 export const exampleSource = {
   canvas: canvasSource,
+  concurrency: concurrencySource,
   rewrite: "input => (input.text.match(/[a-z]+(?:'[a-z]+)*/gi) || []).length",
   dependency:
     "input => { const end = Object.create(null); for (const t of input.tasks) end[t.id] = t.days + (t.id === input.changedTaskId ? input.extraDays : 0) + Math.max(0,...t.after.map(id=>end[id])); return Math.max(...Object.values(end)); }",
@@ -228,7 +245,9 @@ const graphInput = (s: Graph, delay: number) => ({
   extraDays: delay,
 });
 export function fixtures(kind: TrainingKind) {
+  if (kind === "studio") return studioFixtures();
   if (kind === "canvas") return canvasCases();
+  if (kind === "concurrency") return concurrencyFixtures();
   if (kind === "rewrite")
     return [
       "Send the report.",
@@ -268,6 +287,19 @@ export function fixtures(kind: TrainingKind) {
   });
 }
 export class TrainingProgramMismatch extends Error {}
+function authoredCases(design: TrainingDesign) {
+  switch (design.kind) {
+    case "studio": return studioAuthoredCases(design);
+    case "canvas": return canvasAuthoredCases(design);
+    case "concurrency": return concurrencyAuthoredCases(design);
+    case "rewrite": return design.scenes.map(s => ({
+      input: { text: s.passage }, expected: tokens(s.passage).length,
+    }));
+    case "dependency": return design.scenes.map(s => ({
+      input: graphInput(s, 3), expected: finishDays(s, 3),
+    }));
+  }
+}
 export async function qualify(
   source: string,
   design: TrainingDesign,
@@ -275,17 +307,7 @@ export async function qualify(
 ) {
   const cases = [
     ...fixtures(design.kind),
-    ...(design.kind === "canvas"
-      ? canvasAuthoredCases(design)
-      : design.kind === "rewrite"
-        ? design.scenes.map((s) => ({
-            input: { text: s.passage },
-            expected: tokens(s.passage).length,
-          }))
-        : design.scenes.map((s) => ({
-            input: graphInput(s, 3),
-            expected: finishDays(s, 3),
-          }))),
+    ...authoredCases(design),
   ];
   for (const [index, c] of cases.entries()) {
     let result: unknown;
@@ -308,7 +330,9 @@ export function makeScreen(
   d: TrainingDesign,
   index: number,
 ): TrainingView["screen"] {
+  if (d.kind === "studio") return studioScreen(d, index);
   if (d.kind === "canvas") return canvasScreen(d, index);
+  if (d.kind === "concurrency") return concurrencyScreen(d, index);
   const before = d.cards.filter((c) => c.when === "before").map((c) => c.text);
   if (d.kind === "rewrite") {
     const s = d.scenes[index]!;
@@ -367,8 +391,13 @@ export async function runAnswer(
   a: TrainingAnswer,
   signal: AbortSignal,
 ): Promise<TrainingFeedback> {
+  if (d.kind === "studio" && "parts" in a)
+    return studioFeedback(d, index, source, a.parts, signal, "codeKey" in a ? a.codeKey : undefined);
+  if ("codeKey" in a) learningFail("training_wrong_answer_type", 422);
   if (d.kind === "canvas" && "parts" in a)
     return canvasFeedback(d, index, source, a.parts, signal);
+  if (d.kind === "concurrency" && "parts" in a)
+    return concurrencyFeedback(d, index, source, a.parts, signal);
   if (d.kind === "rewrite" && "answer" in a) {
     const s: Words = d.scenes[index]!,
       words: readonly string[] = tokens(a.answer);

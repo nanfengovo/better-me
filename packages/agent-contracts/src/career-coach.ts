@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { LlmConfig } from "@better-me/core";
 import { ResumeProposalTargetSchema, type ResumeEditContext } from "./resume-edit-context.js";
+import { CoachTrainingEvidenceRefSchema, CoachTrainingTargetSchema, TrainingCareerContextSchema, careerJobSnapshotVersion, careerTrainingRequirements, type TrainingCareerRef } from "./career-training.js";
 
 /** Full 20k practice source, all checks and evidence notes; overflow is rejected. */
 export const COACH_EVIDENCE_LIMIT = 64_000;
@@ -129,6 +130,7 @@ export const CoachSubmissionSchema = z.object({
   evidence: z.string().min(1).max(COACH_EVIDENCE_LIMIT).refine(value => Boolean(value.trim()), "nonempty text required"), minutes: z.number().int().min(0).max(1440),
   createdAt: z.string().datetime(), feedbackRecordId: z.string().max(100).optional(),
   practice: PracticeReceiptSchema.optional(),
+  training: CoachTrainingEvidenceRefSchema.optional(),
 }).strict();
 export type CoachSubmission = z.infer<typeof CoachSubmissionSchema>;
 const ActivePlanSchema = z.object({ id: z.string().min(1).max(100), plan: CoachPlanSchema, startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), progress: z.record(z.string(), CoachTaskProgressSchema) }).strict();
@@ -153,5 +155,35 @@ export const CoachStateSchema = z.object({
   interview: InterviewSessionSchema.optional(), interviewHistory: z.array(InterviewSessionSchema).optional(),
   drills: z.array(DrillAttemptSchema).optional(),
   practiceDrafts: z.record(z.string(), z.string().max(20000)).optional(),
+  trainingTargets: z.array(CoachTrainingTargetSchema).max(128).optional(),
 }).strict();
 export type CoachState = z.infer<typeof CoachStateSchema>;
+
+/** Resolve the persisted user selection against its original adopted plan and JD.
+ * A task ID alone is only meaningful inside its plan. Historical targets support
+ * reading the original association; new model work requires the active plan. */
+export function resolveCareerTrainingTarget(state: CoachState, ref: TrainingCareerRef, activeOnly = true) {
+  if (state.workspaceKey !== ref.workspaceKey) return undefined;
+  const targets = state.trainingTargets?.filter(item => item.id === ref.targetId);
+  if (targets?.length !== 1) return undefined;
+  const target = targets[0]!;
+  const plan = state.activePlan?.id === target.planId ? state.activePlan
+    : activeOnly ? undefined : state.planHistory?.find(item => item.id === target.planId);
+  const record = state.records.find(item => item.id === target.planId);
+  const goal = state.goalConfirmations?.find(item => item.id === target.goalId);
+  if (!plan || !goal || record?.payload.kind !== "plan" || record.basis.goalId !== goal.id
+    || record.basis.goalFingerprint !== goal.fingerprint || record.basis.contextFingerprint !== goal.contextFingerprint
+    || JSON.stringify(record.payload) !== JSON.stringify(plan.plan)) return undefined;
+  const tasks = plan.plan.phases.flatMap(phase => phase.tasks).filter(item => item.id === target.taskId);
+  const task = tasks.length === 1 ? tasks[0] : undefined;
+  const criterion = task?.acceptanceCriteria[target.criterionIndex];
+  const requirement = careerTrainingRequirements(target.job).find(item => item.id === target.itemId && item.originalQuote === target.quote);
+  if (!task || !criterion || !requirement) return undefined;
+  return TrainingCareerContextSchema.parse({
+    ...ref, goalId: goal.id, goal: goal.goal, planId: plan.id, planTitle: plan.plan.title,
+    taskId: task.id, taskTitle: task.title, competency: target.competency, criterion,
+    requirement: { jobId: target.job.id, title: target.job.title, company: target.job.company,
+      sourcePlatform: target.job.sourcePlatform, sourceUrl: target.job.sourceUrl,
+      snapshotVersion: careerJobSnapshotVersion(target.job), itemId: requirement.id, quote: requirement.originalQuote },
+  });
+}

@@ -1,5 +1,6 @@
 import { CoachRecordSchema, CoachStateSchema, CoachSubmissionSchema, DEFAULT_COACH_SETTINGS,
-  type CoachContext, type CoachGeneration, type CoachRecord, type CoachRequest, type CoachState, type CoachTaskStatus, type CoachSettings, type PracticeReceipt } from "./types";
+  resolveCareerTrainingTarget, type CoachContext, type CoachGeneration, type CoachRecord, type CoachRequest, type CoachState, type CoachTaskStatus, type CoachSettings, type PracticeReceipt } from "./types";
+import { careerWritingEvidenceVersion, CoachTrainingTargetSchema, type CoachTrainingTarget, type TrainingView } from "@better-me/agent-contracts";
 
 export function createCoachState(workspaceKey: string, now = new Date().toISOString()): CoachState {
   return CoachStateSchema.parse({ schemaVersion: 1, workspaceKey, revision: 0, updatedAt: now,
@@ -79,6 +80,71 @@ export function addCoachSubmission(state: CoachState, input: { taskId: string; e
   const next = updateCoachTask(state, input.taskId, "submitted");
   const submission = CoachSubmissionSchema.parse({ id: crypto.randomUUID(), planId: state.activePlan.id, ...input, createdAt: new Date().toISOString() });
   return { ...next, submissions: [...state.submissions, submission] };
+}
+
+export function addCareerTrainingTarget(state: CoachState, input: CoachTrainingTarget): CoachState {
+  const target = CoachTrainingTargetSchema.parse(input);
+  if (state.trainingTargets?.some(item => item.id === target.id)) throw new Error("此能力目标已存在。");
+  const next = { ...state, trainingTargets: [...(state.trainingTargets ?? []), target] };
+  if (!resolveCareerTrainingTarget(next, { workspaceKey: state.workspaceKey, targetId: target.id }))
+    throw new Error("岗位原文、已确认目标或当前计划任务已变化。");
+  return next;
+}
+
+/** Called only after fetching the saved kit from the authenticated Host. The
+ * review submission is an explicit snapshot of the completed round(s). */
+export function addCareerTrainingEvidence(state: CoachState, kit: TrainingView): CoachState {
+  const { career } = kit;
+  const last = kit.attempts.at(-1);
+  const current = career && resolveCareerTrainingTarget(state, {
+    workspaceKey: career.workspaceKey, targetId: career.targetId,
+  }, false);
+  if (!kit.saved || !last || !career || !current || JSON.stringify(current) !== JSON.stringify(career))
+    throw new Error("无法核对练习的原计划与任务关联，请从原任务打开。");
+  if (!last.questionVersion || kit.attempts.some(attempt => !attempt.question || !attempt.questionVersion))
+    throw new Error("练习缺少作答时的题目版本，无法保存为任务证据。");
+  const writingVersion = careerWritingEvidenceVersion(kit.attempts);
+  const transferEvidenceVersion = kit.transferDecision?.evidenceVersion;
+  if (state.submissions.some(({ training }) => training?.kitId === kit.id && training.version === kit.version
+      && training.round === last.round && training.writingVersion === writingVersion
+      && training.transferEvidenceVersion === transferEvidenceVersion)) return state;
+  const observation = {
+    source: "BetterMe 已保留训练观察",
+    scope: kit.kind === "studio" ? "逐项标明题面约束核对、公开用例运行或开放原答记录"
+      : kit.kind === "canvas" ? "开放填写和自述" : "具体练习规则和沙箱计算",
+    goalId: career.goalId,
+    goal: kit.goal,
+    planId: career.planId,
+    taskId: career.taskId,
+    targetId: career.targetId,
+    requirement: career.requirement,
+    competency: career.competency,
+    criterion: career.criterion,
+    title: kit.title,
+    kind: kit.kind,
+    origin: kit.origin,
+    model: kit.model,
+    modelDigest: kit.modelDigest,
+    verifiedCases: kit.verifiedCases,
+    kitId: kit.id,
+    version: kit.version,
+    ...(kit.followFrom ? { followFrom: kit.followFrom } : {}),
+    ...(kit.transferFrom ? { transferFrom: kit.transferFrom } : {}),
+    ...(kit.transferDecision ? { transferDecision: kit.transferDecision } : {}),
+    ...(writingVersion ? { writingVersion, writingScope: "引文来自提交的原答，点评来自模型，改写由本人提交" } : {}),
+    attempts: kit.attempts,
+  };
+  const submission = CoachSubmissionSchema.parse({
+    id: crypto.randomUUID(), planId: career.planId, createdAt: new Date().toISOString(),
+    taskId: career.taskId,
+    evidence: JSON.stringify(observation, null, kit.transferFrom || kit.transferDecision ? undefined : 2),
+    minutes: 0,
+    training: { targetId: career.targetId, kitId: kit.id, version: kit.version, round: last.round, questionVersion: last.questionVersion,
+      ...(writingVersion ? { writingVersion } : {}), ...(transferEvidenceVersion ? { transferEvidenceVersion } : {}) },
+  });
+  const next = state.activePlan?.id === career.planId && state.activePlan.progress[career.taskId]?.status !== "self_completed"
+    ? updateCoachTask(state, career.taskId, "submitted") : state;
+  return { ...next, submissions: [...next.submissions, submission] };
 }
 
 export function getCoachProgress(state: CoachState, now = new Date()) {

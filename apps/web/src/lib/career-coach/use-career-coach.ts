@@ -108,6 +108,14 @@ export function useCareerCoach(workspaceKey: string, provided?: CoachRepository)
     } finally { if (ticket === generation.current) { usable.current = true; setReady(true); } }
   }, [workspaceKey, repository]);
 
+  const flush = useCallback(async () => {
+    const activeWriter = writer.current;
+    const ticket = generation.current;
+    await activeWriter.pending;
+    if (ticket !== generation.current || writer.current !== activeWriter || !activeWriter.enabled || activeWriter.error)
+      throw new Error(activeWriter.error ?? "当前成长记录尚未可靠保存。");
+  }, []);
+
   const reload = useCallback(() => loadWorkspace(true), [loadWorkspace]);
   const invalidateLoads = useCallback(() => {
     // Invalidate the latest load (including an explicit reload), not merely the
@@ -182,5 +190,5 @@ export function useCareerCoach(workspaceKey: string, provided?: CoachRepository)
   }, []);
   return { state: matchesScope ? state : createCoachState(workspaceKey), ready: ready && matchesScope,
     persistenceError: matchesScope ? persistenceError : undefined,
-    conflict: matchesScope && conflict, update, reload, clear };
+    conflict: matchesScope && conflict, update, reload, clear, flush };
 }
