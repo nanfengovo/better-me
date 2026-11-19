@@ -25,19 +25,39 @@ function xmlText(value: string): string {
   return value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/g, "");
 }
 
+function parseSafeLocalAvatar(avatarUrl?: string): { type: "png" | "jpg" | "gif"; bytes: Uint8Array } | undefined {
+  if (!avatarUrl) return undefined;
+  const match = /^data:image\/(png|jpeg|jpg|gif);base64,([A-Za-z0-9+/=]+)$/i.exec(avatarUrl.trim());
+  if (!match || !match[1] || !match[2] || match[2].length > 3_000_000) return undefined;
+  try {
+    const raw = atob(match[2]);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const ext = match[1].toLowerCase();
+    return { type: ext === "png" ? "png" : ext === "gif" ? "gif" : "jpg", bytes };
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Export the selected projection, never the full FactBase. This is a portable,
  * editable single-column document, with semantic headings and no remote assets.
  * Loading docx here keeps its ZIP writer out of the initial editor bundle.
  */
-export async function projectedResumeToDocx(resume: ProjectedResume): Promise<DocxExportResult> {
-  const { Document, Paragraph, TextRun, ExternalHyperlink, Packer, HeadingLevel, LevelFormat, AlignmentType, UnderlineType, HighlightColor, ShadingType, BorderStyle } = await import("docx");
+export async function projectedResumeToDocx(resume: ProjectedResume, { includePhoto = true } = {}): Promise<DocxExportResult> {
+  const { Document, Paragraph, TextRun, ExternalHyperlink, Packer, HeadingLevel, LevelFormat, AlignmentType, UnderlineType, HighlightColor, ShadingType, BorderStyle, ImageRun } = await import("docx");
   const theme = resume.themeId ? resolveResumeTheme(resume) : undefined;
   const layout = theme?.layout ?? getResumeLayout(resume.layout);
   const zh = resume.locale === "zh";
   const diagnostics = ["DOCX 使用可编辑的 A4 单栏排版；保留可见正文、分节顺序与基本文字格式。网页模板的分栏和完整装饰请使用 PDF 保留。"];
   if (theme) diagnostics.push("DOCX 已映射简历主题的字体、配色与可用标题/技能装饰；纸张底色是否打印取决于 Word 的打印背景设置。");
-  if (resume.profile.avatarUrl) diagnostics.push("DOCX 不包含照片，不会下载外部图片；需要带照片的版式请导出 PDF。");
+  const localAvatar = includePhoto ? parseSafeLocalAvatar(resume.profile.avatarUrl) : undefined;
+  if (includePhoto && resume.profile.avatarUrl && !localAvatar) {
+    diagnostics.push("这张照片无法嵌入 DOCX。可使用本地 PNG、JPEG 或 GIF，或导出 PDF 保留预览。");
+  } else if (localAvatar) {
+    diagnostics.push("DOCX 已嵌入本地上传的照片；完整多栏排版请导出 PDF。");
+  }
   let unsafeLinks = 0;
   let skippedClaims = 0;
   const bounded = (value: number, min: number, max: number) => Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
@@ -104,6 +124,9 @@ export async function projectedResumeToDocx(resume: ProjectedResume): Promise<Do
     return [...(index ? textRuns(" · ") : []), ...textRuns(value, undefined, bodySize, style)];
   });
 
+  if (localAvatar) {
+    paragraph([new ImageRun({ data: localAvatar.bytes, type: localAvatar.type, transformation: { width: 72, height: 72 } })], { keepNext: true, spacing: { after: 70 } });
+  }
   paragraph(textRuns(resume.profile.displayName, "profile:displayName", nameSize, { bold: true, ...nameStyle }), {
     heading: HeadingLevel.TITLE, keepNext: true, spacing: { after: 90 },
     ...(theme && theme.tokens.decoration.dividerStyle !== "none" ? { border: { bottom: { style: borderStyle, size: 4, space: 6, color: colors!.rule } } } : {}),
@@ -166,4 +189,8 @@ export async function projectedResumeToDocx(resume: ProjectedResume): Promise<Do
     sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: margin, bottom: margin, left: margin, right: margin } } }, children: paragraphs }],
   });
   return { blob: await Packer.toBlob(doc), filename: resumeDocxFilename(resume), diagnostics };
+}
+
+export function canExportDocxPhoto(avatarUrl?: string): boolean {
+  return Boolean(parseSafeLocalAvatar(avatarUrl));
 }

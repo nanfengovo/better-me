@@ -318,10 +318,13 @@ export function PlatformAuthHub({ isOpen, onClose, onRefreshSearch }: PlatformAu
                 </label>
                 <button type="button" disabled={!extensionOrigin.trim()} onClick={async () => {
                   try {
-                    const grant = await requestLocalBridgeGrant("job", extensionOrigin.trim());
+                    const normalizedOrigin = extensionOrigin.trim().replace(/\/+$/, "");
+                    const grant = await requestLocalBridgeGrant("job", normalizedOrigin);
                     await navigator.clipboard.writeText(JSON.stringify({ endpoint: window.location.origin + "/api/jd/sync-extension", ...grant }));
                     setMessage(t("单次岗位同步授权已复制，10 分钟内有效；仅允许填写的来源写入。", "Single-use job-sync authorization copied. Valid for 10 minutes, restricted to the specified origin."));
-                  } catch { setMessage(t("生成或复制同步授权失败。", "Failed to generate or copy sync authorization.")); }
+                  } catch (error) {
+                    setMessage(error instanceof Error && error.message ? error.message : t("生成或复制同步授权失败。", "Failed to generate or copy sync authorization."));
+                  }
                 }}>{t("生成并复制单次同步授权", "Generate and copy one-time sync authorization")}</button>
               </div>
               {/* Method 1: Bookmarklet */}

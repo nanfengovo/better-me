@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useMemo,useRef,useState} from "react";
+import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import {z} from "zod";
 import type {FreeChatTask} from "@better-me/agent-contracts";
 import type {LlmConfig} from "@better-me/core";
@@ -6,6 +6,8 @@ import {Check,Copy,Play,RefreshCw,Square} from "lucide-react";
 import {defaultFreeChatTaskClient,type createFreeChatTaskClient} from "../services/free-chat-task-client";
 import {assertTaskScope} from "../services/agent-task-scope";
 import {useAgentTaskRuntime} from "../lib/agent-task-runtime";
+import {useModelProbeCheck} from "../lib/use-model-probe-check";
+import {AgentTaskClientError} from "../services/agent-task-transport";
 import {useWorkspaceRecovery} from "../lib/use-workspace-recovery";
 import {useUiPreferences} from "../lib/ui-preferences";
 import {AgentMarkdownRenderer} from "./AgentMarkdownRenderer";
@@ -24,8 +26,8 @@ type Client=ReturnType<typeof createFreeChatTaskClient>;
 
 /** A separate text request, not a second CLI executor. Host owns history,
  * runtime and root accounting. The journal stores no credentials or grants. */
-export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromptChange,configurationProbe=false,client=defaultFreeChatTaskClient}:{
-  workspaceKey:string;rootScopeKey:string;config:LlmConfig;prompt:string;onPromptChange:(value:string)=>void;configurationProbe?:boolean;client?:Client;
+export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromptChange,configurationProbe=false,onDiscoverModels,client=defaultFreeChatTaskClient}:{
+  workspaceKey:string;rootScopeKey:string;config:LlmConfig;prompt:string;onPromptChange:(value:string)=>void;configurationProbe?:boolean;onDiscoverModels?:()=>void;client?:Client;
 }){
   const recovery=useWorkspaceRecovery(`one-off:${workspaceKey}`,savedRequest,()=>({}));
   const {message,taskId}=recovery.value,setSaved=recovery.set;
@@ -33,6 +35,16 @@ export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromp
   // A configuration check tests this explicit form, never the unrelated selected
   // native/account transport. The Host still enforces the existing root pin.
   const probeRuntime=useMemo(()=>understandingModelRuntime(config),[config]);
+  const check=useModelProbeCheck(rootScopeKey,configurationProbe?config:undefined);
+  const guidance=useRef<HTMLDivElement>(null);
+  useLayoutEffect(()=>{
+    // Opening a check is explicit. Keep its answer in the scrollport, without
+    // moving focus again when the asynchronous status or consent changes.
+    if(configurationProbe){
+      guidance.current?.focus({preventScroll:true});
+      guidance.current?.scrollIntoView({block:"center",behavior:"instant"});
+    }
+  },[configurationProbe,config]);
   const probeKey=JSON.stringify(probeRuntime),currentProbe=useRef(probeKey);currentProbe.current=probeKey;
   const selected=configurationProbe?{runtime:probeRuntime,preferredRuntimeId:undefined,label:config.model,error:undefined,key:probeKey,assertSelected:()=>{
     if(currentProbe.current!==probeKey)throw new Error("测试配置已变化，未采用旧结果；请读取原任务核对。");
@@ -66,7 +78,7 @@ export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromp
     finally{if(observer.current===controller){observer.current=null;setBusy(false);}}
   };
   const run=async()=>{
-    if(observer.current||!consent||!checked||recovery.error||!prompt.trim())return;
+    if(observer.current||check.blocked||!consent||!checked||recovery.error||!prompt.trim())return;
     const controller=new AbortController();observer.current=controller;setBusy(true);setError("");setCopied(false);
     // Freeze the complete message before any POST, including an unknown create.
     const input=message??{id:`one-off-${crypto.randomUUID()}`,role:"user" as const,content:prompt};
@@ -85,7 +97,9 @@ export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromp
         await client.send({workspaceKey:`one-off:${workspaceKey}`,rootScopeKey,messages:[input],runtime:selected.runtime,preferredRuntimeId:selected.preferredRuntimeId,signal:controller.signal,onTask});
       }
       selected.assertSelected();
+      if(configurationProbe&&check.result.state==="first")check.refresh();
     }catch(failure){
+      if(configurationProbe&&!controller.signal.aborted&&failure instanceof AgentTaskClientError&&failure.code==="root_runtime_binding_changed")check.refresh();
       if(!controller.signal.aborted)setError(failure instanceof Error?failure.message:"结果尚未确认，请读取原任务；未自动重试。");
     }finally{if(observer.current===controller){observer.current=null;setBusy(false);setConsent(false);}}
   };
@@ -96,17 +110,33 @@ export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromp
   };
   const active=busy||task?.status==="running",done=task?.status==="awaiting_answer";
   const output=task?.reply?.content;
+  const state=check.result.state;
+  const probeHint=!configurationProbe?undefined:check.result.state==="conflict"
+    ?t(`这个工作区已绑定「${check.result.current}」，不能在这里测试「${config.model}」。本次没有发送生成请求，也没有验证 Key。仍可保存配置，或只检查模型列表。`,`This workspace is bound to “${check.result.current}”, so it cannot test “${config.model}” here. No generation request was sent or API key verified. You can still save the connection or just check the model list.`)
+    :state==="checking"?t("正在查看这个工作区是否已选定模型…","Checking which model this workspace uses…")
+    :state==="login"?t("请先登录 BetterMe 再测试生成。只想保存连接？可以直接点「保存配置」。","Sign in to BetterMe to test generation. You can save the connection without a test.")
+    :state==="unsafe"?t("测试无法使用这个 API 地址。请使用不带账号、密码或查询参数的 HTTPS 地址；本机服务也可用 HTTP。","Use an HTTPS endpoint without embedded credentials or query parameters. Local endpoints can also use HTTP.")
+    :state==="unavailable"?t("无法读取工作区使用的模型。请确认本机 Agent Host 已连接，再重新检查。未发送测试，仍可保存配置。","Could not read the workspace model. Check the local Agent Host connection, then check again. No test was sent; you can still save.")
+    :state==="legacy"?t("当前 Agent Host 不支持提前显示已绑定的模型。可到「共识与进度 → 任务 → 工作区共享额度」查看。授权运行时仍会核对；模型不同就不会发送。","This Agent Host cannot preview the model here. See Shared memory → Tasks → Shared workspace budget. The Host still checks on run and refuses a mismatch.")
+    :done?t("下方是已完成任务的记录。查看不会再次生成；需要重测时，点「新任务 · 沿用总额度」后重新授权。","The completed task is shown below. Reading it does not generate again. For a new check, choose New task · same budget and authorize it.")
+    :active?t("正在核对任务进度。关闭面板不会停止已开始的测试。","Checking progress. Closing this panel does not stop a running check.")
+    :state==="first"?t(`这个工作区还没有绑定模型。运行首次测试会把「${config.model}」定为此工作区任务的模型；只想保存连接，请点「保存配置」。`,`Running this first check will bind this workspace’s tasks to “${config.model}”. To store the connection only, choose Save configuration.`)
+    :t("模型与工作区记录一致。勾选下方授权后可测试；模型是否能生成文本仍需看测试结果。","The model matches the workspace record. Authorize below to test whether it can generate text.");
   return <section className="agent-companion-run" aria-label={configurationProbe?t("模型配置生成测试","Model configuration check"):t("单次文本任务","One-off text task")}>
-    <div className="agent-companion-run-heading"><div><span>{configurationProbe?t("模型配置生成测试","Model configuration check"):t("单次文本任务","One-off text task")}</span><small>{configurationProbe?t("使用上方配置和工作区原总额度；底座冲突时拒绝，不另开预算。只发送固定测试句及任务协议，不附加简历或历史。关闭面板不停止任务，可重开读取或明确停止。","Uses the form configuration and the existing workspace budget. A conflicting root runtime is refused, never replaced. Sends only the fixed check and task protocol, without resume or history. Closing does not stop the task; reopen to read or explicitly stop it."):t("与当前对话共用底座和工作区总额度；只发送下方完整原文，不自动附加对话、简历或文件。","Uses the selected runtime and shared workspace budget. Sends only the complete text below, without chat, resume or files.")}</small></div></div>
+    <div className="agent-companion-run-heading"><div><span>{configurationProbe?t("模型配置生成测试","Model configuration check"):t("单次文本任务","One-off text task")}</span><small>{configurationProbe?t("只发送固定测试句和任务协议，不附加简历或历史。关闭面板不会停止已开始的测试。","Only the fixed check and task protocol are sent, not your resume or history. Closing does not stop a running check."):t("与当前对话共用底座和工作区总额度；只发送下方完整原文，不自动附加对话、简历或文件。","Uses the selected runtime and shared workspace budget. Sends only the complete text below, without chat, resume or files.")}</small></div></div>
     <p className="agent-model-summary">{selected.label}</p>
+    {configurationProbe&&<div ref={guidance} tabIndex={-1} id="model-probe-guidance" className="model-probe-guidance" data-state={state} role={check.blocked&&state!=="checking"?"alert":"status"}><p>{probeHint}</p>
+      {state==="unavailable"&&<button type="button" onClick={check.refresh}>{t("重新检查工作区模型","Check workspace model again")}</button>}
+      {state==="conflict"&&onDiscoverModels&&<button type="button" onClick={onDiscoverModels}>{t("只检查模型列表","Check model list only")}</button>}
+    </div>}
     <WorkspaceRecoveryNotice error={recovery.error} restored={recovery.restored} download={recovery.download}/>
     {configurationProbe?<details className="model-probe-prompt"><summary>{t("查看完整固定测试句","View the complete fixed check")}</summary><pre>{prompt}</pre></details>:<label className="agent-companion-field"><span>{t("任务提示","Task prompt")}</span><textarea value={prompt} onChange={event=>onPromptChange(event.target.value)} placeholder={t("先粘贴岗位描述或其他文本，再写明任务","Paste the job description or other text, then describe the task")} rows={3} disabled={Boolean(message)||active}/></label>}
-    <label className="betterme-agent-consent"><input type="checkbox" checked={consent} onChange={event=>setConsent(event.target.checked)} disabled={active||Boolean(done)}/>{configurationProbe?t("允许用上方配置执行本测试并计入工作区总额度；可能产生费用，不验证图片能力。","Run this check with the form configuration, charged to the workspace budget. Charges may apply; image capability is not tested."):t("允许将这段原文发送给当前底座；结果只供核对。","Send this text to the selected runtime for review only.")}</label>
+    <label className="betterme-agent-consent"><input type="checkbox" checked={consent} onChange={event=>setConsent(event.target.checked)} disabled={active||Boolean(done)||check.blocked}/>{configurationProbe?t("允许用上方配置执行本测试并计入工作区总额度；可能产生费用，不验证图片能力。","Run this check with the form configuration, charged to the workspace budget. Charges may apply; image capability is not tested."):t("允许将这段原文发送给当前底座；结果只供核对。","Send this text to the selected runtime for review only.")}</label>
     <div className="agent-companion-run-actions">
-      <button type="button" className="agent-companion-run-button" onClick={()=>void run()} disabled={active||!consent||!checked||Boolean(done)||Boolean(selected.error)||Boolean(recovery.error)||!prompt.trim()}><Play size={13}/>{task&&task.status!=="ready"?t("继续原任务","Resume original task"):t("开始运行","Run now")}</button>
+      <button type="button" className="agent-companion-run-button" onClick={()=>void run()} aria-describedby={configurationProbe?"model-probe-guidance":undefined} disabled={active||check.blocked||!consent||!checked||Boolean(done)||Boolean(selected.error)||Boolean(recovery.error)||!prompt.trim()}><Play size={13}/>{task&&task.status!=="ready"?t("继续原任务","Resume original task"):t("开始运行","Run now")}</button>
       {message&&<button type="button" onClick={()=>void onRead()} disabled={busy}><RefreshCw size={13}/>{t("读取现有任务","Read existing task")}</button>}
       {task?.status==="running"&&<button type="button" onClick={()=>void stop()} aria-label={t("停止单次任务","Stop one-off task")}><Square size={13}/></button>}
-      {message&&task&&!["ready","running"].includes(task.status)&&<button type="button" disabled={busy} onClick={()=>{setSaved({});setTask(undefined);setConsent(false);setError("");onPromptChange("");}}>{t("新任务 · 沿用总额度","New task · same budget")}</button>}
+      {message&&task&&!["ready","running"].includes(task.status)&&<button type="button" disabled={busy} onClick={()=>{setSaved({});setTask(undefined);setConsent(false);setError("");onPromptChange("");if(configurationProbe&&check.result.state==="first")check.refresh();}}>{t("新任务 · 沿用总额度","New task · same budget")}</button>}
     </div>
     {selected.error&&<p role="alert">{selected.error}</p>}
     {error&&<p className="agent-companion-run-error" role="alert">{error}</p>}
@@ -114,6 +144,7 @@ export function OneOffAgentTask({workspaceKey,rootScopeKey,config,prompt,onPromp
       <div className="agent-companion-run-status"><span>{done?t("完整回复 · 待核对","Full reply · review required"):task.status}</span><small>{t(`工作区模型用量 ${task.rootLedger?.usage.modelCalls??task.usage.modelCalls} / ${task.rootLedger?.budget.maxModelCalls??task.budget.maxModelCalls}`,`Workspace model calls ${task.rootLedger?.usage.modelCalls??task.usage.modelCalls} / ${task.rootLedger?.budget.maxModelCalls??task.budget.maxModelCalls}`)}</small></div>
       {task.error&&<p className="agent-companion-run-error" role="status">{task.error}</p>}
       {output!==undefined&&<section className="agent-companion-output" aria-label={t("本次运行结果","Run output")}>
+        {configurationProbe&&<p>{t(`任务记录来自「${task.runtimeBinding.label}」。查看记录不会重新测试当前配置。`,`Recorded result from “${task.runtimeBinding.label}”. Reading it does not retest this configuration.`)}</p>}
         <div className="agent-companion-section-heading"><span>{t("运行结果","Run output")}</span><button type="button" aria-label={t("复制完整运行结果","Copy complete run output")} onClick={()=>void navigator.clipboard.writeText(output).then(()=>setCopied(true)).catch(()=>setCopied(false))}>{copied?<Check size={12}/>:<Copy size={12}/>}</button></div>
         <div className="agent-output-text"><AgentMarkdownRenderer content={output} isDark={theme==="dark"}/></div>
       </section>}

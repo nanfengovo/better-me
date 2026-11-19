@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { readPrivateJson, writePrivateJson } from "./private-json.js";
@@ -10,7 +11,7 @@ const Session = z.object({ digest: z.string(), ownerId: z.string().uuid(), expir
 const Binding = z.object({ issuer: z.string().url(), subject: z.string().min(1).max(512), ownerId: z.string().uuid(), createdAt: z.number() }).strict();
 const ExternalProof = z.object({ issuer: z.string().url(), subject: z.string().min(1).max(512), displayName: z.string().trim().min(1).max(60) }).strict();
 export type ExternalIdentity = z.infer<typeof ExternalProof>;
-const State = z.object({ version: z.literal(1), users: z.array(User).max(100), sessions: z.array(Session).max(1000), bindings: z.array(Binding).max(1000).default([]) }).strict();
+const State = z.object({ version: z.literal(1), users: z.array(User).max(10000), sessions: z.array(Session).max(10000), bindings: z.array(Binding).max(10000).default([]) }).strict();
 const Credentials = z.object({ username: z.string().trim().min(3).max(48).regex(/^[A-Za-z0-9_.-]+$/).transform(value => value.toLowerCase()),
   password: z.string().min(12).max(128).refine(value => Buffer.byteLength(value) <= 256), displayName: z.string().trim().min(1).max(60).optional() }).strict();
 export class IdentityError extends Error {
@@ -20,20 +21,67 @@ const digest = (value: string) => createHash("sha256").update(value).digest("hex
 const publicUser = (user: Principal): Principal => ({ id: user.id, username: user.username, displayName: user.displayName });
 const SESSION_TTL = 8 * 60 * 60_000;
 const IDLE_TTL = 60 * 60_000;
+const LAST_USED_FLUSH_MS = 10_000;
 const COOKIE = "betterme_session";
+
+type StoreMeta = { ino: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint };
 
 /** Installation-local identity, not an LLM account. No client-supplied owner is accepted. */
 export class IdentityService {
   private queue: Promise<unknown> = Promise.resolve();
   private attempts = new Map<string, { count: number; until: number }>();
   private hashing = 0;
+  private cache?: StoreMeta & { state: z.infer<typeof State> };
+  private lastFlushed = new Map<string, number>();
   constructor(readonly directory: string, private clock: () => number = Date.now) {}
-  private transaction<T>(action: (state: z.infer<typeof State>) => Promise<T> | T): Promise<T> {
+  private filePath() { return path.join(this.directory, "identities.json"); }
+  private async statMeta(filePath: string): Promise<StoreMeta | null> {
+    try {
+      const st = await fs.lstat(filePath, { bigint: true });
+      const safe = st.isFile() && !st.isSymbolicLink() && st.nlink === 1n && st.size <= 16n * 1024n * 1024n
+        && (process.platform === "win32" || (st.mode & 0o777n) === 0o600n);
+      return safe ? { ino: st.ino, size: st.size, mtimeNs: st.mtimeNs, ctimeNs: st.ctimeNs } : null;
+    } catch { return null; }
+  }
+  private async loadState(): Promise<z.infer<typeof State>> {
+    const file = this.filePath();
+    const meta = await this.statMeta(file);
+    if (this.cache && meta && this.cache.ino === meta.ino && this.cache.size === meta.size
+      && this.cache.mtimeNs === meta.mtimeNs && this.cache.ctimeNs === meta.ctimeNs) {
+      return structuredClone(this.cache.state);
+    }
+    this.cache = undefined;
+    const raw = await readPrivateJson(file);
+    const state = raw === undefined ? State.parse({ version: 1, users: [], sessions: [] }) : State.parse(raw);
+    if (meta) {
+      this.cache = { ...meta, state: structuredClone(state) };
+      for (const s of state.sessions) {
+        if (!this.lastFlushed.has(s.digest)) this.lastFlushed.set(s.digest, s.lastUsedAt);
+      }
+    }
+    return state;
+  }
+  private async commitState(state: z.infer<typeof State>): Promise<void> {
+    const file = this.filePath();
+    const parsed = State.parse(state);
+    this.cache = undefined;
+    await writePrivateJson(file, parsed);
+    const meta = await this.statMeta(file);
+    if (meta) this.cache = { ...meta, state: structuredClone(parsed) };
+    const activeDigests = new Set<string>();
+    for (const s of parsed.sessions) {
+      activeDigests.add(s.digest);
+      this.lastFlushed.set(s.digest, s.lastUsedAt);
+    }
+    for (const key of this.lastFlushed.keys()) {
+      if (!activeDigests.has(key)) this.lastFlushed.delete(key);
+    }
+  }
+  private transaction<T>(action: (state: z.infer<typeof State>) => Promise<T> | T, options?: { write?: boolean }): Promise<T> {
     const run = this.queue.then(async () => {
-      const raw = await readPrivateJson(path.join(this.directory, "identities.json"));
-      const state = raw === undefined ? State.parse({ version: 1, users: [], sessions: [] }) : State.parse(raw);
+      const state = await this.loadState();
       const result = await action(state);
-      await writePrivateJson(path.join(this.directory, "identities.json"), State.parse(state));
+      if (options?.write !== false) await this.commitState(state);
       return result;
     });
     this.queue = run.catch(() => undefined); return run;
@@ -82,14 +130,25 @@ export class IdentityService {
   }
   async authenticate(cookie: string | undefined): Promise<Principal | undefined> {
     const token = this.token(cookie); if (!token) return undefined;
-    return this.transaction(state => {
-      const now = this.clock(), session = state.sessions.find(item => item.digest === digest(token));
+    const tokenDigest = digest(token);
+    const run = this.queue.then(async () => {
+      const state = await this.loadState();
+      const now = this.clock(), session = state.sessions.find(item => item.digest === tokenDigest);
       if (!session || session.expiresAt <= now || session.lastUsedAt + IDLE_TTL <= now) return undefined;
       const user = state.users.find(item => item.id === session.ownerId);
       if (!user) return undefined;
       session.lastUsedAt = now;
+      if (this.cache) {
+        const cachedSession = this.cache.state.sessions.find(item => item.digest === tokenDigest);
+        if (cachedSession) cachedSession.lastUsedAt = now;
+      }
+      const flushedAt = this.lastFlushed.get(tokenDigest) ?? -Infinity;
+      if (now - flushedAt >= LAST_USED_FLUSH_MS) {
+        await this.commitState(state);
+      }
       return publicUser(user);
     });
+    this.queue = run.catch(() => undefined); return run;
   }
   async signOut(cookie: string | undefined): Promise<void> {
     const token = this.token(cookie); if (!token) return;
@@ -106,7 +165,7 @@ export class IdentityService {
       // External-only users have an unguessable dummy password and this reserved generated username.
       return { localPassword: user.username !== `oidc-${user.id}`,
         unifiedLinked: Boolean(issuer && state.bindings.some(binding => binding.ownerId === user.id && binding.issuer === issuer)) };
-    });
+    }, { write: false });
   }
   /** Management re-authentication must prove an already bound subject; it cannot create or link one. */
   async verifyExternalOwner(cookie: string | undefined, expectedOwner: string, input: ExternalIdentity, active: () => boolean): Promise<Principal> {
@@ -119,7 +178,7 @@ export class IdentityService {
       const user = state.users.find(item => item.id === expectedOwner);
       if (!user) throw new IdentityError(401, "identity_required");
       return publicUser(user);
-    });
+    }, { write: false });
   }
   /** Only called with an OIDC proof verified by the server, never a browser-supplied profile. */
   async signInExternal(input: ExternalIdentity, active: () => boolean) {

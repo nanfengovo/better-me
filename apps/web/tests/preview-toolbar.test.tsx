@@ -181,7 +181,7 @@ test("help is operable by click, describes export differences and dismisses with
   await pointerClick(help);
   const panel = dom.document.getElementById(help.getAttribute("aria-controls")!);
   assert.ok(panel); assert.equal(panel.getAttribute("role"), "region");
-  assert.match(panel.textContent!, /DOCX is editable single-column content without photos; PDF keeps the selected template/);
+  assert.match(panel.textContent!, /DOCX omits photos by default.*export a DOCX with it.*PDF keeps the selected template/);
   assert.match(panel.textContent!, /turn off Headers and footers/);
   assert.equal(help.getAttribute("aria-expanded"), "true");
   await key(help, "Escape");
@@ -209,6 +209,22 @@ test("help and export surfaces are mutually exclusive and keep Chinese accessibl
   assert.equal(menu(), null); assert.equal(trigger.getAttribute("aria-expanded"), "false");
   assert.equal(help.getAttribute("aria-expanded"), "true");
   assert.deepEqual(original, before, "toolbar surfaces must not write facts or view settings");
+});
+
+test("export menu labels the default DOCX and offers photo export only for a visible supported image", async () => {
+  const { view, resume } = await mount();
+  const avatarUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  const withPhoto = { ...resume, profile: { ...resume.profile, avatarUrl } };
+  await renderResume(withPhoto, view);
+  const trigger = button("More export formats");
+  await pointerClick(trigger);
+  assert.match(menu()!.textContent!, /Download DOCXEditable document · no photo/);
+  assert.match(menu()!.textContent!, /Download photo DOCX/);
+
+  await renderResume(withPhoto, { ...view, profileVisibility: { ...view.profileVisibility, photo: false } });
+  assert.doesNotMatch(menu()!.textContent!, /Download photo DOCX/);
+  await renderResume({ ...withPhoto, templateId: "en-ats" }, view);
+  assert.doesNotMatch(menu()!.textContent!, /Download photo DOCX/);
 });
 
 test("the primary PDF control remains a direct print action with no export menu", async () => {

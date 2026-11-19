@@ -48,9 +48,11 @@ export function nativeProfileOccupancySnapshot(value: unknown, profile: string):
     const command = (row as { command?: unknown }).command;
     if (typeof command !== "string" || !command.trim() || command.includes("\0") || (command.match(/"/g)?.length ?? 0) % 2) { uncertain = true; continue; }
     const args = (command.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []).map(arg => arg.replaceAll('"', ""));
-    if (!args.length || !args[0].trim()) uncertain = true;
+    if (!args.length || !args[0]?.trim()) uncertain = true;
     for (let index = 0; index < args.length; index++) {
-      const argument = args[index]; const lower = argument.toLowerCase();
+      const argument = args[index];
+      if (argument === undefined) continue;
+      const lower = argument.toLowerCase();
       if (lower !== "--user-data-dir" && !lower.startsWith("--user-data-dir=")) continue;
       const candidate = lower === "--user-data-dir" ? args[++index] : argument.slice(16);
       if (!candidate || candidate.startsWith("--") || !path.win32.isAbsolute(candidate)) { uncertain = true; continue; }

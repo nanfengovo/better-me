@@ -3,7 +3,7 @@ import path from "node:path";
 import { AgentHostManager } from "./agent-host-manager.js";
 import { WebServerManager } from "./web-server-manager.js";
 import { createMainWindow, setupNativeMenu } from "./window.js";
-import { toggleStarHud } from "./hud-window.js";
+import { exportWindowToPdf } from "./pdf-export.js";
 import { prepareDesktopQaProfile, resolveDesktopQaConfig } from "./isolated-qa-config.js";
 import { startPackagedApp } from "./packaged.js";
 
@@ -29,12 +29,43 @@ const webServerManager = new WebServerManager(qaConfig ? { ...qaConfig.web, exte
 let mainWindow: BrowserWindow | null = null;
 let opening: Promise<void> | undefined;
 
+function parseExternalHttpUrl(input: unknown): string | undefined {
+  if (typeof input !== "string" || input.length > 4096) return;
+  try {
+    const parsed = new URL(input);
+    if ((parsed.protocol === "https:" || parsed.protocol === "http:") && !parsed.username && !parsed.password) {
+      return parsed.href;
+    }
+  } catch { /* malformed external URL is not opened */ }
+}
+
+const trusted = (event?: Electron.IpcMainInvokeEvent): boolean =>
+  Boolean(mainWindow && event && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame);
+
+const explainHud = (): void => {
+  void dialog.showMessageBox({
+    type: "info",
+    message: "请先在工作台准备并核对面试材料。",
+    detail: "此版本不展示预置的个人经历、指标或未经核对的防守话术。",
+  });
+};
+
 // These belong to the Host lifetime, not a window lifetime. macOS can close
 // every window while a granted task continues, then reopen the same Host.
-ipcMain.handle("desktop:get-agent-info", async () => agentHostManager.getConfig());
-ipcMain.handle("desktop:toggle-hud", async () => toggleStarHud(preloadPath));
-ipcMain.handle("desktop:open-external", async (_, url: string) => {
-  if (typeof url === "string" && (url.startsWith("http:") || url.startsWith("https:"))) await shell.openExternal(url);
+ipcMain.handle("desktop:get-agent-info", async (event) => {
+  if (!trusted(event)) throw new Error("Untrusted agent info request.");
+  return agentHostManager.getConfig();
+});
+ipcMain.handle("desktop:toggle-hud", (event) => {
+  if (trusted(event)) explainHud();
+});
+ipcMain.handle("desktop:open-external", async (event, url: unknown) => {
+  const safe = parseExternalHttpUrl(url);
+  if (trusted(event) && safe) await shell.openExternal(safe);
+});
+ipcMain.handle("desktop:export-pdf", async (event, suggestedFilename?: unknown) => {
+  if (!trusted(event)) throw new Error("Untrusted PDF export request.");
+  return exportWindowToPdf(mainWindow, suggestedFilename);
 });
 nativeTheme.on("updated", () => {
   mainWindow?.webContents.send("desktop:theme-changed", nativeTheme.shouldUseDarkColors ? "dark" : "light");
@@ -55,15 +86,13 @@ async function openWorkspace() {
   await webServerManager.ensureStarted();
 
   // 2. Setup Native Menu
-  setupNativeMenu(() => {
-    toggleStarHud(preloadPath);
-  });
+  setupNativeMenu(explainHud);
 
   // 3. Create Main Window
   // Vite root assets and the Agent API proxy require the same HTTP origin.
   // A packaged window never uses arbitrary dev URLs or falls back to file://.
-  const workspaceUrl = qaConfig?.workspaceUrl ?? (isDev ? process.env.VITE_DEV_SERVER_URL || "http://localhost:5173/?workspace=autopilot"
-    : new URL("/?workspace=autopilot", webServerManager.getEndpoint()).href);
+  const workspaceUrl = qaConfig?.workspaceUrl ?? (isDev ? process.env.VITE_DEV_SERVER_URL || "http://localhost:5173/?workspace=resume"
+    : new URL("/?workspace=resume", webServerManager.getEndpoint()).href);
   mainWindow = createMainWindow({
     preloadPath, workspaceUrl, restrictOrigin: !!qaConfig || !isDev,
   });

@@ -1,6 +1,10 @@
 import { useUiPreferences } from "../lib/ui-preferences";
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
+import { useBetterMeAgent } from "../lib/betterme-agent/react";
+import { useAgentSidebar } from "./AgentSidebar";
 import {
   testLlmConnection,
   isOfficialDeepSeek,
@@ -36,11 +40,17 @@ type Props = {
   onClose: () => void;
   config: LlmConfig;
   onSave: (config: LlmConfig) => Promise<void> | void;
+  onChooseAgentSource?: () => void;
   rootScopeKey: string;
 };
 
-export function AiConfigModal({ isOpen, onClose, config, onSave, rootScopeKey }: Props) {
+export function AiConfigModal({ isOpen, onClose, config, onSave, onChooseAgentSource, rootScopeKey }: Props) {
   const { t } = useUiPreferences();
+  const routing = useAgentRouting(), {snapshot} = useBetterMeAgent();
+  const sidebar = useAgentSidebar();
+  const source = routing?.blocked ? t("尚未确认", "Not yet confirmed") : routing?.enabled && routing.policy ? agentBaseLabel(routing.policy, t)
+    : snapshot?.data.selection.kind === "chatgpt" ? `ChatGPT · ${snapshot.data.selection.model || t("未选模型","No model selected")}`
+    : snapshot?.ready ? t(`已保存的 API 模型 · ${config.model || "未配置"}`,`Saved API model · ${config.model || "not set"}`) : undefined;
 
 const PRESETS = [
   {
@@ -92,6 +102,18 @@ const PRESETS = [
   const [customModelMode, setCustomModelMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedModel,setSavedModel] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null), doneRef = useRef<HTMLButtonElement>(null);
+  const session = useRef(0);
+  useLayoutEffect(() => {
+    if (!isOpen) { setSavedModel(null); return; }
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const opened = session.current;
+    if (!dialog.open) dialog.showModal();
+    return () => { session.current=opened+1; if (dialog.open) dialog.close(); };
+  }, [isOpen]);
+  useLayoutEffect(() => { if (savedModel) doneRef.current?.focus(); }, [savedModel]);
   const [probeConfig,setProbeConfig] = useState<LlmConfig>();
   const requestVersion = useRef(0);
   const requestController = useRef<AbortController | null>(null);
@@ -232,15 +254,19 @@ const PRESETS = [
   };
 
   const handleSave = async () => {
+    const opened=session.current;
     setSaveError(null);
     setSaving(true);
     try {
-      await onSave(validatedConfig());
-      onClose();
+      const value=validatedConfig();
+      await onSave(value);
+      if(opened!==session.current)return;
+      setShowKey(false);
+      setSavedModel(value.model);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : t("配置保存失败，请重试。", "Could not save the configuration. Please try again."));
+      if(opened===session.current)setSaveError(error instanceof Error ? error.message : t("配置保存失败，请重试。", "Could not save the configuration. Please try again."));
     } finally {
-      setSaving(false);
+      if(opened===session.current)setSaving(false);
     }
   };
 
@@ -254,9 +280,8 @@ const PRESETS = [
       ? availableModels
       : currentPreset?.fallbackModels ?? [];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="ai-config-title" className="ai-config-modal w-full min-w-0 max-w-2xl rounded-3xl bg-white/95 p-4 shadow-2xl border border-white/70 space-y-5 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto backdrop-blur-xl sm:p-6">
+  return createPortal(
+      <dialog ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="ai-config-title" onCancel={event=>{event.preventDefault();if(!saving)handleClose();}} className="ai-config-modal w-full min-w-0 max-w-2xl rounded-3xl bg-white/95 p-4 shadow-2xl border border-white/70 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
           <div className="flex items-center gap-2">
@@ -268,7 +293,7 @@ const PRESETS = [
                 {t("AI 模型接入配置", "AI model configuration")}
               </h2>
               <p className="text-xs text-slate-500">
-                {t("读取模型列表 · 支持 Google Gemini、DeepSeek、OpenAI 与 Ollama", "Model discovery · Google Gemini, DeepSeek, OpenAI and Ollama")}
+                {source ? t(`Agent 当前来源：${source}。保存连接不会切换已绑定的任务。`,`Current Agent source: ${source}. Saving a connection does not switch existing tasks.`) : t("这里保存 API 连接，不会切换已绑定的任务。","Save an API connection here. This does not switch existing tasks.")}
               </p>
             </div>
           </div>
@@ -283,7 +308,16 @@ const PRESETS = [
           </button>
         </div>
 
-        {/* Quick Presets */}
+        {savedModel!==null ? <>
+          <section className="ai-config-receipt" role="status"><CheckCircle2 size={20} aria-hidden="true"/><div>
+            <strong>{t(`已保存「${savedModel}」的连接配置`,`Saved the connection for “${savedModel}”`)}</strong>
+            <p>{t("本次保存没有运行文本生成。若要让尚未绑定模型的工作区使用这份配置，在「工具与授权 → 统一 Agent 来源」选「当前明确配置模型」即可。已绑定的工作区仍用原模型。","Saving did not run a generation test. To use this connection in a workspace that has not bound a model, select the configured API model under Tools & permissions → Agent source. Bound workspaces keep their original model.")}</p>
+          </div></section>
+          <div className="ai-config-footer flex items-center justify-end gap-2">
+            {onChooseAgentSource&&<button type="button" onClick={()=>{handleClose();if(sidebar?.open)sidebar.hide();onChooseAgentSource();}}>{t("选择 Agent 来源","Choose Agent source")}</button>}
+            <button ref={doneRef} type="button" className="ai-config-save" onClick={handleClose}>{t("完成","Done")}</button>
+          </div>
+        </> : <>
         <div className="ai-config-scroll" role="region" aria-label={t("模型配置表单", "Model configuration form")} tabIndex={0}>
         <fieldset disabled={saving || testing} className="ai-config-body">
           <div className="ai-config-section rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
@@ -486,6 +520,7 @@ const PRESETS = [
               {customModelMode ? (
                 <input
                   id="ai-model"
+                  aria-describedby="ai-model-help"
                   type="text"
                   value={formData.model}
                   onChange={(e) =>
@@ -498,6 +533,7 @@ const PRESETS = [
                 <div className="ai-config-model-row flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
                   <select
                     id="ai-model"
+                    aria-describedby="ai-model-help"
                     value={formData.model}
                     onChange={(e) =>
                       updateDraft({ model: e.target.value })
@@ -542,16 +578,17 @@ const PRESETS = [
                   {t("预设名称仅作示例，可能已变更或停用。请获取列表或按服务商文档手动填写。", "Preset names are examples and may change or be retired. Retrieve the list or enter a name from the provider's documentation.")}
                 </p>
               )}
-              <p className="ai-config-model-help text-[11px] text-slate-500 mt-2">
-                {t("模型列表由浏览器读取；生成测试经 Agent Host 的统一任务执行。两者的代理环境可能不同。刷新列表保留当前模型，由你决定是否更换。", "The browser reads the model list; Agent Host executes generation checks through unified tasks. Their proxy environments may differ. Refreshing the list keeps your chosen model.")}
+              <p id="ai-model-help" className="ai-config-model-help text-[11px] text-slate-500 mt-2">
+                {availableModels.length>0 && !availableModels.includes(formData.model)
+                  ? t(`服务商返回的列表中没有「${formData.model}」。已保留原选择；如要更换，请从上方列表选择服务商返回的名称。`,`The provider’s list does not include “${formData.model}”. Your selection was kept. To change it, choose a returned model above.`)
+                  : t("获取列表只检查浏览器能否读取服务商的模型名称，不会测试生成或替你更换模型。","Retrieving the list checks model discovery in the browser. It does not test generation or change your model.")}
               </p>
             </div>
 
             {/* Test Connection Banner & Button */}
             <div className="ai-config-section ai-config-checks rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 sm:p-4">
               <div className="mb-3 flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接验证", "Connection checks")}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接检查（可选）", "Connection checks (optional)")}</span>
               </div>
               <div className="ai-config-check-actions">
                 <button
@@ -579,8 +616,8 @@ const PRESETS = [
                 <span>{t("测试文本生成（计入总额度）", "Test text generation (shared budget)")}</span>
               </button>
               </div>
-              <p className="mt-3 text-[11px] text-slate-500">{t("打开后先核对原任务并明确授权，再执行固定测试；使用统一根账，可能产生费用。模型列表成功不等于生成或图片能力通过。", "Open the check, review the original task and explicitly authorize before running the fixed check. It uses the shared root budget and may incur charges. Model discovery does not verify generation or image support.")}</p>
-              {probeConfig&&<OneOffAgentTask key={rootScopeKey} workspaceKey={`model-probe:${rootScopeKey}`} rootScopeKey={rootScopeKey} config={probeConfig} prompt={MODEL_CONFIGURATION_PROBE} onPromptChange={()=>{}} configurationProbe/>}
+              <p className="mt-3 text-[11px] text-slate-500">{t("测试不是保存的前提。打开测试只检查当前工作区；勾选授权并开始运行后，才会通过本机 Agent Host 尝试生成，可能产生费用。","Testing is optional. Opening the check only inspects this workspace. Generation through the local Agent Host starts only after you authorize and run it; charges may apply.")}</p>
+              {probeConfig&&<OneOffAgentTask key={rootScopeKey} workspaceKey={`model-probe:${rootScopeKey}`} rootScopeKey={rootScopeKey} config={probeConfig} prompt={MODEL_CONFIGURATION_PROBE} onPromptChange={()=>{}} onDiscoverModels={()=>void handleTestConnection("models")} configurationProbe/>}
 
               {testResult && (
                 <div
@@ -618,15 +655,10 @@ const PRESETS = [
           </div>
         </fieldset>
 
-        {saveError && (
-          <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
-            {saveError}
-          </p>
-        )}
-
         </div>
         {/* Footer */}
         <div className="ai-config-footer flex items-center justify-end gap-2 pt-1">
+          {saveError && <p role="alert" className="ai-config-save-error">{saveError}</p>}
           <button
             type="button"
             onClick={handleClose}
@@ -645,7 +677,7 @@ const PRESETS = [
             {saving ? t("正在保存...", "Saving...") : t("保存配置", "Save configuration")}
           </button>
         </div>
-      </div>
-    </div>
+        </>}
+      </dialog>,document.body
   );
 }

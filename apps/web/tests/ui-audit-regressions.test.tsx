@@ -266,8 +266,9 @@ test("F23: autopilot light/dark colour pairs live in theme tokens defined for bo
 });
 test("F21: autopilot workspace labels, toasts and stage names are translated while stage values stay stable", async () => {
   const component = await readFile(new URL("../src/components/AutopilotStudioWorkspace.tsx", import.meta.url), "utf8");
+  const mappers = await readFile(new URL("../src/components/autopilot/autopilot-pipeline-mappers.ts", import.meta.url), "utf8");
   for (const text of ["End-to-end job-search automation studio", "Artifact inspector", "Configure models and tools in System settings", "Waiting for the built-in preset build receipt", "STAR prompter HUD", "Conveyor rotation: "]) assert.ok(component.includes(`"${text}"`), text);
-  assert.match(component, /"ATS 核验通过": \["ATS check passed", "ATS ok"\]/, "stage translation table retains stored Chinese identifiers");
+  assert.match(mappers, /"ATS 核验通过": \["ATS check passed", "ATS ok"\]/, "stage translation table retains stored Chinese identifiers");
   assert.match(component, /stageLabel\((?:job|activeJob)\.stage3D, t\)/);
   assert.doesNotMatch(component, /\{st\.slice\(0, 4\)\}/);
   for (const bare of [/>\s*深度工件舱/, />\s*系统设置</, />\s*重新构建\s*</, /title="上一步"/, /title="下一步"/]) assert.doesNotMatch(component, bare);

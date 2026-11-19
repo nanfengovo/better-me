@@ -2,13 +2,29 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import os from "node:os";
 import path from "node:path";
-import {mkdtemp,rm} from "node:fs/promises";
+import {mkdtemp,readFile,rm,writeFile} from "node:fs/promises";
 import {setTimeout as delay} from "node:timers/promises";
 import {careerRuntimeBinding,type FreeChatTaskCreate} from "@better-me/agent-contracts";
 import {AgentTaskKernel} from "../src/kernel/service.js";
 
 const access={session:"synthetic-scope",valid:async()=>true},runtimeBinding=careerRuntimeBinding({kind:"native",runtimeId:"codex"});
 const chat=(key:string):FreeChatTaskCreate=>({kind:"free_chat",workspaceKey:key,rootScopeKey:"synthetic-resume-scope",objective:"合成连续对话",runtimeBinding,consent:true,idempotencyKey:`synthetic-scope-${key}`,conversation:{messages:[{id:"u1",role:"user",content:"只参与测试。"}]}});
+
+test("settings can inspect only the public workspace binding, without reconciling an interrupted archive",async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-inspect-binding-")),ownerId="synthetic-owner";
+  let kernel=new AgentTaskKernel({ownerId,directory});t.after(async()=>{await kernel.close();await rm(directory,{recursive:true,force:true});});
+  const root=await kernel.createTask(chat("pinned"),access),scope=root.rootScopeKey!;
+  await kernel.close();
+  // Simulate a process exiting without a final heartbeat, using only the temporary owner.
+  const file=path.join(directory,`${root.id}.json`),store=JSON.parse(await readFile(file,"utf8"));store.task.status="running";store.lastActiveAt=Date.now()-60_000;
+  const bytes=JSON.stringify(store);await writeFile(file,bytes);
+  kernel=new AgentTaskKernel({ownerId,directory});
+  await assert.rejects(kernel.workspaceBinding(scope,{...access,valid:async()=>false}),/interaction_lease_invalid/);
+  assert.deepEqual(await kernel.workspaceBinding("unbound",access),{ownerId,rootScopeKey:"unbound",binding:null});
+  for(let i=0;i<2;i++)assert.deepEqual(await kernel.workspaceBinding(scope,access),{ownerId,rootScopeKey:scope,binding:runtimeBinding});
+  assert.equal(await readFile(file,"utf8"),bytes,"even cached reads must not recover, dispatch, or change usage");
+  assert.equal((await kernel.readTask(root.id)).status,"interrupted","normal recovery remains authoritative");
+});
 
 test("concurrent distinct facades atomically select one workspace root and inherit its non-default ceiling",async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-root-scope-")),kernel=new AgentTaskKernel({ownerId:"synthetic-owner",directory});t.after(async()=>{await kernel.close();await rm(directory,{recursive:true,force:true});});
@@ -49,6 +65,34 @@ test("scope association rejects mismatched explicit parents and leaves legacy an
   const child=await kernel.createTask({...chat("explicit"),rootScopeKey:undefined,parentTaskId:root.id},access);assert.equal(child.rootScopeKey,root.rootScopeKey);
   const isolated=await other.createTask(chat("root"),access);assert.notEqual(isolated.id,root.id);assert.equal(isolated.rootTaskId,isolated.id);assert.equal(isolated.parentTaskId,undefined);
   assert.equal((await kernel.readTask(legacy.id)).rootScopeKey,undefined);assert.equal((await kernel.readTask(legacy.id)).rootTaskId,legacy.id);
+});
+
+test("task summary stays bounded and reports abandoned work without rewriting private archives", async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-task-summary-"));
+  const kernel = new AgentTaskKernel({ ownerId: "synthetic-owner", directory });
+  t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
+  const tasks = [];
+  for (let index = 0; index < 8; index++) {
+    tasks.push(await kernel.createTask({ ...chat(`summary-${index}`), objective: "PRIVATE_SUMMARY_FIXTURE" }, access));
+  }
+  const latest = tasks.at(-1)!;
+  const file = path.join(directory, latest.id + ".json");
+  const archive = JSON.parse(await readFile(file, "utf8"));
+  archive.task.status = "running";
+  archive.task.updatedAt = "2099-01-01T00:00:00.000Z";
+  const before = JSON.stringify(archive);
+  await writeFile(file, before, { mode: 0o600 });
+
+  const summary = await kernel.listTaskSummary();
+  assert.equal(summary.totalTasks, 8);
+  assert.equal(summary.runningCount, 7);
+  assert.equal(summary.failedCount, 1);
+  assert.equal(summary.tasks.length, 6);
+  assert.equal(summary.tasks[0]!.id, latest.id);
+  assert.equal(summary.tasks[0]!.status, "interrupted");
+  assert.deepEqual(Object.keys(summary.tasks[0]!).sort(), ["id", "kind", "status", "title", "updatedAt"]);
+  assert.doesNotMatch(JSON.stringify(summary), /PRIVATE_SUMMARY_FIXTURE|rootLedger/);
+  assert.equal(await readFile(file, "utf8"), before);
 });
 
 test("manual group pause stops a pending descendant without overwriting its waiting root or accepting a late reply",async t=>{

@@ -11,6 +11,7 @@ export interface DesktopApi {
   getAgentHostInfo: () => Promise<{ endpoint: string; token: string; port: number }>;
   toggleStarPrompterHud: () => Promise<void>;
   openExternal: (url: string) => Promise<void>;
+  exportPdf: (suggestedFilename?: string) => Promise<{ ok: boolean; cancelled?: boolean; filePath?: string; error?: string }>;
   armInventoryMicrophone:()=>Promise<boolean>;
   disarmInventoryMicrophone:()=>void;
   onThemeChange: (callback: (theme: "dark" | "light") => void) => () => void;
@@ -27,6 +28,7 @@ const desktopApi: DesktopApi = {
   getAgentHostInfo: () => ipcRenderer.invoke("desktop:get-agent-info"),
   toggleStarPrompterHud: () => ipcRenderer.invoke("desktop:toggle-hud"),
   openExternal: (url: string) => ipcRenderer.invoke("desktop:open-external", url),
+  exportPdf: (suggestedFilename?: string) => ipcRenderer.invoke("desktop:export-pdf", suggestedFilename),
   armInventoryMicrophone:()=>ipcRenderer.invoke("inventory:arm-microphone"),
   disarmInventoryMicrophone:()=>ipcRenderer.send("inventory:disarm-microphone"),
   onThemeChange: (callback: (theme: "dark" | "light") => void) => {

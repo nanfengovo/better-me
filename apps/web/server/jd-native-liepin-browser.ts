@@ -1,6 +1,6 @@
 import path from "node:path";
 import { isIP } from "node:net";
-import { allowedBrowserResource, isBrowserVerificationUrl } from "./jd-browser";
+import { allowedBrowserResource, getJobBrowserProfileRoot, isBrowserVerificationUrl } from "./jd-browser";
 import type { BrowserSessionInspection } from "./jd-browser-session";
 import { validateBrowserSnapshot, type BrowserSnapshot } from "./jd-browser-snapshot";
 import { closeNativeTarget, nativeUnavailable, type NativeTargetList } from "./jd-native-cdp";
@@ -81,7 +81,7 @@ const VERIFICATION_TYPES = new Set<string>(VERIFICATION_RESOURCE_TYPES);
 /** A separate persistent native profile; a page lease never owns the browser. */
 export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): NativeLiepinBrowser {
   const platform = options.platform ?? "猎聘";
-  const profile = path.resolve(options.profileDirectory ?? path.join(import.meta.dirname, "../../../data/recruitment-browser", NATIVE_PROFILES[platform], "profile"));
+  const profile = path.resolve(options.profileDirectory ?? path.join(getJobBrowserProfileRoot(), NATIVE_PROFILES[platform], "profile"));
   let edge: NativeEdge | undefined; let baseId = ""; let proxy: string | undefined;
   let starting: Promise<void> | undefined; let stopping: Promise<void> | undefined;
   let stoppingMode: NativeBrowserStopMode | undefined;
@@ -152,7 +152,7 @@ export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): N
   }
   function onlyOriginalBase(targets: NativeTargetList, expectedBase: string) {
     const pageTargets = targets.targetInfos.filter(target => target.type === "page");
-    return pageTargets.length === 1 && pageTargets[0].targetId === expectedBase && pageTargets[0].url === "about:blank";
+    return pageTargets.length === 1 && pageTargets[0]?.targetId === expectedBase && pageTargets[0]?.url === "about:blank";
   }
   async function initializeProtocol(ownedEdge: NativeEdge, expectedBase?: string, operationSignal?: AbortSignal) {
     const cdp = ownedEdge.cdp; const epoch = ++transportEpoch;

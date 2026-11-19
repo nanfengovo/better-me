@@ -16,7 +16,17 @@ const {parentPort,workerData:d}=require('node:worker_threads');
   rt.setInterruptHandler(()=>Date.now()>deadline);
   const vm=rt.newContext();
   try {
-    const program='"use strict";const transform=('+d.source+');const output=transform(JSON.parse('+JSON.stringify(d.input)+'));if(output instanceof Promise)throw Error("async_not_allowed");JSON.stringify(output)';
+    const program='"use strict";(()=>{'+
+      'const _apply=Reflect.apply,_parse=JSON.parse,_stringify=JSON.stringify,_describe=Function.prototype.toString,_Promise=Promise,_Error=Error,_eval=eval;'+
+      'const _input='+JSON.stringify(d.input)+',_source='+JSON.stringify(d.source)+';'+
+      'const transform=_eval('+JSON.stringify('"use strict";(')+'+_source+'+JSON.stringify(String.fromCharCode(10)+')')+');'+
+      'if(typeof transform!=="function")throw new _Error("sandbox_non_function");'+
+      'const _actual=_apply(_describe,transform,[]),_trimmed=_source.trim();'+
+      'if(_actual!==_trimmed&&_trimmed!=="("+_actual+")")throw new _Error("sandbox_source_mismatch");'+
+      'const output=_apply(transform,undefined,[_parse(_input)]);'+
+      'if(output instanceof _Promise)throw new _Error("async_not_allowed");'+
+      'return _stringify(output);'+
+      '})()';
     const result=vm.evalCode(program,'generated-transform.js');
     if(result.error){
       let reason='';

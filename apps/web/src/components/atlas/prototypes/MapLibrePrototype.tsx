@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { Compass, LoaderCircle, LocateFixed, MapPinned, Moon, Satellite, Sun, X } from "lucide-react";
-import { AttributionControl, Map, Marker, NavigationControl, prewarm, ScaleControl, setWorkerCount, setWorkerUrl, type ExpressionSpecification, type GeoJSONSource, type LayerSpecification, type SourceSpecification, type StyleSpecification } from "maplibre-gl";
+import { AttributionControl, Map, Marker, NavigationControl, prewarm, ScaleControl, setWorkerCount, setWorkerUrl, type ExpressionSpecification, type FilterSpecification, type GeoJSONSource, type LayerSpecification, type SourceSpecification, type StyleSpecification } from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { formatAtlasAddress, splitAtlasAddressDisplay } from "../address-format";
@@ -102,172 +102,25 @@ function bilingualTextField(inline = false): ExpressionSpecification {
   ] as unknown as ExpressionSpecification;
 }
 
-const ZOOM_PRESET_SPECS = [
-  { key: "overview", label: "全景", domesticZoom: 3.2, globalZoom: 1.75, pitch: 0 },
-  { key: "city", label: "城市", domesticZoom: 11.8, globalZoom: 11.8, pitch: 30 },
-  { key: "street", label: "街道", domesticZoom: 15.2, globalZoom: 15.2, pitch: 48 },
-  { key: "building", label: "楼宇", domesticZoom: 17.2, globalZoom: 17.2, pitch: 54 },
-] as const;
-
-function resolveZoomTelemetry(zoom: number, minZoom: number, maxZoom: number) {
-  const tier = zoom >= 16 ? "楼宇" : zoom >= 14.2 ? "街道" : zoom >= 11.5 ? "街区" : zoom >= 8 ? "城市" : zoom >= 4 ? "省域" : "全球";
-  const hint = zoom >= 16
-    ? "3D 建筑与门牌"
-    : zoom >= 14.2
-      ? "街巷路名与门店"
-      : zoom >= 11.5
-        ? "地铁站点与校区"
-        : zoom >= 8
-          ? "城区干道与水域"
-          : zoom >= 4
-            ? "省市廓线与枢纽"
-            : "全球航路与国界";
-  const clamped = Math.max(minZoom, Math.min(maxZoom, Number(zoom.toFixed(1))));
-  const progress = Math.max(0, Math.min(100, ((clamped - minZoom) / Math.max(0.1, maxZoom - minZoom)) * 100));
-  const presetIndex = zoom < 8 ? 0 : zoom < 14.2 ? 1 : zoom < 16 ? 2 : 3;
-  return { tier, hint, clamped, progress, presetIndex };
-}
-
-type MapLayerMode = "satellite" | "street" | "dark";
-
-const SATELLITE_IMAGERY_TILES = ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"];
-const TERRAIN_DEM_TILES = ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{y}/{x}.png"];
-
-function buildPoiColorExpr(daylight: boolean): ExpressionSpecification {
-  return [
-    "match",
-    ["get", "class"],
-    ["park", "garden", "campsite"], daylight ? "#15803d" : "#6ee7b7",
-    ["hospital", "doctors"], daylight ? "#be123c" : "#fda4af",
-    ["college", "university", "school", "library", "museum"], daylight ? "#1d4ed8" : "#93c5fd",
-    ["cafe", "restaurant", "fast_food", "bakery"], daylight ? "#b45309" : "#fcd34d",
-    ["shop", "mall", "commercial", "lodging"], daylight ? "#334155" : "#f1f5f9",
-    daylight ? "#334155" : "#e2e8f0",
-  ] as unknown as ExpressionSpecification;
-}
-
-const BUILDING_HEIGHT_EXPR = [
-  "case",
-  ["has", "render_height"],
-  ["to-number", ["get", "render_height"], 0],
-  ["to-number", ["get", "height"], 0],
-] as unknown as ExpressionSpecification;
-
-function buildBuildingColorExpr(mode: MapLayerMode): ExpressionSpecification {
-  if (mode === "street") {
-    return [
-      "interpolate", ["linear"], BUILDING_HEIGHT_EXPR,
-      0, "#e2e8f0",
-      12, "#cbd5e1",
-      28, "#b0c1d6",
-      65, "#8da7c7",
-      140, "#6789b0",
-    ] as unknown as ExpressionSpecification;
-  }
-  if (mode === "satellite") {
-    return [
-      "interpolate", ["linear"], BUILDING_HEIGHT_EXPR,
-      0, "#475569",
-      24, "#0ea5e9",
-      80, "#7dd3fc",
-    ] as unknown as ExpressionSpecification;
-  }
-  return [
-    "interpolate", ["linear"], BUILDING_HEIGHT_EXPR,
-    0, "#213a54",
-    12, "#2f577d",
-    30, "#4174a3",
-    68, "#5899cc",
-    145, "#7ec6f2",
-  ] as unknown as ExpressionSpecification;
-}
-
-function buildBuildingEdgePaint(mode: MapLayerMode) {
-  if (mode === "street") return { color: "#788da4", opacity: 0.44 };
-  if (mode === "satellite") return { color: "#bae6fd", opacity: 0.56 };
-  return { color: "#7cc2ef", opacity: 0.48 };
-}
-
-function buildStreetBackgroundPaint(mode: MapLayerMode): unknown {
-  if (mode === "street") return ["interpolate", ["linear"], ["zoom"], 6.4, "#9ecae6", 7.8, "#f3f1ec"];
-  if (mode === "satellite") return "#040c17";
-  return ["interpolate", ["linear"], ["zoom"], 6.4, "#06101a", 7.8, "#0b141f"];
-}
-
-function buildCivicLanduseColorExpr(daylight: boolean): ExpressionSpecification {
-  return [
-    "match",
-    ["get", "class"],
-    "hospital", daylight ? "#fce4ec" : "rgba(244,63,94,0.14)",
-    ["school", "university", "college"], daylight ? "#e5ebfb" : "rgba(99,102,241,0.14)",
-    ["commercial", "retail"], daylight ? "#f3ede2" : "rgba(56,189,248,0.09)",
-    "industrial", daylight ? "#e1e5eb" : "rgba(71,85,105,0.19)",
-    "parking", daylight ? "#e6e8ec" : "rgba(100,116,139,0.16)",
-    ["recreation_ground", "pitch", "stadium", "cemetery"], daylight ? "#d6e9c6" : "rgba(16,185,129,0.16)",
-    daylight ? "#dcebd0" : "rgba(16,185,129,0.15)",
-  ] as unknown as ExpressionSpecification;
-}
-
-function applyCameraLightAndSky(ownedMap: Map, mode: MapLayerMode, scopeMode: "global" | "domestic") {
-  const street = mode === "street";
-  const showSat = mode === "satellite";
-  ownedMap.setLight?.(
-    street
-      ? { anchor: "viewport", color: "#fffcf5", intensity: 0.82, position: [1.45, 215, 58] }
-      : showSat
-        ? { anchor: "viewport", color: "#e0f2fe", intensity: 0.72, position: [1.4, 205, 52] }
-        : { anchor: "viewport", color: "#dbeafe", intensity: 0.88, position: [1.45, 205, 56] },
-  );
-  ownedMap.setSky?.(
-    street
-      ? { "sky-color": "#cfe5fc", "horizon-color": "#edf4fc", "fog-color": "#f3f1ec", "fog-ground-blend": 0.42, "horizon-fog-blend": 0.6, "sky-horizon-blend": 0.6, "atmosphere-blend": scopeMode === "global" ? 0.78 : 0.22 }
-      : showSat
-        ? { "sky-color": "#020712", "horizon-color": "#1d4e78", "fog-color": "#07111e", "fog-ground-blend": 0.38, "horizon-fog-blend": 0.6, "sky-horizon-blend": 0.5, "atmosphere-blend": scopeMode === "global" ? 0.92 : 0.3 }
-        : { "sky-color": "#060d15", "horizon-color": "#163047", "fog-color": "#0b131d", "fog-ground-blend": 0.48, "horizon-fog-blend": 0.65, "sky-horizon-blend": 0.55, "atmosphere-blend": scopeMode === "global" ? 0.9 : 0.25 },
-  );
-}
-
-const STREET_FILL_COLORS: Record<string, string> = {
-  water: "#7fc1ec",
-  park: "#c6e5b5",
-  landuse_park: "#c6e5b5",
-  landcover_wood: "#b8dca6",
-  landuse_residential: "#eae6dc",
-  "aeroway-area": "#dfe3e8",
-};
-
-const WATERWAY_WIDTH_EXPR = ["interpolate", ["linear"], ["zoom"], 8, 0.9, 12, 1.9, 15, 3.4, 18, 6.4] as unknown as ExpressionSpecification;
-const MINOR_ROAD_CASING_WIDTH_EXPR = ["interpolate", ["exponential", 1.55], ["zoom"], 12.2, 2.2, 14, 4.2, 17, 10.5, 20, 23] as unknown as ExpressionSpecification;
-
-const SATELLITE_ROAD_PAINTS: Record<string, Record<string, unknown>> = {
-  highway_motorway_inner: { "line-color": "#fbbf24", "line-opacity": 0.92 },
-  highway_motorway_subtle: { "line-color": "#fbbf24", "line-opacity": 0.78 },
-  highway_motorway_casing: { "line-color": "rgba(4,9,16,0.82)" },
-  highway_major_inner: { "line-color": "#fde68a", "line-opacity": 0.86 },
-  highway_major_subtle: { "line-color": "#fde68a", "line-opacity": 0.68 },
-  highway_major_casing: { "line-color": "rgba(4,9,16,0.76)" },
-  highway_minor: { "line-color": "rgba(255,255,255,0.68)", "line-opacity": 0.94 },
-  highway_path: { "line-color": "rgba(241,245,249,0.52)", "line-opacity": 0.88 },
-  railway: { "line-color": "#38bdf8", "line-opacity": 0.76 },
-  railway_dashline: { "line-color": "#e0f2fe", "line-opacity": 0.62 },
-  railway_transit: { "line-color": "#22d3ee", "line-opacity": 0.82 },
-  waterway: { "line-color": "#38bdf8", "line-opacity": 0.45, "line-width": WATERWAY_WIDTH_EXPR },
-};
-
-const STREET_ROAD_PAINTS: Record<string, Record<string, unknown>> = {
-  highway_motorway_inner: { "line-color": "#fbbf24", "line-opacity": 1 },
-  highway_motorway_subtle: { "line-color": "#fcd34d", "line-opacity": 0.92 },
-  highway_motorway_casing: { "line-color": "#b45309" },
-  highway_major_inner: { "line-color": "#ffffff", "line-opacity": 1 },
-  highway_major_subtle: { "line-color": "#f8fafc", "line-opacity": 0.94 },
-  highway_major_casing: { "line-color": "#94a3b8" },
-  highway_minor: { "line-color": "#ffffff", "line-opacity": 1 },
-  highway_path: { "line-color": "#cbd5e1", "line-opacity": 0.96 },
-  railway: { "line-color": "#475569", "line-opacity": 0.84 },
-  railway_dashline: { "line-color": "#f8fafc", "line-opacity": 0.86 },
-  railway_transit: { "line-color": "#0284c7", "line-opacity": 0.78 },
-  waterway: { "line-color": "#6cb6e8", "line-opacity": 0.95, "line-width": WATERWAY_WIDTH_EXPR },
-};
+import {
+  ZOOM_PRESET_SPECS,
+  resolveZoomTelemetry,
+  type MapLayerMode,
+  SATELLITE_IMAGERY_TILES,
+  TERRAIN_DEM_TILES,
+  buildPoiColorExpr,
+  BUILDING_HEIGHT_EXPR,
+  buildBuildingColorExpr,
+  buildBuildingEdgePaint,
+  buildStreetBackgroundPaint,
+  buildCivicLanduseColorExpr,
+  applyCameraLightAndSky,
+  STREET_FILL_COLORS,
+  WATERWAY_WIDTH_EXPR,
+  MINOR_ROAD_CASING_WIDTH_EXPR,
+  SATELLITE_ROAD_PAINTS,
+  STREET_ROAD_PAINTS,
+} from "./maplibre-styles";
 
 function ensureSatelliteAndTerrain(
   ownedMap: Map,
@@ -357,14 +210,14 @@ function syncNative3dExtrusionLayers(
         ownedMap.setLayoutProperty(id, "visibility", hideNative ? "none" : "visible");
         ownedMap.setPaintProperty(id, "fill-extrusion-opacity", (hideNative
           ? 0
-          : ["interpolate", ["linear"], ["zoom"], 13.0, 0, 14.0, showSat ? 0.56 : street ? 0.94 : 0.96]) as any);
+          : ["interpolate", ["linear"], ["zoom"], 13.0, 0, 14.0, showSat ? 0.56 : street ? 0.94 : 0.96]) as ExpressionSpecification | number);
       }
     } else if (id.endsWith(":3d-edges")) {
       if (ownedMap.getLayer?.(id)) {
         ownedMap.setLayoutProperty(id, "visibility", hideNative ? "none" : "visible");
         ownedMap.setPaintProperty(id, "line-opacity", (hideNative
           ? 0
-          : ["interpolate", ["linear"], ["zoom"], 13.0, 0, 14.0, edgePaint.opacity]) as any);
+          : ["interpolate", ["linear"], ["zoom"], 13.0, 0, 14.0, edgePaint.opacity]) as ExpressionSpecification | number);
       }
     }
   }
@@ -1222,7 +1075,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     if (!ownedMap) return;
     try {
       const geoSource = ownedMap.getSource?.("user-location") as GeoJSONSource | undefined;
-      geoSource?.setData(buildUserLocationGeoJson(fix) as any);
+      geoSource?.setData(buildUserLocationGeoJson(fix) as Parameters<GeoJSONSource["setData"]>[0]);
     } catch { /* Ignore before map style ready */ }
     userLocationMarkerRef.current?.remove();
     userLocationMarkerRef.current = null;
@@ -1686,12 +1539,13 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       const boundary = await loadBoundary(mode, abort.signal);
       const initialBuckets = latest.current.buckets, initialGeometry = latest.current.geometry, initialBucketData = initialGeometry?.data ?? atlasBucketData(initialBuckets);
       const initialAdminBoundary = latest.current.adminBoundary?.geoJson ?? { type: "FeatureCollection", features: [] };
+      type GeoJsonData = Parameters<GeoJSONSource["setData"]>[0];
       const sources: Record<string, SourceSpecification> = {
         boundaries: { type: "geojson", data: boundary, maxzoom: 7, tolerance: 0.5 },
         buckets: { type: "geojson", data: initialBucketData, maxzoom: 15, buffer: 64, promoteId: "featureId" },
-        "admin-highlight": { type: "geojson", data: initialAdminBoundary as any, maxzoom: 13, tolerance: 0.5 },
-        "user-location": { type: "geojson", data: EMPTY_USER_LOCATION_GEOJSON as any },
-        "nearby-companies": { type: "geojson", data: EMPTY_NEARBY_COMPANIES_GEOJSON as any },
+        "admin-highlight": { type: "geojson", data: initialAdminBoundary as GeoJsonData, maxzoom: 13, tolerance: 0.5 },
+        "user-location": { type: "geojson", data: EMPTY_USER_LOCATION_GEOJSON as GeoJsonData },
+        "nearby-companies": { type: "geojson", data: EMPTY_NEARBY_COMPANIES_GEOJSON as GeoJsonData },
       };
       const remoteLayers: LayerSpecification[] = []; let remote: Partial<StyleSpecification> = {};
       if (provider?.type === "vector-style") {
@@ -1749,12 +1603,12 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
               const styleFilter = visibility?.hasUnfilteredLayer || !visibility?.filters.length
                 ? undefined
                 : visibility.filters.length === 1 ? visibility.filters[0] : ["any", ...visibility.filters];
-              const buildingFilter = styleFilter ? ["all", styleFilter, heightFilter] : heightFilter;
+              const buildingFilter = (styleFilter ? ["all", styleFilter, heightFilter] : heightFilter) as FilterSpecification;
               // Stage 3D volumes above ground polygons and surface roads (below symbol labels) so titled facades are never sliced by roads.
               extrudedBuildingLayers.push({
                 id: `basemap:${layer.id}:3d`, type: "fill-extrusion", source, "source-layer": sourceLayer,
                 minzoom: Math.max(minzoom, 13.0), ...(layer.maxzoom !== undefined ? { maxzoom: layer.maxzoom } : {}),
-                filter: buildingFilter as any,
+                filter: buildingFilter,
                 paint: {
                   "fill-extrusion-color": initialBuildingColor,
                   "fill-extrusion-height": BUILDING_HEIGHT_EXPR,
@@ -1767,7 +1621,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
               extrudedBuildingLayers.push({
                 id: `basemap:${layer.id}:3d-edges`, type: "line", source, "source-layer": sourceLayer,
                 minzoom: Math.max(minzoom, 13.0), ...(layer.maxzoom !== undefined ? { maxzoom: layer.maxzoom } : {}),
-                filter: buildingFilter as any,
+                filter: buildingFilter,
                 layout: { "line-join": "miter", "line-cap": "butt" },
                 paint: {
                   "line-color": initialEdgePaint.color,
@@ -2259,7 +2113,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           if (nextNearbySig !== nearbyCompaniesSignature) {
             nearbyCompaniesSignature = nextNearbySig;
             (ownedMap.getSource?.("nearby-companies") as GeoJSONSource | undefined)?.setData(
-              buildNearbyCompaniesGeoJson(current.nearbyCompanies ?? [], current.selectedNearbyCompanyId) as any,
+              buildNearbyCompaniesGeoJson(current.nearbyCompanies ?? [], current.selectedNearbyCompanyId) as Parameters<GeoJSONSource["setData"]>[0],
             );
           }
           const nextViewMode = current.visual?.viewMode ?? "spatial";
@@ -2279,17 +2133,17 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           const highlightSource = ownedMap.getSource("admin-highlight") as GeoJSONSource | undefined;
           const nextBoundaryGeometry = current.adminBoundary?.geoJson ?? null;
           if (highlightSource && boundaryGeometry !== nextBoundaryGeometry) {
-            highlightSource.setData((nextBoundaryGeometry ?? { type: "FeatureCollection", features: [] }) as any);
+            highlightSource.setData((nextBoundaryGeometry ?? { type: "FeatureCollection", features: [] }) as Parameters<GeoJSONSource["setData"]>[0]);
             boundaryGeometry = nextBoundaryGeometry;
           }
           // When a finer-grained administrative boundary is active, suppress the coarse Natural Earth boundary and 3D extrusion
           // for the selected province so they do not overlap or cut across coastlines.
           const boundaryFilter = current.adminBoundary && current.selectedRegionId ? current.selectedRegionId : "";
           if (boundaryFilter !== boundaryFilterSignature) {
-            const filter = boundaryFilter ? ["!=", ["get", "id"], boundaryFilter] : null;
-            if (ownedMap.getLayer("boundaries")) ownedMap.setFilter("boundaries", filter as any);
-            if (ownedMap.getLayer("boundary-casing")) ownedMap.setFilter("boundary-casing", filter as any);
-            if (ownedMap.getLayer("regions")) ownedMap.setFilter("regions", filter as any);
+            const filter: FilterSpecification | null = boundaryFilter ? ["!=", ["get", "id"], boundaryFilter] : null;
+            if (ownedMap.getLayer("boundaries")) ownedMap.setFilter("boundaries", filter);
+            if (ownedMap.getLayer("boundary-casing")) ownedMap.setFilter("boundary-casing", filter);
+            if (ownedMap.getLayer("regions")) ownedMap.setFilter("regions", filter);
             boundaryFilterSignature = boundaryFilter;
           }
           if (rotating !== (current.visual?.autoRotate === true)) { rotating = current.visual?.autoRotate === true; rotate(); }

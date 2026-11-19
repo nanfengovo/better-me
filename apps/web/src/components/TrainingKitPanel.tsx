@@ -29,8 +29,8 @@ const starters = {
 };
 const problems: Record<string, [string, string]> = {
   training_local_diagnosis_failed: [
-    "无法完成本机模型分析。检查 Ollama 与已安装的模型标签；没有转用云端。",
-    "Local model analysis failed. Check the installed Ollama model. No cloud fallback.",
+    "无法完成本机模型分析。请确认本机 Ollama 正在运行（当前仅放行已审计版本 0.40.15 / 0.40.16）且已安装对应模型标签；没有转用云端。",
+    "Local model analysis failed. Check that local Ollama (audited 0.40.15 / 0.40.16 only) is running and the model tag is installed. No cloud fallback.",
   ],
   training_design_invalid: [
     "模型生成的两道题没有通过结构或换题检查，没有创建应用。可调整目标后明确重试。",
@@ -121,7 +121,8 @@ function Workshop({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(""),
-    [discard, setDiscard] = useState(false);
+    [discard, setDiscard] = useState(false),
+    [planUsed, setPlanUsed] = useState(false);
   const current = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!owner) return;
@@ -173,6 +174,7 @@ function Workshop({
   }
   function clear() {
     setPlan(undefined);
+    setPlanUsed(false);
     setKit(undefined);
     setDiscard(false);
     setValues({});
@@ -461,7 +463,7 @@ function Workshop({
                   </p>
                   <button
                     className="training-primary"
-                    disabled={!!busy}
+                    disabled={!!busy || planUsed}
                     onClick={() =>
                       void perform(
                         t(
@@ -469,12 +471,28 @@ function Workshop({
                           "Designing and testing in the sandbox…",
                         ),
                         async (signal) => {
-                          const k = await client.build(
-                            plan.id,
-                            crypto.randomUUID(),
-                            signal,
-                          );
-                          return () => open(k);
+                          try {
+                            const k = await client.build(
+                              plan.id,
+                              crypto.randomUUID(),
+                              signal,
+                            );
+                            return () => open(k);
+                          } catch (failure) {
+                            if (
+                              failure instanceof Error &&
+                              [
+                                "training_design_invalid",
+                                "training_program_rejected",
+                                "training_plan_already_used",
+                                "training_plan_expired",
+                                "training_no_app_needed",
+                              ].includes(failure.message)
+                            ) {
+                              setPlanUsed(true);
+                            }
+                            throw failure;
+                          }
                         },
                       )
                     }
@@ -483,6 +501,14 @@ function Workshop({
                       ? t("试用示例工具", "Try example tool")
                       : t("认可方向，构建试用版", "Build this practice tool")}
                   </button>
+                  {planUsed && (
+                    <small>
+                      {t(
+                        "本次构建建议已用完；请点下方「调整目标或判断依据」重新分析，不会自动重试。",
+                        "This plan attempt is spent. Choose Revise goal or evidence below to analyze again; nothing retries automatically.",
+                      )}
+                    </small>
+                  )}
                 </>
               )}
               <button disabled={!!busy} onClick={clear}>
@@ -619,6 +645,10 @@ function Workshop({
               )}
               {kit.stage === "waiting" && (
                 <p>
+                  {t(
+                    "当前仍在等待换题解锁；上方试算反馈仅演练首轮题目。",
+                    "Waiting for the retest to unlock; preview feedback applies to the first exercise only.",
+                  )}{" "}
                   {t("换题复测开放于", "New exercise opens at")}{" "}
                   {new Date(kit.dueAt!).toLocaleString(
                     locale === "zh" ? "zh-CN" : "en-US",

@@ -1,10 +1,10 @@
 import http from "node:http";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { exportJWK, generateKeyPair, importJWK, SignJWT, type JWK } from "jose";
 import { SOCIAL_PROVIDERS } from "@better-me/agent-contracts";
 import { OIDC_CALLBACK_PATH, type OidcOptions } from "./oidc.js";
+import { privateDirectory, readPrivateJson, writePrivateJson } from "./private-json.js";
 
 export interface BuiltinIdentityProfile {
   subject: string;
@@ -105,17 +105,20 @@ async function loadOrCreateIdpState(storageDir: string, preset?: { clientId?: st
   state: PersistedBuiltinIdpState;
   save: () => Promise<void>;
 }> {
-  await mkdir(storageDir, { recursive: true, mode: 0o700 });
+  await privateDirectory(storageDir);
   const filePath = path.join(storageDir, "builtin-idp-v1.json");
+  let writeQueue: Promise<unknown> = Promise.resolve();
+  const makeSave = (target: PersistedBuiltinIdpState) => () => {
+    const run = writeQueue.then(() => writePrivateJson(filePath, target));
+    writeQueue = run.catch(() => undefined);
+    return run;
+  };
   try {
-    const raw = JSON.parse(await readFile(filePath, "utf8")) as PersistedBuiltinIdpState;
+    const raw = (await readPrivateJson(filePath)) as PersistedBuiltinIdpState | undefined;
     if (raw && raw.version === 1 && raw.publicJwk && raw.privateJwk) {
       if (preset?.clientId) raw.clientId = preset.clientId;
       if (preset?.clientSecret) raw.clientSecret = preset.clientSecret;
-      const save = async () => {
-        await writeFile(filePath, JSON.stringify(raw, null, 2), { mode: 0o600 });
-      };
-      return { state: raw, save };
+      return { state: raw, save: makeSave(raw) };
     }
   } catch {
     // Generate fresh state below
@@ -132,9 +135,7 @@ async function loadOrCreateIdpState(storageDir: string, preset?: { clientId?: st
     privateJwk,
     profiles: [],
   };
-  const save = async () => {
-    await writeFile(filePath, JSON.stringify(state, null, 2), { mode: 0o600 });
-  };
+  const save = makeSave(state);
   await save();
   return { state, save };
 }
@@ -535,7 +536,7 @@ export async function startBuiltinIdentityProvider(config: {
       };
       flows.set(flow.id, flow);
 
-      const autoSubject = url.searchParams.get("auto_subject");
+      const autoSubject = process.env["BETTERME_DEV_AUTO_OIDC"] === "1" ? url.searchParams.get("auto_subject") : null;
       if (autoSubject) {
         flows.delete(flow.id);
         const query = await issueCodeForFlow(flow, {

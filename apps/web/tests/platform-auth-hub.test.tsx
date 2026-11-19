@@ -176,3 +176,55 @@ test("PlatformAuthHub renders 4 platforms and triggers actions", async () => {
     global.fetch = originalFetch;
   }
 });
+
+test("PlatformAuthHub normalizes trailing slash in extension origin and surfaces desktop/bridge error details", async () => {
+  const originalFetch = global.fetch;
+  const calls: Array<{ url: string; body?: string }> = [];
+  global.fetch = async (url: any, init: any) => {
+    const body = typeof init?.body === "string" ? init.body : undefined;
+    calls.push({ url: String(url), body });
+    if (String(url).includes("/api/jd/real-chrome")) {
+      return new Response(JSON.stringify({ running: false, port: 9222, platforms: {} }), { status: 200 });
+    }
+    if (String(url).includes("/api/jd/bridge-grant")) {
+      return new Response(JSON.stringify({ token: "a".repeat(64), expiresAt: Date.now() + 60_000 }), { status: 200 });
+    }
+    if (String(url).includes("/api/jd/cookie-bridge")) {
+      return new Response(
+        JSON.stringify({ error: "host_browser_required", message: "此操作需要宿主机可交互的招聘浏览器。" }),
+        { status: 501 },
+      );
+    }
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    dom.document.body.innerHTML = "<main></main>";
+    const root = createRoot(dom.document.querySelector("main")! as unknown as Element);
+    await act(async () => {
+      root.render(h(PlatformAuthHub, { isOpen: true, onClose: () => {} }));
+    });
+    const bridgeTab = [...dom.document.querySelectorAll("button")].find(b => b.textContent?.includes("日常浏览器 Cookie 桥接"))!;
+    await act(async () => { bridgeTab.click(); });
+    const input = dom.document.querySelector<HTMLInputElement>('input[placeholder*="chrome-extension"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(input, "chrome-extension://abcdefghijklmnop/ ");
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+    const grantBtn = [...dom.document.querySelectorAll("button")].find(b => b.textContent?.includes("生成并复制单次同步授权"))!;
+    await act(async () => { grantBtn.click(); });
+    const grantCall = calls.find(c => c.url.includes("/api/jd/bridge-grant"));
+    assert.ok(grantCall?.body);
+    assert.equal(JSON.parse(grantCall.body).origin, "chrome-extension://abcdefghijklmnop");
+
+    const textarea = dom.document.querySelector("textarea") as HTMLTextAreaElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, JSON.stringify([{ name: "wt2", value: "x", domain: ".zhipin.com" }]));
+      textarea.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+    const importBtn = [...dom.document.querySelectorAll("button")].find(b => b.textContent?.includes("一键注入 Cookie"))!;
+    await act(async () => { importBtn.click(); });
+    assert.match(dom.document.body.textContent ?? "", /宿主机可交互的招聘浏览器/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

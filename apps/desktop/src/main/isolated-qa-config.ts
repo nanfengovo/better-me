@@ -39,7 +39,7 @@ export function resolveDesktopQaConfig(input: { environment: NodeJS.ProcessEnv; 
   assertDesktopQaToken(token);
   if (host.port === web.port ||
     !profileRoot || !path.isAbsolute(profileRoot) || path.resolve(profileRoot) !== profileRoot || !/^betterme-desktop-qa-[A-Za-z0-9_-]{6,80}$/.test(path.basename(profileRoot))) return invalid();
-  return Object.freeze({ externalOnly: true, host: Object.freeze({ ...host, token }), web: Object.freeze(web), profileRoot, workspaceUrl: new URL("/?workspace=autopilot", web.endpoint).href });
+  return Object.freeze({ externalOnly: true, host: Object.freeze({ ...host, token }), web: Object.freeze(web), profileRoot, workspaceUrl: new URL("/?workspace=resume", web.endpoint).href });
 }
 
 /** Called before app.whenReady()/any Session/BrowserWindow. A deliberate fresh

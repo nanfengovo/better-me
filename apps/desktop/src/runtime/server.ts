@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { once } from "node:events";
+import type { Server as HttpServer } from "node:http";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { startLocalJobService } from "../../../job-service/src/lifecycle.js";
@@ -8,6 +9,7 @@ import { createAgentServer } from "../../../agent-host/src/server.js";
 import { createCheckpointer } from "../../../agent-host/src/checkpointer.js";
 import { loadIdentityDeployment } from "../../../agent-host/src/identity/deployment.js";
 import { createRuntimeGateway } from "../../../web/server/runtime-gateway.js";
+import { configureDesktopJdBridge, handleDesktopJdRequest, stopDesktopJdBrowser } from "../../../web/server/jd-desktop-bridge.js";
 import { acquireRuntimeVolume } from "../../../web/server/runtime-volume.js";
 
 if (!process.send || !process.env.BETTERME_DESKTOP_DATA) throw new Error("Desktop runtime requires its owning application and a private data directory.");
@@ -24,6 +26,7 @@ async function freePort(): Promise<number> {
 const [port, agentPort, jobPort] = smoke ? await Promise.all([freePort(), freePort(), freePort()]) : [32741, 32742, 32743];
 const origin = `http://127.0.0.1:${port}`;
 const volume = await acquireRuntimeVolume(data);
+configureDesktopJdBridge(data);
 await mkdir(resolve(data, "agent"), { recursive: true, mode: 0o700 });
 const tokenFile = resolve(data, "agent.token");
 try { await writeFile(tokenFile, randomBytes(32).toString("base64url"), { flag: "wx", mode: 0o600 }); }
@@ -54,16 +57,37 @@ async function healthy() {
     return !stopping && responses.every(response => response.ok);
   } catch { return false; }
 }
-const gateway = createRuntimeGateway({ mode: "desktop", root: resolve("web"), origins: [origin], jobEndpoint: job.url, agentEndpoint, jobToken, agentToken, health: healthy });
+const gateway = createRuntimeGateway({
+  mode: "desktop",
+  root: resolve("web"),
+  origins: [origin],
+  jobEndpoint: job.url,
+  agentEndpoint,
+  jobToken,
+  agentToken,
+  networkSettingsFile: resolve(data, "network-settings.json"),
+  jdMiddleware: handleDesktopJdRequest,
+  onClose: stopDesktopJdBrowser,
+  health: healthy,
+});
 gateway.listen(port, "127.0.0.1"); await once(gateway, "listening");
+function closeHttp(server: HttpServer): Promise<void> {
+  return new Promise((accept, reject) => {
+    server.close(error => error ? reject(error) : accept());
+    server.closeAllConnections();
+  });
+}
 async function close(code = 0) {
   if (stopping) return;
   stopping = true;
   const deadline = setTimeout(() => process.exit(1), 15_000); deadline.unref();
-  gateway.close(); agent.close();
-  await job.close().catch(() => { code = 1; });
-  checkpointer.db.close();
-  volume.close();
+  const closed = await Promise.allSettled([closeHttp(gateway), closeHttp(agent), job.close()]);
+  if (closed.some(result => result.status === "rejected")) code = 1;
+  try { checkpointer.db.close(); }
+  catch { code = 1; }
+  try { volume.close(); }
+  catch { code = 1; }
+  clearTimeout(deadline);
   process.exit(code);
 }
 process.on("message", message => { if ((message as { type?: string })?.type === "shutdown") void close(); });

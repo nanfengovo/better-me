@@ -37,8 +37,8 @@ function resume(locale: "zh" | "en" = "zh"): ProjectedResume {
   };
 }
 
-async function unpack(value: ProjectedResume) {
-  const result = await projectedResumeToDocx(value);
+async function unpack(value: ProjectedResume, includePhoto?: boolean) {
+  const result = await projectedResumeToDocx(value, { includePhoto });
   const buffer = Buffer.from(await result.blob.arrayBuffer());
   const text = (await mammoth.extractRawText({ buffer })).value;
   return { ...result, buffer, text, xml: readDocxXml(buffer, "word/document.xml") };
@@ -202,4 +202,16 @@ test("download names preserve bilingual names and cannot escape the download fol
   assert.ok(filename.endsWith(".docx"));
   value.profile.displayName = " ";
   assert.equal(resumeDocxFilename(value), "resume-zh-untitled.docx");
+});
+
+test("safe local data-URI avatar embeds locally in DOCX without remote requests", async () => {
+  const tinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  const value = resume();
+  value.profile.avatarUrl = `data:image/png;base64,${tinyPngBase64}`;
+  const output = await unpack(value);
+  assert.ok(output.xml.includes("<w:drawing>") || output.xml.includes("<pic:pic>"), "DOCX embeds local data-URI photo");
+  assert.ok(output.diagnostics.some((line) => line.includes("已嵌入本地上传的照片")));
+  const withoutPhoto = await unpack(value, false);
+  assert.doesNotMatch(withoutPhoto.xml, /<w:drawing>|<pic:pic>/);
+  assert.ok(!withoutPhoto.diagnostics.some(line => line.includes("已嵌入本地上传的照片")));
 });

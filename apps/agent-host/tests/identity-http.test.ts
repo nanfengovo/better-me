@@ -5,10 +5,12 @@ import { mkdtemp, readFile, readdir, rm, writeFile, mkdir } from "node:fs/promis
 import path from "node:path";
 import os from "node:os";
 import { MemorySaver } from "@langchain/langgraph";
+import { syntheticJobComparison } from "@better-me/agent-contracts";
 import { createAgentServer } from "../src/server.js";
 import { IdentityService } from "../src/identity/service.js";
 import { registerTestIdentity } from "./fixtures/identity.js";
 import {seedLegacyCareer} from "./fixtures/legacy-career.js";
+import { fixtureSource } from "./fixtures/capability-source.js";
 
 test("A/B private records, source grants, provider profiles, task IDs and thread IDs never cross owners", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-identity-http-"));
@@ -26,11 +28,32 @@ test("A/B private records, source grants, provider profiles, task IDs and thread
   });
   try {
     assert.equal((await call({}, "/understanding/sessions/known-id")).status, 401, "transport token is not a user");
+    assert.equal((await call({}, "/tasks/summary")).status, 401);
+    assert.equal((await call({}, "/vork/status")).status, 401, "vork status requires an authenticated owner");
+    assert.equal((await call({}, "/vork/render", { presetId: "quantum_prism" })).status, 401, "vork render requires an authenticated owner");
     assert.equal((await call({}, "/identity/session")).status, 200);
     const a = await registerTestIdentity(base, "fixture-transport", "alice", "http://fixture.invalid");
     const b = await registerTestIdentity(base, "fixture-transport", "bob", "http://fixture.invalid");
     assert.notEqual(a.principal.id, b.principal.id);
+    assert.equal((await call({ ...b.headers, "X-BetterMe-Owner": a.principal.id }, "/tasks/summary")).status, 409);
+    const taskResponse = await call(a.headers, "/tasks", {
+      kind: "free_chat", workspaceKey: "summary-fixture", objective: "A_ONLY_TASK_OBJECTIVE",
+      conversation: { messages: [{ id: "u1", role: "user", content: "A_ONLY_PRIVATE_MESSAGE" }] },
+      runtimeBinding: { id: "native:codex", label: "Codex", location: "local" },
+      consent: true, idempotencyKey: "summary-fixture-creation",
+    });
+    assert.equal(taskResponse.status, 201);
+    const aSummary = await (await call(a.headers, "/tasks/summary")).json();
+    const bSummary = await (await call(b.headers, "/tasks/summary")).json();
+    assert.equal(aSummary.ownerId, a.principal.id);
+    assert.equal(aSummary.totalTasks, 1);
+    assert.equal(bSummary.ownerId, b.principal.id);
+    assert.equal(bSummary.totalTasks, 0);
+    assert.doesNotMatch(JSON.stringify(aSummary), /A_ONLY_/);
     assert.equal((await call({ ...b.headers, "X-BetterMe-Owner": a.principal.id }, "/understanding/capabilities")).status, 409);
+    assert.equal((await call({ ...b.headers, "X-BetterMe-Owner": a.principal.id }, "/vork/status")).status, 409);
+    assert.equal((await call(a.headers, "/vork/status")).status, 200);
+    assert.equal((await call(a.headers, "/vork/render", { presetId: "quantum_prism", sceneJson: { arbitrary: true } })).status, 400);
     assert.equal((await call({ ...a.headers, Origin: "http://evil.invalid" }, "/identity/session")).status, 403);
     const cookie = (await call({}, "/identity/sign-in", { username: "alice", password: "synthetic-only-password-2026" })).headers.getSetCookie()[0]!;
     assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Strict/); assert.doesNotMatch(cookie, /synthetic-only|alice/);
@@ -89,6 +112,75 @@ test("A/B private records, source grants, provider profiles, task IDs and thread
     assert.doesNotMatch(auth, /synthetic-only-password|betterme_session=/);
     assert.equal(await readFile(path.join(legacy, "old.json"), "utf8"), '{"legacy":"must remain unchanged"}');
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("production capability preflight skips offline generation and Host close persists the last dispatched model call", { timeout: 30_000 }, async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-usage-shutdown-"));
+  const server = createAgentServer({ port: 0, host: "127.0.0.1", authToken: "fixture-transport",
+    allowedOrigins: ["http://fixture.invalid"], checkpointer: new MemorySaver() as never,
+    identityDirectory: directory, runtimeDefinitions: [] });
+  const generationStarted = Promise.withResolvers<void>();
+  const generationFinished = Promise.withResolvers<Response>();
+  let closing: Promise<void> | undefined;
+  const closeHost = () => closing ??= new Promise<void>((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+    server.closeAllConnections();
+  });
+  try {
+    await once(server, "listening");
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const base = `http://127.0.0.1:${address.port}`;
+    const { principal, headers } = await registerTestIdentity(base, "fixture-transport", "usage-fixture", "http://fixture.invalid");
+    const call = (route: string, body?: unknown) => fetch(base + "/api/v1/agent" + route, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { Authorization: "Bearer fixture-transport", Origin: "http://fixture.invalid", "Content-Type": "application/json", ...headers },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const actualFetch = globalThis.fetch;
+    const model = "gemma4:e2b-it-qat";
+    let modelAvailable = false;
+    let dispatches = 0;
+    t.mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (url === "http://127.0.0.1:11434/api/tags") {
+        return modelAvailable ? Response.json({ models: [{ name: model, digest: "fixture" }] }) : new Response(null, { status: 503 });
+      }
+      if (url === "http://127.0.0.1:11434/api/chat") {
+        dispatches++;
+        generationStarted.resolve();
+        return generationFinished.promise;
+      }
+      return actualFetch(url, init);
+    });
+
+    const input = syntheticJobComparison();
+    const assessment = await call("/capabilities/assess", { input, consent: true });
+    assert.equal(assessment.status, 200);
+    assert.equal((await assessment.json()).assessment.kind, "temporary_unavailable");
+    assert.equal(dispatches, 0);
+    assert.deepEqual((await (await call("/usage")).json()).models, []);
+
+    modelAvailable = true;
+    const task = await call("/capabilities/tasks", { input, consent: true, model, expectedCatalogRevision: 0,
+      idempotencyKey: "fixture-final-generation" });
+    assert.equal(task.status, 202);
+    await generationStarted.promise;
+    let closed = false;
+    const observedClose = closeHost().then(() => { closed = true; });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(closed, false, "Host waits for its in-flight capability adapter");
+    generationFinished.resolve(Response.json({ done: true, message: { content: fixtureSource }, eval_count: 23 }));
+    await observedClose;
+    assert.equal(dispatches, 1);
+    const saved = JSON.parse(await readFile(path.join(directory, "owners", principal.id, "usage-metrics.json"), "utf8"));
+    assert.equal(saved.models[0]?.calls, 1);
+    assert.equal(saved.models[0]?.outputTokens, 23);
+    assert.deepEqual(saved.active, []);
+  } finally {
+    generationFinished.resolve(new Response(null, { status: 503 }));
+    await closeHost();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("sessions survive service recreation, expire with inactivity, reject spoofed principals and bounded login attempts", async () => {

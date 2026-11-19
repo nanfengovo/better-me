@@ -318,7 +318,10 @@ async function extractFromPdf(file: File): Promise<ExtractedFileResult> {
       canvas.height = viewport.height;
       const context = canvas.getContext("2d");
       if (context) {
-        await (page as any).render({ canvasContext: context, viewport }).promise;
+        const renderablePage = page as unknown as {
+          render(params: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void> };
+        };
+        await renderablePage.render({ canvasContext: context, viewport }).promise;
         pageImages.push(canvas.toDataURL("image/jpeg", 0.85));
 
         // On Page 1: extract embedded image objects and detect photo crops
@@ -374,11 +377,18 @@ async function extractFromDocx(file: File): Promise<ExtractedFileResult> {
 
     const detectedAvatars: string[] = [];
     try {
-      const mammothAny = mammoth as any;
-      const htmlResult = await mammothAny.convertToHtml(
+      type MammothImageInput = { contentType: string; read(encoding: "base64"): Promise<string> };
+      const mammothWithHtml = mammoth as unknown as {
+        convertToHtml(
+          input: { arrayBuffer: ArrayBuffer },
+          options?: { convertImage?: unknown },
+        ): Promise<{ value: string }>;
+        images?: { imgElement?: (handler: (image: MammothImageInput) => Promise<{ src: string }>) => unknown };
+      };
+      const htmlResult = await mammothWithHtml.convertToHtml(
         { arrayBuffer },
         {
-          convertImage: mammothAny.images?.imgElement?.(async (image: any) => {
+          convertImage: mammothWithHtml.images?.imgElement?.(async (image) => {
             const buffer = await image.read("base64");
             return {
               src: `data:${image.contentType};base64,${buffer}`,

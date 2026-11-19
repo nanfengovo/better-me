@@ -85,11 +85,11 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
               </small>
             </div>
             <div className="os-dock-position-switch" role="radiogroup" aria-label={t("Dock 屏幕位置", "Dock position")}>
-              {[
+              {([
                 { id: "left", label: t("左侧", "Left") },
                 { id: "bottom", label: t("底部", "Bottom") },
                 { id: "right", label: t("右侧", "Right") },
-              ].map((pos) => (
+              ] as const).map((pos) => (
                 <button
                   key={pos.id}
                   type="button"
@@ -106,7 +106,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=radio]")[next]?.focus();
                   }}
                   className={`os-dock-pos-btn ${dockPosition === pos.id ? "is-active" : ""}`}
-                  onClick={() => setDesktopPreferences({ dockPosition: pos.id as any })}
+                  onClick={() => setDesktopPreferences({ dockPosition: pos.id })}
                 >
                   {pos.label}
                 </button>
@@ -275,9 +275,8 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
         <p className="os-setting-note">{t("关闭窗口过渡、Dock 放大与回弹；始终尊重设备的减少动态设置。", "Disables window transitions and Dock magnification. Your device’s reduced-motion preference is always respected.")}</p>
       </>}
       {tab === "connections" && <>
-        <p className="os-setting-intro">{t("沿用你已有的模型与连接配置。", "Manage your existing model and connection settings.")}</p>
-        <div className="os-settings-card os-settings-links"><button type="button" onClick={onAiConfig}><SlidersHorizontal size={18} /><span>{t("模型与 AI 配置", "Models & AI configuration")}</span><ArrowUpRight size={16} /></button><button type="button" onClick={onNetwork}><Globe size={18} /><span>{t("网络与代理", "Network & proxy")}</span><ArrowUpRight size={16} /></button></div>
-        <p className="os-setting-note">{t("打开现有设置表单；不会自动修改密钥、授权或模型选择。", "Opens the existing forms without changing credentials, permissions or model selection.")}</p>
+        <p className="os-setting-intro">{t("填写服务地址和 Key，请打开「模型与 AI 配置」。想改伴写或对话使用的模型，请选「选择 Agent 来源」。", "Open Models & AI configuration to enter an endpoint and key. To choose what writing and chat use, select Choose Agent source.")}</p>
+        <div className="os-settings-card os-settings-links"><button type="button" onClick={onAiConfig}><SlidersHorizontal size={18} /><span>{t("模型与 AI 配置", "Models & AI configuration")}</span><ArrowUpRight size={16} /></button><button type="button" onClick={()=>{setTab("tools");setMobileDetail(true);}}><Accessibility size={18}/><span>{t("选择 Agent 来源","Choose Agent source")}</span><ArrowUpRight size={16}/></button><button type="button" onClick={onNetwork}><Globe size={18} /><span>{t("网络与代理", "Network & proxy")}</span><ArrowUpRight size={16} /></button></div>
       </>}
       <section hidden={tab !== "tools"}><p className="os-setting-intro">{t("所有任务共用一份配置，资料授权仍由你逐项决定。", "Shared configuration, with explicit access to each source.")}</p><AgentSettingsPanel active={tab === "tools"} /></section>
       {tab === "research" && <>

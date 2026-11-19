@@ -23,52 +23,26 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
   const [renderResult, setRenderResult] = useState<VorkRenderResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadStatus = async () => {
+  const loadStatus = async (signal?: AbortSignal) => {
     setStatusLoading(true);
     setErrorMessage(null);
     try {
-      const data = await fetchVorkStatus();
+      const data = await fetchVorkStatus(signal);
+      if (signal?.aborted) return;
       setStatus(data);
-    } catch (err: any) {
-      console.warn("Could not fetch vork status:", err);
-      // Fallback display if agent-host is booting
-      setStatus({
-        available: true,
-        binaryPath: "/Users/feng/.local/bin/vork",
-        engine: "vork v0.2.0 (Rust + Slang Raytracer)",
-        device: "Apple Silicon Metal GPU (Apple M1 Pro)",
-        hardwareAcceleration: "Metal",
-        presets: [
-          {
-            id: "quantum_prism",
-            name: "量子光学棱镜与金环",
-            category: "光追几何",
-            description: "OpenPBR 色散玻璃与高反光金属金环，双向赛博冷暖高光交错与镜面地面。",
-            defaultResolution: [1920, 1080],
-          },
-          {
-            id: "cyber_neon",
-            name: "赛博黑曜石巨碑",
-            category: "赛博工业",
-            description: "高反光黑曜石立柱与宝石红透光核心，矩阵青与洋红双侧强光追踪渲染。",
-            defaultResolution: [1920, 1080],
-          },
-          {
-            id: "sunset_solitude",
-            name: "暮光深渊浮岛",
-            category: "意境深空",
-            description: "落日金光下的几何漂浮球体与极低粗糙度深渊海面，暖金与冷蓝交响。",
-            defaultResolution: [1920, 1080],
-          },
-        ],
-      });
+    } catch (err: unknown) {
+      if (signal?.aborted) return;
+      setStatus(null);
+      setErrorMessage(err instanceof Error ? err.message : "无法读取本机 vork 渲染引擎状态");
     } finally {
-      setStatusLoading(false);
+      if (!signal?.aborted) setStatusLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadStatus();
+    const controller = new AbortController();
+    void loadStatus(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const handleStartRender = async () => {
@@ -112,13 +86,15 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
         <div className="os-vork-status-pill">
           <span className="os-vork-pulse-dot" />
           <div className="os-vork-device-info">
-            <span className="os-vork-engine-name">{status?.engine ?? "vork v0.2.0 (Metal)"}</span>
-            <small className="os-vork-gpu-name">{status?.device ?? "Apple Silicon Metal GPU (Apple M1 Pro)"}</small>
+            <span className="os-vork-engine-name">{status?.engine ?? "vork 渲染引擎"}</span>
+            <small className="os-vork-gpu-name">
+              {status ? (status.available ? status.device : "未检测到本机 vork 可执行文件") : "等待 Agent Host 状态"}
+            </small>
           </div>
           <button
             type="button"
             className="os-vork-refresh-btn"
-            onClick={loadStatus}
+            onClick={() => { void loadStatus(); }}
             disabled={statusLoading}
             title="刷新引擎状态"
           >
@@ -179,7 +155,7 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
           type="button"
           className="os-vork-render-btn"
           onClick={handleStartRender}
-          disabled={rendering}
+          disabled={rendering || !status?.available}
         >
           {rendering ? (
             <>

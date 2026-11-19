@@ -20,7 +20,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
 const { DesktopShell } = await import("../src/components/desktop/DesktopShell.tsx");
-const { UiPreferencesProvider, UI_PREFERENCES_KEY, parseUiPreferences } = await import("../src/lib/ui-preferences.tsx");
+const { UiPreferencesProvider, UI_PREFERENCES_KEY, parseUiPreferences, useUiPreferences } = await import("../src/lib/ui-preferences.tsx");
 
 test("window focus counters are isolated below the shell navigation", async () => {
   const styles = await readFile(new URL("../src/components/desktop/desktop.css", import.meta.url), "utf8");
@@ -68,8 +68,30 @@ async function mount() {
   const host = dom.document.createElement("div"); dom.document.body.append(host); root = createRoot(host);
   await flush(() => root!.render(h(UiPreferencesProvider, null, h(Harness))));
 }
-afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); dom.happyDOM.setWindowSize({ width: 1280, height: 900 }); aiOpens = 0; networkOpens = 0; });
-after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
+afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; await dom.happyDOM.cancelAsync(); dom.document.body.replaceChildren(); dom.localStorage.clear(); dom.happyDOM.setWindowSize({ width: 1280, height: 900 }); aiOpens = 0; networkOpens = 0; });
+
+test("old Vork presets resolve to JPEG, and switching away from a missing wallpaper restores the image", async () => {
+  const props = { page: "resume" as const, onNavigate() {}, onDesign() {}, onHistory() {}, onAiConfig() {}, onNetwork() {} };
+  function Harness() {
+    const { setDesktopPreferences } = useUiPreferences();
+    return h(DesktopShell, props,
+      h("button", { onClick: () => setDesktopPreferences({ wallpaper: "/wallpapers/vork_cyber_neon.png" }) }, "Legacy Vork preset"));
+  }
+  const host = dom.document.createElement("div");
+  dom.document.body.append(host);
+  root = createRoot(host);
+  await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light", wallpaper: "/wallpapers/anime-temple-water.jpg" } }, h(Harness))));
+  const image = () => dom.document.querySelector<HTMLImageElement>(".os-wallpaper img")!;
+  const missing = image();
+  assert.equal(missing.getAttribute("src"), "/wallpapers/anime-temple-water.jpg");
+  await flush(() => { missing.dispatchEvent(new dom.Event("error")); });
+  assert.equal(missing.style.display, "none");
+  await click("Legacy Vork preset");
+  assert.equal(image().getAttribute("src"), "/wallpapers/vork_cyber_neon.jpg");
+  assert.notEqual(image(), missing);
+  assert.notEqual(image().style.display, "none");
+});
+after(async () => { css.deregister(); await dom.happyDOM.cancelAsync(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("atlas and jobs share the app menu and have independent Dock entries without resume actions", async () => {
   await mount();
@@ -633,6 +655,9 @@ test("model and network buttons invoke existing callbacks only after explicit cl
   assert.equal(aiOpens + networkOpens, 0);
   await click("模型与 AI 配置"); await click("网络与代理");
   assert.equal(aiOpens, 1); assert.equal(networkOpens, 1);
+  await click("选择 Agent 来源");
+  assert.equal(dom.document.querySelector('.os-settings-sidebar [aria-current="page"]')?.textContent,"工具与授权");
+  assert.equal(aiOpens,1,"opening the source selector does not change or test the API connection");
 });
 test("autopilot studio Dock item navigates to autopilot and pinned micro-apps open in null-origin sandbox host", async () => {
   const { installMicroApp, createOfferBackcheckRadarApp } = await import("../src/lib/micro-app-registry.ts");

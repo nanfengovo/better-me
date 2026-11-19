@@ -8,34 +8,20 @@ import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
 import {alignJdWithResume,decomposeJdText,type InterviewDefenseStrategy,type LlmConfig,type ProjectedResume} from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import {
-  AlertTriangle,
   Bot,
-  Building2,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Copy,
-  Crosshair,
-  Edit3,
-  ExternalLink,
   FileText,
-  Lightbulb,
   Loader2,
-  MapPin,
   MessageSquare,
   RefreshCw,
   Send,
   Square,
   ShieldCheck,
   Sparkles,
-  Target,
   X,
-  BookmarkPlus,
-  ArrowRight,
-  Layers,
   GripVertical,
-  PanelRightClose,
   PanelRightOpen,
   ImagePlus,
 } from "lucide-react";
@@ -59,7 +45,7 @@ import {
 import { getModelImageCapability, modelImageCapabilityDescription, modelImageCapabilityLabel } from "../lib/model-image-capability";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
-import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
+import { AgentAutoSpeechToggle, AgentSpeechControl, useAgentSpeech, useSessionAutoSpeech } from "./AgentSpeechControl";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
 import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
@@ -73,10 +59,17 @@ import { privateKey } from "../lib/private-storage";
 import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
 import { AdvisorRecoverySchema, initialAdvisorRecovery } from "../lib/advisor-recovery";
 import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
+import { AgentEmptyPromptCards } from "./agent-workspace/AgentEmptyPromptCards";
+import { AgentActiveJobHeader } from "./agent-workspace/AgentActiveJobHeader";
 import { findResumeContextSource } from "../lib/resume-agent-context";
 import { jdMatchResumeMaterial } from "../services/jd-match-task-client";
 import {MockInterviewPanel} from "./MockInterviewPanel";
 import {createInterviewSelection,isInterviewSelectionCurrent,InterviewLaunchSchema,InterviewWorkspaceStateSchema,interviewLaunchEvent} from "../lib/mock-interview-launch";
+import { AgentReplyActionsCard } from "./agent-workspace/AgentReplyActionsCard";
+import { AgentJdDetailsView } from "./agent-workspace/AgentJdDetailsView";
+import { AgentProposalListSection } from "./agent-workspace/AgentProposalListSection";
+import { AgentApplyModal } from "./agent-workspace/AgentApplyModal";
+import { AgentFitAnalyticsHeader } from "./agent-workspace/AgentFitAnalyticsHeader";
 
 export interface AgentWorkspaceProps {
   sendChat?:typeof sendAgentChat;
@@ -102,34 +95,6 @@ export interface AgentWorkspaceProps {
   resumeEditContext?: ResumeEditContext;
   onApplyResumeProposal?: (proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) => Promise<{ ok: boolean; message?: string }>;
   careerTaskConfig?: Omit<CareerTaskPanelProps, "job" | "resumeFields" | "llmConfig" | "initialObjective">;
-}
-
-// 60fps spring-eased counter hook for score animation
-function useAnimatedCounter(target: number, duration = 800) {
-  const [current, setCurrent] = useState(0);
-  const lastFrameValue = useRef(0);
-  useEffect(() => {
-    const start = lastFrameValue.current;
-    const startTime = performance.now();
-    let frameId: number;
-
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / duration);
-      // Apple-like ease-out curve
-      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      lastFrameValue.current = Math.round(start + (target - start) * ease);
-      setCurrent(lastFrameValue.current);
-      if (progress < 1) {
-        frameId = requestAnimationFrame(step);
-      }
-    };
-
-    frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
-  }, [target, duration]);
-
-  return current;
 }
 
 export function AgentWorkspace(props: AgentWorkspaceProps) {
@@ -320,6 +285,7 @@ function AgentWorkspaceSession({
 
   // Chat state
   const [messages, setMessages] = useRecoveryField(recovery, "messages");
+  const autoSpeech = useSessionAutoSpeech(messages, speech, active && !showCareerCoach && taskView !== "handoff" && !showCareerTask, workspaceKey);
   const [shareResumeForEditing, setShareResumeForEditing] = useState(false);
   const [resumeProposalStates, setResumeProposalStates] = useState<Record<string, { status: "saving" | "approved" | "rejected" | "conflict" | "error"; message?: string }>>({});
   const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
@@ -387,7 +353,7 @@ function AgentWorkspaceSession({
   const lastProcessedSyncTimeRef = useRef<number>(Date.now());
   useEffect(() => {
     // The Docker runtime deliberately does not attach the host browser/profile.
-    if (readRuntimeConnection()) return;
+    if (readRuntimeConnection()?.mode === "docker") return;
     let isCancelled = false;
     const checkSync = async () => {
       try {
@@ -1076,8 +1042,6 @@ function AgentWorkspaceSession({
     return { verified, claimed, gaps, total, score, acceptedCount, pendingCount, rejectedCount };
   }, [proposals, decisions]);
 
-  const animatedScore = useAnimatedCounter(stats.score, 900);
-
   const gapProposals = useMemo(() => (Array.isArray(proposals) ? proposals : []).filter((p) => p.evidenceType === "gap"), [proposals]);
 
   const filteredProposals = useMemo(() => {
@@ -1673,79 +1637,14 @@ function AgentWorkspaceSession({
                   isDark ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200"
                 }`}
               >
-                <div className="flex items-start gap-2.5">
-                  <div
-                    className={`mt-0.5 h-8 w-8 rounded-lg border flex items-center justify-center text-xs font-semibold shrink-0 ${
-                      isDark
-                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
-                        : "bg-emerald-50 border-emerald-200/80 text-emerald-800"
-                    }`}
-                  >
-                    {(currentJobView.company || currentJobView.title || "岗").slice(0, 1)}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <h2 className={`text-sm font-semibold leading-snug ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                      {currentJobView.title}
-                    </h2>
-                    <p className={`text-xs leading-snug ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>
-                      {currentJobView.company}
-                    </p>
-                    {currentJobView.location ? (
-                      <p className={`text-[11px] leading-snug flex items-start gap-1 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                        <MapPin size={11} className="shrink-0 mt-0.5 opacity-70" />
-                        <span>{currentJobView.location.replace(/\s+/g, " ")}</span>
-                      </p>
-                    ) : null}
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-0.5 text-[11px]">
-                      {currentJobView.salary ? (
-                        <span className={`tabular-nums font-medium ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
-                          {currentJobView.salary}
-                        </span>
-                      ) : null}
-                      {currentJobView.sourceUrl ? (
-                        <a
-                          href={currentJobView.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`inline-flex items-center gap-0.5 hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
-                        >
-                          {currentJobView.sourcePlatform || t("来源", "Source")}
-                          <ExternalLink size={10} />
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {currentJob && <button
-                      type="button"
-                      onClick={handleOpenJobEdit}
-                      className={`agent-btn-press inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border cursor-pointer ${
-                        isDark
-                          ? "text-[var(--ui-text-secondary,#c7cad4)] border-[var(--ui-border,#484b58)] hover:text-white"
-                          : "text-slate-600 border-slate-200 bg-white hover:text-slate-900"
-                      }`}
-                      title={t("修改岗位与 JD 信息", "Edit Job Details")}
-                    >
-                      <Edit3 size={12} />
-                      <span>{t("编辑岗位", "Edit")}</span>
-                    </button>}
-                    {onSaveOpportunity && currentJob ? (
-                      <button
-                        type="button"
-                        onClick={() => onSaveOpportunity(currentJob)}
-                        className={`agent-btn-press inline-flex items-center justify-center h-7 w-7 rounded-lg border cursor-pointer ${
-                          isDark
-                            ? "text-[var(--ui-text-secondary,#c7cad4)] border-[var(--ui-border,#484b58)] hover:text-white"
-                            : "text-slate-600 border-slate-200 bg-white hover:text-slate-900"
-                        }`}
-                        title={t("收藏", "Save")}
-                        aria-label={t("收藏", "Save")}
-                      >
-                        <BookmarkPlus size={13} />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
+                <AgentActiveJobHeader
+                  isDark={isDark}
+                  t={t}
+                  jobView={currentJobView}
+                  canEdit={Boolean(currentJob)}
+                  onEdit={handleOpenJobEdit}
+                  onSave={onSaveOpportunity && currentJob ? () => onSaveOpportunity(currentJob) : undefined}
+                />
 
                 <div
                   className={`relative grid grid-cols-2 p-0.5 rounded-lg ${isDark ? "bg-[var(--ui-surface,#27282f)]" : "bg-slate-100"}`}
@@ -1796,242 +1695,21 @@ function AgentWorkspaceSession({
                 }`}
               >
             {leftViewMode === "jd" && (
-              <div
-                style={{ overflowY: "auto" }}
-                className={`overflow-y-auto min-h-0 flex-1 agent-custom-scrollbar p-4 space-y-3.5 pb-8 ${
-                  isDark ? "bg-[var(--ui-surface,#27282f)]" : "bg-slate-50/30"
-                }`}
-              >
-                {/* Section Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText size={15} className="text-emerald-500" />
-                    <h3 className={`text-xs font-bold ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                      {t("完整岗位 JD 与要求", "Complete Job Profile & Requirements")}
-                    </h3>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium border ${
-                        isDark ? "bg-[var(--ui-surface-soft,#363842)] text-[var(--ui-text-secondary,#c7cad4)] border-[var(--ui-border,#484b58)]" : "bg-slate-200 text-slate-700 border-slate-300"
-                      }`}
-                    >
-                      {displayQualifications.length + displayResponsibilities.length} 项要求
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsJobSpecFolded(!isJobSpecFolded)}
-                      className={`agent-btn-press text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-lg border cursor-pointer transition ${
-                        isDark
-                          ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
-                          : "text-slate-600 hover:text-slate-900 border-slate-200 bg-white shadow-2xs"
-                      }`}
-                      title={isJobSpecFolded ? t("展开岗位JD要求", "Expand Job Spec") : t("收起岗位JD要求", "Collapse Job Spec")}
-                    >
-                      <ChevronDown size={12} className={`transition-transform duration-200 ${isJobSpecFolded ? "-rotate-90" : ""}`} />
-                      <span>{isJobSpecFolded ? t("展开JD", "Expand") : t("收起JD", "Collapse")}</span>
-                    </button>
-
-                    {currentJob?.description && (
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(currentJobView.description, "raw-jd")}
-                        className={`agent-btn-press text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-lg border cursor-pointer transition ${
-                          isDark
-                            ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
-                            : "text-slate-600 hover:text-slate-900 border-slate-200 bg-white shadow-2xs"
-                        }`}
-                      >
-                        {copiedId === "raw-jd" ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                        <span>{copiedId === "raw-jd" ? t("已复制", "Copied") : t("复制 JD", "Copy JD")}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {!isJobSpecFolded && (
-                  <>
-                {/* Tech Stack Chips Bar */}
-                {structuredJd?.techStack && structuredJd.techStack.length > 0 && (() => {
-                  const candidateSkills = (resume?.skills || []).map((s) => s.toLowerCase());
-                  const matched = structuredJd.techStack.filter((t) => candidateSkills.some((s) => s.includes(t.toLowerCase()) || t.toLowerCase().includes(s)));
-                  const unmatched = structuredJd.techStack.filter((t) => !matched.includes(t));
-                  return (
-                    <div
-                      className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
-                        isDark ? "bg-[var(--ui-surface-soft,#363842)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200 shadow-2xs"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <Layers size={13} className="text-emerald-400" />
-                          <span className={`text-[11px] uppercase tracking-wider font-mono ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-700"}`}>
-                            {t("核心技术栈要求", "Required Tech Stack")}
-                          </span>
-                        </div>
-                        <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                            matched.length > 0
-                              ? isDark
-                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : isDark
-                                ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-muted,#a7adbd)] border-[var(--ui-border,#484b58)]"
-                                : "bg-slate-100 text-slate-600 border-slate-200"
-                          }`}
-                        >
-                          {t(`已命中 ${matched.length} / ${structuredJd.techStack.length} 项`, `${matched.length}/${structuredJd.techStack.length} Matched`)}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {matched.map((tech) => (
-                          <span
-                            key={tech}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border font-mono transition shadow-2xs ${
-                              isDark
-                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/35 shadow-[0_0_8px_rgba(16,185,129,0.15)]"
-                                : "bg-emerald-50 text-emerald-800 border-emerald-300"
-                            }`}
-                          >
-                            <Check size={11} className="text-emerald-500 stroke-[2.5]" />
-                            <span>{tech}</span>
-                          </span>
-                        ))}
-                        {unmatched.map((tech) => (
-                          <span
-                            key={tech}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border font-mono transition ${
-                              isDark
-                                ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] border-[var(--ui-border,#484b58)] hover:border-[var(--ui-border-strong,#656877)]"
-                                : "bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
-                            }`}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-500/50" />
-                            <span>{tech}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* 1. Job Responsibilities Section */}
-                <div
-                  className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
-                    isDark ? "bg-[var(--ui-surface-soft,#363842)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>{t("岗位核心职责", "Job Responsibilities")}</span>
-                    </h4>
-                    <span className={`text-[10px] ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
-                      {displayResponsibilities.length} {t("项核心任务", "tasks")}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-xs leading-relaxed font-sans">
-                    {displayResponsibilities.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-xl border transition-all duration-150 flex items-start gap-2.5 ${
-                          isDark
-                            ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)] hover:border-[var(--ui-border-strong,#656877)] text-[var(--ui-text-secondary,#c7cad4)]"
-                            : "bg-slate-50/80 border-slate-200/80 hover:border-slate-300 text-slate-800 shadow-2xs"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-5 w-5 rounded-full font-mono font-bold text-[10px] items-center justify-center shrink-0 mt-0.5 border ${
-                            isDark ? "bg-[var(--ui-surface,#27282f)] text-[var(--ui-text-muted,#a7adbd)] border-[var(--ui-border,#484b58)]" : "bg-slate-200 text-slate-600 border-slate-300"
-                          }`}
-                        >
-                          {idx + 1}
-                        </span>
-                        <p className="flex-1 whitespace-pre-wrap leading-relaxed">{item}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. Job Qualifications & Requirements Section */}
-                <div
-                  className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
-                    isDark ? "bg-[var(--ui-surface-soft,#363842)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                      <span>{t("任职资格与硬性门槛", "Qualifications & Requirements")}</span>
-                    </h4>
-                    <span className={`text-[10px] ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
-                      {displayQualifications.length} {t("项硬性要求", "criteria")}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-xs leading-relaxed font-sans">
-                    {displayQualifications.map((item, idx) => {
-                      const matchingProposal = proposals.find((p) => item.includes(p.jdItem.slice(0, 15)) || p.jdItem.includes(item.slice(0, 15)));
-                      const isVerified = matchingProposal?.evidenceType === "verified";
-                      const isGap = matchingProposal?.evidenceType === "gap";
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-3 rounded-xl border transition-all duration-150 flex items-start gap-2.5 ${
-                            isVerified
-                              ? isDark
-                                ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-200"
-                                : "bg-emerald-50/70 border-emerald-300 text-emerald-900"
-                              : isGap
-                                ? isDark
-                                  ? "bg-rose-950/20 border-rose-500/30 text-rose-200"
-                                  : "bg-rose-50/70 border-rose-200 text-rose-900"
-                                : isDark
-                                  ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)] hover:border-[var(--ui-border-strong,#656877)] text-[var(--ui-text-secondary,#c7cad4)]"
-                                  : "bg-slate-50/80 border-slate-200/80 hover:border-slate-300 text-slate-800 shadow-2xs"
-                          }`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 rounded-full font-mono font-bold text-[10px] items-center justify-center shrink-0 mt-0.5 border ${
-                              isDark ? "bg-[var(--ui-surface,#27282f)] text-[var(--ui-text-muted,#a7adbd)] border-[var(--ui-border,#484b58)]" : "bg-slate-200 text-slate-600 border-slate-300"
-                            }`}
-                          >
-                            {idx + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="whitespace-pre-wrap leading-relaxed">{item}</p>
-                            {matchingProposal && (
-                              <div className="mt-1.5 flex items-center gap-2">
-                                <span
-                                  className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-                                    isVerified
-                                      ? isDark
-                                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                      : isGap
-                                        ? isDark
-                                          ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                                          : "bg-rose-50 text-rose-700 border-rose-200"
-                                        : isDark
-                                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                                          : "bg-amber-50 text-amber-700 border-amber-200"
-                                  }`}
-                                >
-                                  {isVerified ? t("✓ 履历已核实", "Verified") : isGap ? t("⚠️ 技能缺口", "Gap") : t("⚡ 待补充证据", "Claimed")}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                  </>
-                )}
-              </div>
+              <AgentJdDetailsView
+                isDark={isDark}
+                t={t}
+                currentJob={currentJob}
+                currentJobView={currentJobView}
+                resume={resume}
+                structuredJd={structuredJd}
+                proposals={proposals}
+                displayResponsibilities={displayResponsibilities}
+                displayQualifications={displayQualifications}
+                isJobSpecFolded={isJobSpecFolded}
+                onToggleFold={() => setIsJobSpecFolded(!isJobSpecFolded)}
+                copiedId={copiedId}
+                onCopy={handleCopy}
+              />
             )}
 
             {/* Section B: Career Copilot Interactive Chat Stream */}
@@ -2052,6 +1730,7 @@ function AgentWorkspaceSession({
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
+                    <AgentAutoSpeechToggle enabled={autoSpeech.enabled} onToggle={autoSpeech.toggle} />
                     {resumeEditContext && <button
                       type="button"
                       aria-pressed={shareResumeForEditing}
@@ -2075,83 +1754,13 @@ function AgentWorkspaceSession({
                 {/* Message List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3.5 min-h-0 agent-custom-scrollbar">
                   {messages.length === 0 && (
-                    <div
-                      className={`p-3.5 rounded-xl border transition-colors ${
-                        isDark ? "bg-[var(--ui-surface-soft,#363842)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200 shadow-2xs"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div
-                          className={`h-6 w-6 rounded-lg border flex items-center justify-center shrink-0 shadow-xs ${
-                            isDark
-                              ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/30 text-emerald-400 border-emerald-500/30"
-                              : "bg-gradient-to-br from-emerald-50 to-teal-100 text-emerald-700 border-emerald-200"
-                          }`}
-                        >
-                          <Sparkles size={12} />
-                        </div>
-                        <h4 className={`text-xs font-bold ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                          {t("BetterMe 专属求职顾问已就绪", "BetterMe Career Copilot Ready")}
-                        </h4>
-                      </div>
-                      <p className={`text-[11px] leading-relaxed mb-2.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                        {t("可以一起调研雇主、打磨一条项目经历，或准备面试追问。", "Research an employer, refine a project contribution, or prepare for interview questions.")}
-                      </p>
-
-                      {/* Quick Prompt Cards */}
-                      <div className="grid grid-cols-3 gap-1.5 text-left">
-                        <button
-                          type="button"
-                          onClick={() => void handleSendMessage(`帮我深入调研 ${currentJob?.company || "这家公司"} 的企业背景、实控人与经营稳定性`)}
-                          className={`agent-btn-press p-2 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                            isDark
-                              ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] hover:bg-[var(--ui-hover,#41434e)] hover:border-emerald-500/40 text-[var(--ui-text-secondary,#c7cad4)]"
-                              : "border-slate-200 bg-slate-50 hover:bg-emerald-50/50 hover:border-emerald-300 text-slate-700 shadow-2xs"
-                          }`}
-                        >
-                          <span className="text-xs shrink-0">🏢</span>
-                          <span className={`font-semibold text-[11px] truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{t("查公司", "Company")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerAgentGuide({
-                              section: "headline",
-                              label: t("🤖 Agent 正在针对岗位优化个人优势", "🤖 Refining headline for job"),
-                            });
-                            void handleSendMessage(t("对照目标岗位，找一条最有依据的经历，写清交付对象和本人动作；缺少关键细节就先问我。", "Help me refine one supported contribution for the target role. Ask me for missing details before suggesting a rewrite."));
-                          }}
-                          className={`agent-btn-press p-2 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                            isDark
-                              ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] hover:bg-[var(--ui-hover,#41434e)] hover:border-emerald-500/40 text-[var(--ui-text-secondary,#c7cad4)]"
-                              : "border-slate-200 bg-slate-50 hover:bg-emerald-50/50 hover:border-emerald-300 text-slate-700 shadow-2xs"
-                          }`}
-                        >
-                          <span className="text-xs shrink-0">✍️</span>
-                          <span className={`font-semibold text-[11px] truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{t("打磨一条经历", "Refine a bullet")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerAgentGuide({
-                              section: "experience",
-                              label: t("🤖 Agent 正在结合缺口准备面试防守", "🤖 Analyzing gaps for defense"),
-                            });
-                            void handleSendMessage("针对本岗位任职要求中我可能存在的经验缺口，提供高情商的面试应答防守策略");
-                          }}
-                          className={`agent-btn-press p-2 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                            isDark
-                              ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] hover:bg-[var(--ui-hover,#41434e)] hover:border-emerald-500/40 text-[var(--ui-text-secondary,#c7cad4)]"
-                              : "border-slate-200 bg-slate-50 hover:bg-emerald-50/50 hover:border-emerald-300 text-slate-700 shadow-2xs"
-                          }`}
-                        >
-                          <span className="text-xs shrink-0">🛡️</span>
-                          <span className={`font-semibold text-[11px] truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{t("面试防守", "Defense")}</span>
-                        </button>
-                      </div>
-                    </div>
+                    <AgentEmptyPromptCards
+                      isDark={isDark}
+                      t={t}
+                      company={currentJob?.company}
+                      onSendMessage={handleSendMessage}
+                      onTriggerGuide={triggerAgentGuide}
+                    />
                   )}
 
                   {messages.map((msg) => (
@@ -2227,220 +1836,16 @@ function AgentWorkspaceSession({
 
                       {/* Action Cards attached to Assistant reply */}
                       {msg.actions && msg.actions.length > 0 && (
-                        <div className="w-full max-w-[95%] space-y-2.5 pl-2">
-                          {msg.actions.map((action, aIdx) => (
-                            <div
-                              key={aIdx}
-                              className={`rounded-2xl border p-3.5 shadow-md space-y-2.5 ${
-                                isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)]" : "border-slate-200 bg-white"
-                              }`}
-                            >
-                              {/* Company Card */}
-                              {action.type === "company_card" && (
-                                <>
-                                  <div className="flex items-center justify-between">
-                                    <div className={`flex items-center gap-1.5 font-bold text-xs ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                                      <Building2 size={14} className={isDark ? "text-emerald-400" : "text-emerald-600"} />
-                                      <span>{action.companyName}</span>
-                                    </div>
-                                    <span
-                                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                        isDark
-                                          ? "bg-[var(--ui-surface-raised,#2e3038)] text-emerald-300 border-emerald-500/30"
-                                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                      }`}
-                                    >
-                                      {action.ownership || "实控人核查"}
-                                    </span>
-                                  </div>
-                                  <p className={`text-xs leading-relaxed ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>{action.summary}</p>
-                                  {action.officialUrl && (
-                                    <a
-                                      href={action.officialUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className={`inline-flex items-center gap-1 text-[11px] hover:underline ${
-                                        isDark ? "text-emerald-400" : "text-emerald-700 font-semibold"
-                                      }`}
-                                    >
-                                      <span>{t("访问招聘官网 / 工商链接", "Visit careers website")}</span>
-                                      <ExternalLink size={11} />
-                                    </a>
-                                  )}
-                                </>
-                              )}
-
-                              {/* Resume Proposal Card */}
-                              {action.type === "resume_proposal" && (
-                                <>
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <span className={`font-bold flex min-w-0 items-center gap-1.5 ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                                      <Edit3 size={13} className={isDark ? "text-teal-400" : "text-teal-600"} />
-                                      <span className="truncate">{t("简历修改提案", "Resume edit proposal")} · {action.targetSection}</span>
-                                    </span>
-                                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${action.sourceVerified
-                                      ? isDark ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                                      : isDark ? "border-amber-500/35 bg-amber-500/10 text-amber-200" : "border-amber-200 bg-amber-50 text-amber-800"
-                                    }`}>{action.sourceVerified ? t("已绑定简历原文", "Source verified") : t("只读 · 未绑定原文", "Read-only · unlinked")}</span>
-                                  </div>
-                                  {action.sourceVerified && action.originalText && <div className="grid gap-2 sm:grid-cols-2">
-                                    <div className={`min-w-0 rounded-xl border p-3 ${isDark ? "border-[var(--ui-border,#484b58)] bg-black/15" : "border-slate-200 bg-slate-50"}`}>
-                                      <div className={`mb-1.5 text-[10px] font-semibold ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>{t("当前原文", "Current text")}</div>
-                                      <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>{action.originalText}</p>
-                                    </div>
-                                    <div className={`min-w-0 rounded-xl border p-3 ${isDark ? "border-teal-500/30 bg-teal-500/5" : "border-teal-200 bg-teal-50/60"}`}>
-                                      <div className={`mb-1.5 text-[10px] font-semibold ${isDark ? "text-teal-300" : "text-teal-800"}`}>{t("建议替换为", "Suggested replacement")}</div>
-                                      <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{action.proposedText}</p>
-                                    </div>
-                                  </div>}
-                                  {!action.sourceVerified && <div className={`rounded-xl border p-3 text-xs leading-relaxed ${isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)]" : "border-slate-200 bg-slate-50 text-slate-800"}`}>
-                                    <p>{action.proposedText}</p>
-                                    {action.sourceIssue === "original_mismatch" && <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-600 dark:text-amber-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{t("模型返回的原文与当前简历字段不一致；为避免错写，已禁用批准。请重新生成建议。", "The model’s source text does not exactly match the current resume field. Approval is disabled to prevent an incorrect write; regenerate the proposal.")}</p>}
-                                    {action.sourceIssue === "not_shared" && <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-300">{t("该目标不在本次授权的简历字段中，不能写回。", "This target was not included in the fields you shared, so it cannot be written back.")}</p>}
-                                  </div>}
-                                  <p className={`text-[11px] leading-relaxed flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                                    <Lightbulb size={13} className="text-amber-500 shrink-0" />
-                                    <span>{action.rationale}</span>
-                                  </p>
-                                  {(() => {
-                                    const proposalKey = `${msg.id}:${aIdx}`;
-                                    const decision = resumeProposalStates[proposalKey];
-                                    return <div className="space-y-2 pt-1">
-                                      {decision?.message && <p role="status" className={`text-[11px] ${decision.status === "conflict" || decision.status === "error" ? "text-rose-500" : decision.status === "approved" ? "text-emerald-500" : isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>{decision.message}</p>}
-                                      <div className="flex flex-wrap items-center justify-end gap-2">
-                                        <button type="button" onClick={() => triggerAgentGuide({ section: action.targetRef?.kind === "profile_headline" ? "headline" : "experience", text: action.proposedText, label: t("定位简历中的建议目标", "Locate the proposed resume field"), actionType: "suggest" })} className={`agent-btn-press inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs transition ${isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-teal-500/40" : "border-slate-200 bg-white text-slate-700 hover:border-teal-300"}`}>
-                                          <Crosshair size={12} /><span>{t("定位目标", "Locate target")}</span>
-                                        </button>
-                                        {action.sourceVerified && !decision && <>
-                                          <button type="button" onClick={() => void decideResumeProposal(proposalKey, action, false)} className={`agent-btn-press rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${isDark ? "border-rose-500/30 text-rose-200 hover:bg-rose-500/10" : "border-rose-200 text-rose-700 hover:bg-rose-50"}`}>
-                                            {t("拒绝", "Reject")}
-                                          </button>
-                                          <button type="button" onClick={() => void decideResumeProposal(proposalKey, action, true)} className="agent-btn-press inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-teal-500">
-                                            <Check size={12} />
-                                            <span>{t("批准并写回简历", "Approve & write to resume")}</span>
-                                          </button>
-                                        </>}
-                                        {decision?.status === "saving" && <span className="text-[11px] text-slate-400">{t("正在核对原文并保存…", "Checking source and saving…")}</span>}
-                                      </div>
-                                    </div>;
-                                  })()}
-                                </>
-                              )}
-
-                              {/* Interview Defense Card */}
-                              {action.type === "interview_defense" && (
-                                <>
-                                  <div className={`flex items-center gap-1.5 font-bold text-xs ${isDark ? "text-amber-300" : "text-amber-800"}`}>
-                                    <ShieldCheck size={14} className="text-amber-500" />
-                                    <span>{t("面试答辩攻防点", "Interview defense")}：{action.gapItem}</span>
-                                  </div>
-                                  <div className={`text-xs space-y-1.5 ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>
-                                    <p className={`font-semibold text-xs ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>【{t("防守策略", "Strategy")}】：{action.strategy}</p>
-                                    <div
-                                      className={`p-2.5 rounded-xl text-xs leading-relaxed border ${
-                                        isDark
-                                          ? "bg-[var(--ui-input,#22232a)] border-amber-500/30 text-amber-100"
-                                          : "bg-amber-50/70 border-amber-200 text-slate-800"
-                                      }`}
-                                    >
-                                      “{action.sampleAnswer}”
-                                    </div>
-                                  </div>
-                                  <div className="pt-1 flex justify-end">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(action.sampleAnswer || "", `card-${aIdx}`)}
-                                      className={`agent-btn-press inline-flex items-center gap-1.5 text-xs border px-3 py-1.5 rounded-xl cursor-pointer ${
-                                        isDark
-                                          ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
-                                          : "text-slate-700 hover:text-slate-900 border-slate-200 bg-slate-50"
-                                      }`}
-                                    >
-                                      {copiedId === `card-${aIdx}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                      <span>{copiedId === `card-${aIdx}` ? t("已复制话术", "Copied") : t("复制答辩话术", "Copy script")}</span>
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-
-                              {/* vork 3D Physical Raytraced Badge Card */}
-                              {action.type === "badge_3d" && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between gap-2 text-xs">
-                                    <span className={`font-bold flex min-w-0 items-center gap-1.5 ${isDark ? "text-purple-300" : "text-purple-900"}`}>
-                                      <Sparkles size={14} className="text-purple-400 shrink-0" />
-                                      <span className="truncate">{action.title}</span>
-                                    </span>
-                                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${
-                                      isDark ? "border-purple-500/40 bg-purple-500/10 text-purple-200" : "border-purple-200 bg-purple-50 text-purple-800"
-                                    }`}>
-                                      ⚡️ vork Metal 物理光追 {action.renderDurationMs ? `· ${(action.renderDurationMs / 1000).toFixed(1)}s` : ""}
-                                    </span>
-                                  </div>
-
-                                  <p className={`text-xs leading-relaxed font-medium ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>
-                                    {action.highlight}
-                                  </p>
-
-                                  {action.imageUrl && (
-                                    <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-black/40 shadow-inner group">
-                                      <img
-                                        src={action.imageUrl}
-                                        alt={action.title}
-                                        className="w-full h-44 object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                                      />
-                                      <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/75 backdrop-blur-md px-2 py-1 rounded-md text-[10px] text-purple-200 border border-purple-500/30">
-                                        <span>OpenPBR 物理着色 · Metal 硬件加速</span>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {action.rationale && (
-                                    <p className={`text-[11px] leading-relaxed flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                                      <Lightbulb size={13} className="text-amber-500 shrink-0" />
-                                      <span>{action.rationale}</span>
-                                    </p>
-                                  )}
-
-                                  <div className="pt-1 flex flex-wrap items-center justify-end gap-2">
-                                    {action.imageUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const a = document.createElement("a");
-                                          a.href = action.imageUrl!;
-                                          a.download = `${action.title || "3d-architecture-badge"}.png`;
-                                          a.click();
-                                        }}
-                                        className={`agent-btn-press inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs transition ${
-                                          isDark
-                                            ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-purple-500/40"
-                                            : "border-slate-200 bg-white text-slate-700 hover:border-purple-300"
-                                        }`}
-                                      >
-                                        <ImagePlus size={12} />
-                                        <span>{t("下载 3D 徽章高清图", "Download 3D Badge")}</span>
-                                      </button>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(`![${action.title}](${action.imageUrl || ""})\n> **${action.title}**\n> ${action.highlight}`, `badge-${aIdx}`)}
-                                      className={`agent-btn-press inline-flex items-center gap-1.5 text-xs border px-3 py-1.5 rounded-xl cursor-pointer ${
-                                        isDark
-                                          ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
-                                          : "text-slate-700 hover:text-slate-900 border-slate-200 bg-slate-50"
-                                      }`}
-                                    >
-                                      {copiedId === `badge-${aIdx}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                      <span>{copiedId === `badge-${aIdx}` ? t("已复制引用代码", "Copied markdown") : t("复制作品集引用", "Copy markdown")}</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                        <AgentReplyActionsCard
+                          msgId={msg.id}
+                          actions={msg.actions}
+                          isDark={isDark}
+                          t={t}
+                          copiedId={copiedId}
+                          onCopy={handleCopy}
+                          resumeProposalStates={resumeProposalStates}
+                          onDecideResumeProposal={decideResumeProposal}
+                        />
                       )}
                     </div>
                   ))}
@@ -2804,693 +2209,69 @@ function AgentWorkspaceSession({
             </div>
           ) : (
             /* ── ACTIVE RIGHT PANE: Fit instrument + proposal list ── */
-            <>
-          <div
-            className={`px-4 py-3.5 border-b shrink-0 ${
-              isDark ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200"
-            }`}
-          >
-            {(() => {
-              const ringR = 20;
-              const ringC = 2 * Math.PI * ringR;
-              const ringOffset = ringC - (Math.max(0, Math.min(100, animatedScore)) / 100) * ringC;
-              const scoreTone =
-                stats.score >= 80 ? "text-emerald-600" : stats.score >= 55 ? "text-teal-600" : stats.score >= 35 ? "text-amber-600" : "text-rose-600";
-              const scoreStroke =
-                stats.score >= 80 ? "stroke-emerald-500" : stats.score >= 55 ? "stroke-teal-500" : stats.score >= 35 ? "stroke-amber-500" : "stroke-rose-500";
-              const scoreLabel = loading
-                ? t("正在比对", "Matching")
-                : stats.total === 0
-                  ? t("尚无结果", "No result")
-                  : stats.score >= 80
-                    ? t("高度契合", "Strong fit")
-                    : stats.score >= 55
-                      ? t("基本契合", "Fair fit")
-                      : stats.score >= 35
-                        ? t("部分契合", "Partial fit")
-                        : t("差距较大", "Wide gap");
-              const mixTotal = Math.max(stats.total, 1);
-              return (
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-              <div className="min-w-0 flex items-center gap-3.5">
-                <div className="relative h-[52px] w-[52px] shrink-0" aria-hidden>
-                  <svg className="h-[52px] w-[52px] -rotate-90" viewBox="0 0 56 56">
-                    <circle
-                      cx="28"
-                      cy="28"
-                      r={ringR}
-                      strokeWidth="3"
-                      fill="none"
-                      className={isDark ? "stroke-[var(--ui-border,#484b58)]" : "stroke-slate-200"}
-                    />
-                    {loading ? (
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r={ringR}
-                        strokeWidth="3"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeDasharray={`${ringC * 0.22} ${ringC}`}
-                        className={`stroke-emerald-500 fit-ring-pending`}
-                      />
-                    ) : (
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r={ringR}
-                        strokeWidth="3"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeDasharray={ringC}
-                        strokeDashoffset={ringOffset}
-                        className={`fit-ring-value ${scoreStroke}`}
-                      />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={`text-[13px] font-semibold tabular-nums tracking-tight leading-none ${loading ? (isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400") : isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                      {loading ? "…" : animatedScore}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2 min-w-0">
-                    <p className={`text-[13px] font-semibold tracking-tight truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                      {currentJob?.title || t("目标岗位", "Target role")}
-                    </p>
-                    <span className={`text-[11px] shrink-0 tabular-nums ${loading ? (isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400") : scoreTone}`}>
-                      {loading ? "" : `${animatedScore}%`}
-                      <span className={`ml-1 font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>
-                        {scoreLabel}
-                      </span>
-                    </span>
-                  </div>
-                  {currentJob?.company ? (
-                    <p className={`text-[11px] truncate mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                      {currentJobView.company}
-                    </p>
-                  ) : null}
-
-                  <div
-                    className={`mt-2 h-1 w-full rounded-full overflow-hidden flex ${isDark ? "bg-[var(--ui-border,#484b58)]" : "bg-slate-100"}`}
-                    aria-hidden
-                  >
-                    {loading || stats.total === 0 ? (
-                      <div className={`h-full w-1/3 rounded-full ${loading ? "bg-emerald-400/70 animate-pulse" : ""}`} />
-                    ) : (
-                      <>
-                        <div className="fit-mix-seg h-full bg-emerald-500" style={{ width: `${(stats.verified / mixTotal) * 100}%` }} />
-                        <div className="fit-mix-seg h-full bg-amber-400" style={{ width: `${(stats.claimed / mixTotal) * 100}%` }} />
-                        <div className="fit-mix-seg h-full bg-rose-400" style={{ width: `${(stats.gaps / mixTotal) * 100}%` }} />
-                      </>
-                    )}
-                  </div>
-                  <div className={`mt-1.5 flex items-center gap-3 text-[11px] tabular-nums ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {loading ? "—" : stats.verified} {t("已核实", "verified")}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      {loading ? "—" : stats.claimed} {t("待核验", "claimed")}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-                      {loading ? "—" : stats.gaps} {t("缺口", "gaps")}
-                    </span>
-                    <span className="sr-only">{t("契合度", "fit")}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0 self-center">
-                <button
-                  type="button"
-                  onClick={() => setRightPaneOpen(false)}
-                  className={`agent-btn-press hidden lg:inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[11px] font-medium cursor-pointer ${
-                    isDark
-                      ? "border-[var(--ui-border,#484b58)] text-[var(--ui-text-muted,#a7adbd)] hover:text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:text-slate-900"
-                  }`}
-                  title={t("收起匹配结果", "Collapse match results")}
-                >
-                  <PanelRightClose size={13} />
-                  <span>{t("收起", "Hide")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (currentJob?.description) {
-                      void runMatching(currentJobView.description);
-                    } else {
-                      setIsEditingJob(true);
-                    }
-                  }}
-                  disabled={loading}
-                  className={`agent-btn-press inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition disabled:opacity-50 cursor-pointer ${
-                    isDark
-                      ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] text-[var(--ui-text-secondary,#c7cad4)] hover:text-white hover:bg-[var(--ui-hover,#41434e)]"
-                      : "border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50"
-                  }`}
-                >
-                  <RefreshCw size={12} className={loading ? "animate-spin text-emerald-500" : ""} />
-                  <span>{loading ? t("分析中…", "Analyzing…") : t("授权当前简历并分析", "Share resume & analyze")}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleApply}
-                  disabled={stats.acceptedCount === 0 || isApplying}
-                  className="agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {isApplying ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                  <span>
-                    {isApplying
-                      ? t("应用中…", "Applying…")
-                      : t(`应用已采纳 (${stats.acceptedCount})`, `Apply accepted (${stats.acceptedCount})`)}
-                  </span>
-                </button>
-              </div>
-            </div>
-              );
-            })()}
-
-            {errorNotice && (
-              <div
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] ${
-                  isDark
-                    ? "bg-rose-950/40 border-rose-500/30 text-rose-300"
-                    : "bg-rose-50 border-rose-200 text-rose-700"
-                }`}
-              >
-                <AlertTriangle size={13} className="shrink-0 text-rose-500" />
-                <span className="truncate">{errorNotice}</span>
-              </div>
-            )}
-          </div>
-
-          <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[var(--ui-surface,#27282f)]" : "bg-[#f7f6f3]"}`}>
-            <div className="px-3 pt-3 shrink-0">
-              <div
-                className={`grid grid-cols-4 p-0.5 rounded-lg ${
-                  isDark ? "bg-[var(--ui-surface-soft,#363842)]" : "bg-slate-200/70"
-                }`}
-              >
-                {(
-                  [
-                    ["all", t("全部提案", "All"), stats.total],
-                    ["accepted", t("已采纳", "Accepted"), stats.acceptedCount],
-                    ["pending", t("待审核", "Pending"), stats.pendingCount],
-                    ["rejected", t("已忽略", "Rejected"), stats.rejectedCount],
-                  ] as const
-                ).map(([key, label, count]) => {
-                  const active = proposalFilter === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setProposalFilter(key)}
-                      className={`agent-btn-press py-1.5 rounded-md text-[11px] font-medium tabular-nums cursor-pointer transition-colors ${
-                        active
-                          ? isDark
-                            ? "bg-[var(--ui-surface,#27282f)] text-[var(--ui-text,#edeef4)] shadow-sm"
-                            : "bg-white text-slate-900 shadow-sm"
-                          : isDark
-                            ? "text-[var(--ui-text-muted,#a7adbd)] hover:text-[var(--ui-text,#edeef4)]"
-                            : "text-slate-500 hover:text-slate-800"
-                      }`}
-                    >
-                      {label}
-                      <span className={`ml-1 ${active ? "" : "opacity-70"}`}>{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div
-              className={`flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0 agent-custom-scrollbar ${
-                isDark ? "bg-[var(--ui-surface,#27282f)]" : "bg-slate-50/40"
-              }`}
+            <AgentFitAnalyticsHeader
+              isDark={isDark}
+              t={t}
+              loading={loading}
+              isApplying={isApplying}
+              stats={stats}
+              jobTitle={currentJob?.title}
+              company={currentJob?.company ? currentJobView.company : undefined}
+              errorNotice={errorNotice}
+              proposalFilter={proposalFilter}
+              onChangeFilter={setProposalFilter}
+              onHideRightPane={() => setRightPaneOpen(false)}
+              onRunMatching={() => {
+                if (currentJob?.description) {
+                  void runMatching(currentJobView.description);
+                } else {
+                  setIsEditingJob(true);
+                }
+              }}
+              onApply={handleApply}
             >
-              {loading && (
-                <div className="space-y-2.5" aria-busy="true">
-                  <p className={`text-[11px] ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                    {t("正在比对岗位与履历…", "Matching job against your profile…")}
-                  </p>
-                  {[0, 1, 2].map((row) => (
-                    <div
-                      key={row}
-                      className={`rounded-xl border px-3 py-3 space-y-2 ${
-                        isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)]" : "border-slate-200/80 bg-white"
-                      }`}
-                    >
-                      <div className={`h-2.5 rounded-full w-2/5 animate-pulse ${isDark ? "bg-[var(--ui-border,#484b58)]" : "bg-slate-200"}`} />
-                      <div className={`h-2 rounded-full w-full animate-pulse ${isDark ? "bg-[var(--ui-border,#484b58)]" : "bg-slate-100"}`} />
-                      <div className={`h-2 rounded-full w-4/5 animate-pulse ${isDark ? "bg-[var(--ui-border,#484b58)]" : "bg-slate-100"}`} />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!loading && proposals.length === 0 && (
-                <div className={`py-12 text-center space-y-2 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
-                  <Target size={28} className={`mx-auto ${isDark ? "text-[var(--ui-border,#484b58)]" : "text-slate-300"}`} />
-                  <p className="text-xs">{t("暂无提案。点击「授权当前简历并分析」后生成，结果仍需逐条审阅。", "No proposals yet. Share the current resume to analyze; review each result before applying.")}</p>
-                </div>
-              )}
-
-              {!loading && gapProposals.length > 0 && proposalFilter === "all" && (
-                <div
-                  className={`rounded-xl border ${
-                    isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)]" : "border-slate-200/80 bg-white"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setShowGapsSummary((open) => !open)}
-                    className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left cursor-pointer ${
-                      isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"
-                    }`}
-                  >
-                    <span className="text-[12px] font-medium">
-                      {t(`${gapProposals.length} 项缺口`, `${gapProposals.length} gaps`)}
-                      <span className={`ml-2 font-normal ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                        {t("面试时需要应答", "Worth preparing")}
-                      </span>
-                    </span>
-                    {showGapsSummary ? <ChevronUp size={14} className="shrink-0 opacity-60" /> : <ChevronDown size={14} className="shrink-0 opacity-60" />}
-                  </button>
-                  {showGapsSummary && (
-                    <ul className={`border-t text-[12px] leading-relaxed ${isDark ? "border-[var(--ui-border,#484b58)]" : "border-slate-100"}`}>
-                      {gapProposals.map((g) => (
-                        <li
-                          key={g.id}
-                          className={`flex items-start justify-between gap-3 px-3 py-2.5 ${
-                            isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"
-                          }`}
-                        >
-                          <span>
-                            <span className={`font-medium ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>{g.jdItem}</span>
-                            <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}> · {g.rationale}</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (leftViewMode === "jd") showLeftPage("chat");
-                              void handleSendMessage(`针对这个岗位的缺口项“${g.jdItem}”，帮我制定一套高情商的面试应答与能力迁移策略`);
-                            }}
-                            className={`shrink-0 text-[11px] cursor-pointer hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
-                          >
-                            {t("问顾问", "Ask")}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-
-              {!loading && filteredProposals.length === 0 && proposals.length > 0 && (
-                <div className={`py-10 text-center text-xs ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
-                  {t("当前筛选条件下没有提案", "No proposals under this filter")}
-                </div>
-              )}
-
-              {!loading && filteredProposals.map((proposal, idx) => {
-                const decision = decisions[proposal.id];
-                const isAccepted = decision?.status === "accepted";
-                const isEdited = decision?.status === "edited";
-                const isRejected = decision?.status === "rejected";
-                const isEditing = editingProposalId === proposal.id;
-                const isDiffOpen = activeDiffProposalId === proposal.id;
-
-                const displayText = isEdited ? decision.editedSuggestion : proposal.suggestion;
-                const currentOriginalClaim = getClaimText(proposal.profileEntryId);
-                const evidenceBorder =
-                  proposal.evidenceType === "verified"
-                    ? "border-l-emerald-500"
-                    : proposal.evidenceType === "claimed"
-                      ? "border-l-amber-500"
-                      : "border-l-rose-500";
-
-                return (
-                  <div
-                    key={proposal.id}
-                    style={{ animationDelay: `${Math.min(idx * 50, 400)}ms` }}
-                    className={`agent-stagger-item rounded-xl border border-l-[3px] ${evidenceBorder} transition-all duration-200 p-3 space-y-2.5 ${
-                      isAccepted
-                        ? isDark
-                          ? "border-emerald-500/40 bg-emerald-950/15"
-                          : "border-emerald-200 bg-emerald-50/40"
-                        : isEdited
-                          ? isDark
-                            ? "border-teal-500/40 bg-teal-950/15"
-                            : "border-teal-200 bg-teal-50/40"
-                          : isRejected
-                            ? isDark
-                              ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] opacity-50"
-                              : "border-slate-200 bg-slate-100/60 opacity-60"
-                            : isDark
-                              ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-surface-raised,#2e3038)]"
-                              : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span
-                          className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold shrink-0 mt-0.5 ${
-                            isDark
-                              ? "bg-[var(--ui-surface,#27282f)] text-[var(--ui-text-muted,#a7adbd)]"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {idx + 1}
-                        </span>
-                        <h4 className={`text-xs font-semibold leading-snug ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                          {proposal.jdItem}
-                        </h4>
-                      </div>
-
-                      <span
-                        className={`text-[10px] font-medium shrink-0 ${
-                          proposal.evidenceType === "verified"
-                            ? isDark
-                              ? "text-emerald-400"
-                              : "text-emerald-700"
-                            : proposal.evidenceType === "claimed"
-                              ? isDark
-                                ? "text-amber-400"
-                                : "text-amber-700"
-                              : isDark
-                                ? "text-rose-400"
-                                : "text-rose-700"
-                        }`}
-                      >
-                        {proposal.evidenceType === "verified"
-                          ? t("已核实", "Verified")
-                          : proposal.evidenceType === "claimed"
-                            ? t("待核验", "Claimed")
-                            : t("缺口", "Gap")}
-                      </span>
-                    </div>
-
-                    {/* Suggestion text or Inline Editor */}
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={editedText}
-                          onChange={(e) => setEditedText(e.target.value)}
-                          rows={3}
-                          className={`w-full rounded-xl border p-3 text-xs outline-none font-sans leading-relaxed ${
-                            isDark
-                              ? "border-teal-500/60 bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)]"
-                              : "border-teal-400 bg-white text-slate-900 shadow-inner"
-                          }`}
-                        />
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className={`agent-btn-press px-2.5 py-1 text-xs rounded-lg cursor-pointer ${
-                              isDark ? "text-[var(--ui-text-muted,#a7adbd)] hover:bg-[var(--ui-hover,#41434e)]" : "text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            {t("取消", "Cancel")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => saveEdit(proposal.id)}
-                            className="agent-btn-press px-3 py-1 text-xs font-bold text-white bg-teal-600 hover:bg-teal-500 rounded-lg cursor-pointer"
-                          >
-                            {t("保存修改", "Save edit")}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p
-                        className={`text-xs leading-relaxed font-sans ${
-                          isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"
-                        }`}
-                      >
-                        {displayText}
-                      </p>
-                    )}
-
-                    <p
-                      className={`flex items-start gap-1.5 text-[11px] leading-relaxed ${
-                        isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"
-                      }`}
-                    >
-                      <Lightbulb size={12} className="text-amber-400 shrink-0 mt-0.5" />
-                      <span>{proposal.rationale}</span>
-                    </p>
-
-                    {/* Diff Comparison Accordion when Locating */}
-                    {isDiffOpen && (
-                      <div
-                        className={`agent-diff-popover p-3 rounded-xl border space-y-2 text-xs ${
-                          isDark
-                            ? "bg-[var(--ui-surface-raised,#2e3038)] border-emerald-500/40"
-                            : "bg-slate-50 border-emerald-300 shadow-sm"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}>
-                            {currentOriginalClaim ? t("原始履历记录", "Original Claim") : t("当前简历状态", "Current Resume")}
-                          </span>
-                          <ArrowRight size={12} className={isDark ? "text-emerald-400" : "text-emerald-600"} />
-                          <span className={isDark ? "text-emerald-400" : "text-emerald-700"}>
-                            {t("建议定制优化表达", "Proposed Resume Expression")}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div
-                            className={`p-2.5 rounded-xl border text-[11px] leading-relaxed ${
-                              isDark
-                                ? "bg-[var(--ui-input,#22232a)] border-[var(--ui-border,#484b58)] text-[var(--ui-text-muted,#a7adbd)]"
-                                : "bg-white border-slate-200 text-slate-600"
-                            }`}
-                          >
-                            {currentOriginalClaim || (
-                              <span className="italic">
-                                {t("（简历中暂无明确对应经历，此项为针对 JD 要求的补充或应答建议）", "(No existing claim in resume; this is gap defense / addition suggestion)")}
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            className={`p-2.5 rounded-xl border text-[11px] leading-relaxed ${
-                              isDark
-                                ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
-                                : "bg-emerald-50 border-emerald-200 text-emerald-900"
-                            }`}
-                          >
-                            {displayText}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className={`flex items-center justify-between pt-2.5 border-t ${isDark ? "border-[var(--ui-border,#484b58)]" : "border-slate-100"}`}>
-                      <div className="flex items-center gap-1.5">
-                        {isAccepted && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-                            <CheckCircle2 size={13} />
-                            {t("已采纳", "Accepted")}
-                          </span>
-                        )}
-                        {isEdited && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-400">
-                            <Edit3 size={13} />
-                            {t("已微调并采纳", "Edited & Accepted")}
-                          </span>
-                        )}
-                        {isRejected && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--ui-text-muted,#a7adbd)]">
-                            <X size={13} />
-                            {t("已忽略", "Rejected")}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveDiffProposalId(isDiffOpen ? null : proposal.id);
-                            triggerAgentGuide({
-                              claimId: proposal.profileEntryId,
-                              text: proposal.suggestion,
-                              label: t("🤖 Agent 建议定位此处", "🤖 Locate here"),
-                              actionType: "suggest",
-                            });
-                          }}
-                          title={t("在简历对应履历进行视觉引导高亮与前后对比", "Locate claim with diff preview")}
-                          className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                            isDark
-                              ? "text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
-                              : "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
-                          }`}
-                        >
-                          <Crosshair size={12} />
-                          <span>{isDiffOpen ? t("收起对比", "Hide Diff") : t("定位", "Locate")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDecision(proposal.id, "accepted")}
-                          className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                            isAccepted
-                              ? "bg-emerald-600 text-white shadow-xs"
-                              : isDark
-                                ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:bg-emerald-600/30 hover:text-emerald-300 border border-[var(--ui-border,#484b58)]"
-                                : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200"
-                          }`}
-                        >
-                          <Check size={12} />
-                          <span>{t("采纳", "Accept")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => startEdit(proposal)}
-                          className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                            isEdited
-                              ? "bg-teal-600 text-white shadow-xs"
-                              : isDark
-                                ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:bg-teal-600/30 hover:text-teal-300 border border-[var(--ui-border,#484b58)]"
-                                : "bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-700 border border-slate-200"
-                          }`}
-                        >
-                          <Edit3 size={12} />
-                          <span>{t("微调", "Edit")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDecision(proposal.id, "rejected")}
-                          className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                            isRejected
-                              ? "bg-slate-600 text-white"
-                              : isDark
-                                ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-muted,#a7adbd)] hover:bg-rose-950/40 hover:text-rose-400 border border-[var(--ui-border,#484b58)]"
-                                : "bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-700 border border-slate-200"
-                          }`}
-                        >
-                          <X size={12} />
-                          <span>{t("忽略", "Reject")}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        </>
-      )}
+              <AgentProposalListSection
+                isDark={isDark}
+                t={t}
+                loading={loading}
+                proposals={proposals}
+                gapProposals={gapProposals}
+                filteredProposals={filteredProposals}
+                proposalFilter={proposalFilter}
+                decisions={decisions}
+                editingProposalId={editingProposalId}
+                editedText={editedText}
+                activeDiffProposalId={activeDiffProposalId}
+                showGapsSummary={showGapsSummary}
+                onToggleGapsSummary={() => setShowGapsSummary((open) => !open)}
+                onAskGap={(jdItem) => {
+                  if (leftViewMode === "jd") showLeftPage("chat");
+                  void handleSendMessage(`针对这个岗位的缺口项“${jdItem}”，帮我制定一套高情商的面试应答与能力迁移策略`);
+                }}
+                onSetActiveDiffProposalId={setActiveDiffProposalId}
+                onDecision={handleDecision}
+                onStartEdit={startEdit}
+                onSaveEdit={saveEdit}
+                onCancelEdit={cancelEdit}
+                onChangeEditedText={setEditedText}
+                getClaimText={getClaimText}
+              />
+            </AgentFitAnalyticsHeader>
+          )}
     </div>
         )}
   </div>
 
       {/* ── Guided Application Multi-Step Transition Overlay Modal ──── */}
       {isApplying && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${isDark ? "bg-black/70" : "bg-slate-900/40"}`}>
-          <div
-            className={`agent-diff-popover w-full max-w-md rounded-3xl border p-6 shadow-2xl space-y-5 text-center ${
-              isDark ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)] text-[var(--ui-text,#edeef4)]" : "bg-white border-slate-200 text-slate-900"
-            }`}
-          >
-            <div
-              className={`h-14 w-14 mx-auto rounded-3xl border flex items-center justify-center shadow-xs ${
-                isDark
-                  ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/30 text-emerald-400 border-emerald-500/30"
-                  : "bg-gradient-to-br from-emerald-50 to-teal-100 text-emerald-700 border-emerald-200"
-              }`}
-            >
-              <Sparkles size={28} className="animate-spin text-emerald-500" />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold tracking-tight">
-                {t("AI 顾问正在生成专属定制版简历", "Generating Tailored Resume...")}
-              </h3>
-              <p className={`text-xs mt-1 ${isDark ? "text-[var(--ui-text-muted,#8b90a0)]" : "text-slate-500"}`}>
-                {currentJob?.company} · {currentJob?.title}
-              </p>
-            </div>
-
-            {/* Stepper Checklist */}
-            <div className="space-y-3 text-left max-w-xs mx-auto text-xs">
-              <div
-                className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${
-                  applyStep >= 1
-                    ? isDark
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-200"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : isDark
-                      ? "bg-[var(--ui-surface-soft,#363842)]/50 border-[var(--ui-border,#484b58)] text-[var(--ui-text-muted,#8b90a0)]"
-                      : "bg-slate-100 border-slate-200 text-slate-400"
-                }`}
-              >
-                <span
-                  className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    applyStep >= 1 ? "bg-emerald-500 text-slate-950" : "bg-slate-400 text-white"
-                  }`}
-                >
-                  {applyStep > 1 ? <Check size={12} /> : "1"}
-                </span>
-                <span className="font-semibold">创建岗位专属定制简历副本</span>
-              </div>
-
-              <div
-                className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${
-                  applyStep >= 2
-                    ? isDark
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-200"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : isDark
-                      ? "bg-[var(--ui-surface-soft,#363842)]/50 border-[var(--ui-border,#484b58)] text-[var(--ui-text-muted,#8b90a0)]"
-                      : "bg-slate-100 border-slate-200 text-slate-400"
-                }`}
-              >
-                <span
-                  className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    applyStep >= 2 ? "bg-emerald-500 text-slate-950" : "bg-slate-400 text-white"
-                  }`}
-                >
-                  {applyStep > 2 ? <Check size={12} /> : "2"}
-                </span>
-                <span className="font-semibold">整理 {stats.acceptedCount} 项已审阅的表达建议</span>
-              </div>
-
-              <div
-                className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${
-                  applyStep >= 3
-                    ? isDark
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-200"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : isDark
-                      ? "bg-[var(--ui-surface-soft,#363842)]/50 border-[var(--ui-border,#484b58)] text-[var(--ui-text-muted,#8b90a0)]"
-                      : "bg-slate-100 border-slate-200 text-slate-400"
-                }`}
-              >
-                <span
-                  className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    applyStep >= 3 ? "bg-emerald-500 text-slate-950" : "bg-slate-400 text-white"
-                  }`}
-                >
-                  {applyStep === 3 ? <Loader2 size={12} className="animate-spin" /> : "3"}
-                </span>
-                <span className="font-semibold">自动平滑切回编辑器并定位高亮条目</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AgentApplyModal
+          isDark={isDark}
+          t={t}
+          applyStep={applyStep}
+          acceptedCount={stats.acceptedCount}
+          company={currentJob?.company}
+          title={currentJob?.title}
+        />
       )}
     </section></div></div>
   );

@@ -68,7 +68,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "登录未完成，请重试。"); }
     finally { setBusy(false); }
   }
-  const isElectron = typeof window !== "undefined" && Boolean((window as any).desktopApi?.isElectron);
+  const isElectron = typeof window !== "undefined" && Boolean(window.desktopApi?.isElectron);
   const locked = !ready || !user || expired;
   return <>
     {user && <div ref={workspace} tabIndex={-1} hidden={locked} inert={locked || !bootDone}>{children}</div>}

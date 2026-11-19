@@ -4,6 +4,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createMainWindow, setupNativeMenu } from "./window.js";
 import { externalUrl, validateSmokeProfile } from "./launch-policy.js";
+import { exportWindowToPdf } from "./pdf-export.js";
 
 export function startPackagedApp() {
   const smoke = app.commandLine.hasSwitch("betterme-smoke-test");
@@ -32,6 +33,10 @@ export function startPackagedApp() {
   });
   ipcMain.handle("desktop:open-external", async (event, input: unknown) => {
     const url = externalUrl(input); if (trusted(event) && url) await shell.openExternal(url);
+  });
+  ipcMain.handle("desktop:export-pdf", async (event, suggestedFilename?: unknown) => {
+    if (!trusted(event)) throw new Error("Untrusted PDF export request.");
+    return exportWindowToPdf(window, suggestedFilename);
   });
   const explainHud = () => { void dialog.showMessageBox({ type: "info", message: "请先在工作台准备并核对面试材料。", detail: "此版本不展示预置的个人经历、指标或未经核对的防守话术。" }); };
   ipcMain.handle("desktop:toggle-hud", event => { if (trusted(event)) explainHud(); });
@@ -72,7 +77,7 @@ export function startPackagedApp() {
     if (!ready) await runtime();
     trace("window-create");
     setupNativeMenu(explainHud);
-    window = createMainWindow({ preloadPath, workspaceUrl: ready!.origin + "/?workspace=autopilot", restrictOrigin: true, iconPath: path.join(resources, "icon.png") });
+    window = createMainWindow({ preloadPath, workspaceUrl: ready!.origin + "/?workspace=resume", restrictOrigin: true, iconPath: path.join(resources, "icon.png") });
     window.on("closed", () => { window = null; });
     if (smoke) {
       const current = window;

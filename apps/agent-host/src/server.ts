@@ -51,7 +51,7 @@ import { RecoveryCatalog } from "./identity/recovery.js";
 import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
 import { unconfiguredSocialLogin } from "./identity/social-login.js";
 import { EvidenceBroker } from "./understanding/evidence-broker.js";
-import { vorkService } from "./vork/service.js";
+import { vorkService, VorkRenderError } from "./vork/service.js";
 import { CareerCapabilities } from "./capabilities/service.js";
 import { handleCapabilities } from "./capabilities/http.js";
 import type { ToolBuilder } from "./capabilities/ollama.js";
@@ -64,6 +64,17 @@ import { AgentTaskKernel } from "./kernel/service.js";
 import { createCareerTaskHandler } from "./tasks/http.js";
 import { createCareerTaskRuntimeResolver } from "./tasks/runtime.js";
 import { ModelUsageMeter } from "./tasks/usage-meter.js";
+import {
+  meteredCodingGenerator,
+  meteredLocalOllamaClient,
+  meteredToolBuilder,
+  measureToolGeneration,
+  meteredTrainingAuthor,
+  meteredTranslationEngine,
+} from "./tasks/metered-adapters.js";
+import { createLocalOllamaClient } from "./privacy/local-ollama.js";
+import { localTrainingAuthor } from "./growth/training-model.js";
+import { generateLocalCodingCandidate } from "./sandbox/coding-engine.js";
 import type { CareerTaskReasoner } from "./kernel/model-protocol.js";
 import { CareerStudio } from "./career-studio/service.js";
 import { createCareerStudioHttp } from "./career-studio/http.js";
@@ -205,7 +216,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       broker: new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
         ...[opts.runsDirectory, opts.understandingDirectory, opts.chatGptDirectory].filter((value): value is string => Boolean(value))] }),
     });
-    const modelUsage = new ModelUsageMeter();
+    const modelUsage = new ModelUsageMeter({ filePath: path.join(root, "usage-metrics.json") });
   const taskRuntime = createCareerTaskRuntimeResolver({ nativeTools, routing, chatGpt: provider, usage: modelUsage, reasoner: opts.careerTaskReasoner,
       scan: async () => { await understandingRegistry.discoverExecutables(); } });
     // Studio's private ledger is opt-in. Ordinary resume/routing requests must
@@ -226,7 +237,13 @@ export function createAgentServer(opts: ServerOptions): http.Server {
           describe: (id, access) => careerTasks.describeStudioCommittee(id, access),
           review: (id, access) => careerTasks.reviewStudioCommittee(id, access),
         },
-        ...(opts.careerStudioLocalClient ? { localClient: opts.careerStudioLocalClient } : {}),
+        localClient: (runtime) => meteredLocalOllamaClient(
+          modelUsage,
+          opts.careerStudioLocalClient
+            ? opts.careerStudioLocalClient(runtime)
+            : createLocalOllamaClient({ model: runtime.model, expectedDigest: runtime.modelDigest }),
+          runtime.model,
+        ),
       });
       studioHttp = createCareerStudioHttp({ studio, ownerId: principal.id, baseURL: serverOrigin(), allowedOrigins: [...new Set([...opts.allowedOrigins, serverOrigin()])],
         mcpServers: opts.careerMcpServers, cloud: opts.careerOperator?.configuredCloud ?? opts.careerPrivacyCloud,
@@ -241,8 +258,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const getLearning = () => {
       learningKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-material-tasks-v1") });
       return learning ??= new LearningPaths({ ownerId: principal.id, directory: path.join(root, "growth-learning-v1"), kernel: learningKernel, clock: opts.learningClock,
-        trainingAuthor: opts.learningTrainingAuthor,
-        translationEngine: opts.learningTranslationEngine ?? createPdf2zhEngine({ python: process.env["BETTERME_PDF2ZH_PYTHON"], assets: process.env["BETTERME_PDF2ZH_ASSETS"] }) });
+        trainingAuthor: meteredTrainingAuthor(modelUsage, opts.learningTrainingAuthor ?? localTrainingAuthor),
+        translationEngine: meteredTranslationEngine(modelUsage, opts.learningTranslationEngine ?? createPdf2zhEngine({ python: process.env["BETTERME_PDF2ZH_PYTHON"], assets: process.env["BETTERME_PDF2ZH_ASSETS"] })) });
     };
     const getGrowthJourneys = () => {
       // Synthetic validation uses the existing Kernel implementation, but never
@@ -252,9 +269,11 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     };
     const closeGrowthJourneys = async () => { try { await growthJourneys?.close(); await learning?.close(); } finally { await growthKernel?.close(); await learningKernel?.close(); } };
     const invalidateGrowthSession = async (session: string) => { growthJourneys?.invalidateSession(session); learning?.invalidateSession(session); await growthKernel?.invalidateSession(session); await learningKernel?.invalidateSession(session); };
+    let runManager: AgentRunManager | undefined;
+    const getRunManager = () => runManager ??= new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode });
     return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, getLearning, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
-      runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
+      getRunManager,
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
       handleRouting: createRoutingHandler({ service: routing, readBody, sendJson: jsonResponse }),
   modelUsage,
@@ -358,23 +377,6 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       if (req.method === "GET" && pathname === "/api/v1/agent/health") {
         return jsonResponse(res, 200, { status: "ok", service: "agent-host" });
       }
-
-      // ── vork 3D Raytracing Engine (Metal / Slang / OpenPBR) ────────────────
-      if (req.method === "GET" && pathname === "/api/v1/agent/vork/status") {
-        return jsonResponse(res, 200, vorkService.getStatus());
-      }
-      if (req.method === "POST" && pathname === "/api/v1/agent/vork/render") {
-        try {
-          const body = (await readBody(req)) as any;
-          const result = await vorkService.render(body || {});
-          return jsonResponse(res, 200, result);
-        } catch (vorkError: any) {
-          return jsonResponse(res, 500, {
-            success: false,
-            error: vorkError instanceof Error ? vorkError.message : String(vorkError),
-          });
-        }
-      }
       if (req.method === "POST" && ["/api/v1/agent/identity/register", "/api/v1/agent/identity/sign-in"].includes(pathname)) {
         oidc?.cancel(req.headers.cookie);
         const result = await identities.signIn(await readBody(req), pathname.endsWith("/register"), req.socket.remoteAddress ?? "local");
@@ -405,15 +407,33 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         for (const stream of ownerStreams.get(principal.id) ?? []) stream.end();
         return jsonResponse(res, 200, { signedOut: true });
       }
+      // ── vork 3D Raytracing Engine (authenticated owner + validated preset only) ─
+      if (req.method === "GET" && pathname === "/api/v1/agent/vork/status") {
+        return jsonResponse(res, 200, vorkService.getStatus());
+      }
+      if (req.method === "POST" && pathname === "/api/v1/agent/vork/render") {
+        const request = z.object({
+          presetId: z.string().min(1).max(64).optional(),
+          resolution: z.tuple([z.number().int().min(64).max(4096), z.number().int().min(64).max(4096)]).optional(),
+          profile: z.enum(["std/draft", "std/final", "std/path"]).optional(),
+        }).strict().parse(await readBody(req));
+        const result = await vorkService.render(request);
+        return jsonResponse(res, 200, result);
+      }
       if (req.method === "POST" && pathname === "/api/v1/agent/sandbox/build") {
         const artifact = await sandboxBuildService.build(await readBody(req,192*1024));
         return jsonResponse(res, 200, { ok: true, app: artifact, verification: artifact.verification });
       }
+      let owner = owners.get(principal.id);
+      if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       if (pathname.startsWith("/api/v1/agent/sandbox/coding/")) {
         let coding=codingOwners.get(principal.id);
         if (!coding) {
           const tasks = new CodingTaskService({directory:path.join(identityRoot,"owners",principal.id,"sandbox-coding-v1"),
-            ownerId:principal.id,...opts.sandboxCoding});
+            ownerId:principal.id,
+            resolveModel: opts.sandboxCoding?.resolveModel,
+            generate: meteredCodingGenerator(owner.modelUsage, opts.sandboxCoding?.generate ?? generateLocalCodingCandidate),
+          });
           coding={tasks,auto:new CodingAutoRuns(tasks)};
           codingOwners.set(principal.id,coding);
         }
@@ -423,9 +443,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         try { return await handleSandboxCoding(req,res,pathname,coding.tasks,coding.auto,lease.valid,acquire,readBody,jsonResponse); }
         finally { lease.release(); }
       }
-      let owner = owners.get(principal.id);
-      if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
-      const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      const { handleChatGpt, handleUnderstanding, getRunManager } = owner;
       if (pathname.startsWith("/api/v1/agent/inventory/")) return await handleInventory(req,res,pathname,owner.store,principal.id,
         async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,readBody,jsonResponse);
       if (pathname.startsWith("/api/v1/agent/growth/learning/")) return await handleLearning(req, res, pathname, owner.getLearning(), {
@@ -440,7 +458,10 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         let capabilities = capabilityOwners.get(principal.id);
         if (!capabilities) {
           capabilities = new CareerCapabilities({ directory: path.join(identityRoot, "owners", principal.id, "career-capabilities-v1"),
-            ownerId: principal.id, builder: opts.capabilityBuilder });
+            ownerId: principal.id,
+            builder: opts.capabilityBuilder && meteredToolBuilder(owner.modelUsage, opts.capabilityBuilder),
+            measureGeneration: measureToolGeneration(owner.modelUsage),
+          });
           capabilityOwners.set(principal.id, capabilities);
         }
         if (await handleCapabilities(req, res, pathname, capabilities, { session: capabilitySession(req.headers.cookie),
@@ -512,6 +533,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
 
       // ── GET /api/v1/agent/runs ──────────────────────────────────────────
       if (req.method === "GET" && pathname === "/api/v1/agent/runs") {
+        const runManager = getRunManager();
         await runManager.ready();
         const rawLimit = Number(url.searchParams.get("limit") ?? "50");
         return jsonResponse(res, 200, { runs: runManager.list(Number.isFinite(rawLimit) ? rawLimit : 50) });
@@ -520,6 +542,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── GET /api/v1/agent/runs/:runId ───────────────────────────────────
       const runMatch = pathname.match(/^\/api\/v1\/agent\/runs\/([A-Za-z0-9._:-]+)$/);
       if (req.method === "GET" && runMatch) {
+        const runManager = getRunManager();
         await runManager.ready();
         const runId = runMatch[1]!;
         const run = runManager.get(runId);
@@ -531,6 +554,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── GET /api/v1/agent/runs/:runId/events ─────────────────────────────
       const eventMatch = pathname.match(/^\/api\/v1\/agent\/runs\/([A-Za-z0-9._:-]+)\/events$/);
       if (req.method === "GET" && eventMatch) {
+        const runManager = getRunManager();
         await runManager.ready();
         const runId = eventMatch[1]!;
         if (!runManager.get(runId)) return jsonResponse(res, 404, { error: "run_not_found" });
@@ -571,6 +595,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── POST /api/v1/agent/runs/:runId/cancel ────────────────────────────
       const cancelMatch = pathname.match(/^\/api\/v1\/agent\/runs\/([A-Za-z0-9._:-]+)\/cancel$/);
       if (req.method === "POST" && cancelMatch) {
+        const runManager = getRunManager();
         await runManager.ready();
         const runId = cancelMatch[1]!;
         const run = runManager.cancel(runId);
@@ -595,7 +620,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         return jsonResponse(res, 200, {
           threadId,
           checkpointId: tuple.checkpoint.id,
-          next: (tuple as any).next ?? [],
+          next: (tuple as { next?: unknown }).next ?? [],
           state: tuple.checkpoint.channel_values,
         });
       }
@@ -608,6 +633,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       return jsonResponse(res, 404, { error: "not_found" });
     } catch (err: any) {
       if (err instanceof CodingTaskError || err instanceof SandboxBuildError) return jsonResponse(res, err.status, { error:err.code });
+      if (err instanceof VorkRenderError) return jsonResponse(res, err.status, { success: false, error: err.code, message: err.message });
       if (err instanceof GrowthJourneyError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof IdentityError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof DeepSeekApiError) {
@@ -632,16 +658,21 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const work:Promise<unknown>[]=[];
     for(const owner of owners.values()){
       owner.taskRuntime.close();
-      work.push((async () => { try { await owner.closeGrowthJourneys(); } finally { await owner.careerTasks.close(); } })().finally(async()=>{
-        await Promise.allSettled([owner.peekStudioHttp()?.close(),owner.routing.close(),owner.nativeTools.close(),owner.understanding.dispose()]);
-        owner.chatGpt.dispose();
-      }));
+      work.push(
+        (async () => { try { await owner.closeGrowthJourneys(); } finally { await owner.careerTasks.close(); } })(),
+        Promise.resolve(owner.peekStudioHttp()?.close()),
+        owner.routing.close(),
+        owner.nativeTools.close(),
+        owner.understanding.dispose(),
+      );
+      owner.chatGpt.dispose();
     }
     for(const service of capabilityOwners.values())work.push(service.close());
     for(const coding of codingOwners.values())work.push(coding.auto.close().finally(()=>coding.tasks.close()));
     const results=await Promise.allSettled(work);
+    const flushed=await Promise.allSettled([...owners.values()].map(owner=>owner.modelUsage.flush()));
     opts.careerOperator?.close();opts.careerFinalExportRenderer?.close();
-    if(results.some(result=>result.status==="rejected"))throw Error("agent_shutdown_failed");
+    if([...results,...flushed].some(result=>result.status==="rejected"))throw Error("agent_shutdown_failed");
   })();
   // The close callback is also the storage lifetime gate for embedded Hosts.
   // Await kernel writers before a caller can release the private directories.

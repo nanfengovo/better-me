@@ -1,5 +1,82 @@
 # Progress
 
+## 本地审查 P1/P2 修复 · 2026-11-19
+
+- [x] 桌面网关和岗位浏览器共用代理实例。招聘浏览器路径写入桌面私有目录，隔离 Chrome 只使用本次启动获得的调试端口。
+- [x] 桌面退出等待各服务收尾，Agent Host 先关闭计量来源再写入用量。同步脚本仅轮换验证完整的自有备份，保留旧备份和未完成目录。
+- [x] 已配对的扩展和书签桥接可通过桌面网关。Ollama 不可用时不派送生成请求。
+- [x] 退出会话或切后台时关闭自动朗读。DOCX 提供带照片的明确选项，工坊仅在打开时读取任务概览，保存过的旧 Vork 壁纸路径继续可用。
+- [x] Lint、类型及双端构建通过。主单测 5,124 项通过、20 项条件跳过，隔离 PDF 1 项及简历评估 64 项通过。桌面 24 项、运行时 13 项、端到端 6 步和 macOS arm64 隔离打包启动与退出验证通过。
+- [x] 本机 BetterMe.app 同步 623 项构建资源并生成完整备份。
+
+## P0 回归修复、桌面/XSS 安全收口、资源瘦身与 CI 加固 · 2026-11-19
+
+- [x] 修复 `apps/web/tests/atlas-workspace.test.tsx` 相对导入 hook，使 `AtlasJobDetailPane` 场景下 89/89 用例全部通过；修复 `apps/web/src/lib/agent-guide.ts` 的 `beacon.innerHTML` XSS 风险并补充 `apps/web/tests/agent-guide.test.ts`。
+- [x] 加固 `apps/desktop/src/main/index.ts`（`trusted(event)` 主框架来源校验 + 严格 `http/https` URL 校验 + 统一 `explainHud` 提示，同步加强 `isolated-qa.test.cjs` 拒绝非信任调用断言）与 `apps/desktop/src/main/hud-window.ts`（启用 `sandbox: true`、`webSecurity: true`，清除硬编码虚构 RCS/4.2x/FB-02 指标话术与 `innerHTML`）。
+- [x] 压缩 `icon-atlas.png`（`1.7M → 84K`），清理 10 张第三方动漫壁纸与缩略图及 `preset-wallpapers.ts` `anime` 分类，`vork_*.png` 转 JPEG 并压缩其余壁纸（`wallpapers/` `55M → 14M`，`apps/web/dist` `135M → 92M`），`DesktopShell.tsx` 增加壁纸 `onError` 安全降级。
+- [x] `AutopilotNodeInspector.tsx` 增加「监控与快捷入口 / Monitor & shortcut」标识；`scripts/verify-golden-flow.mjs` 与 `.github/workflows/ci-pages.yml` 在 `CI=true` 缺少 Chrome/Chromium 时直接报错阻断。
+- [x] 第九轮全仓最终门禁通过（Node 24.19.0）：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`（9/9）、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（`rendererMounted: true`）、`pnpm test:golden`（5 步闭环 + `resume-zh-Lin Golden Flow.docx` + `spokenUtterances: 1`，0 `pageErrors`）、`pnpm test`（隔离 PDF `1/1` + 575 文件主单测 `5,117` 通过 / `0` 失败 / `20` 条件跳过 + `test:resume-quality` `64/64`），`BetterMe.app` 624 资源同步通过（`installedHash: 5276e0d8d7204b5a3cb757ba1f009f5e9b5be427ffc4e9ce9a5080d15a1614ee`）。
+
+## 5k/15k 规模压测全绿与超大工作区模块拆解 · 2026-11-18
+
+- [x] 修正 `apps/web/tests/atlas-snapshot-sync-scale.test.ts` 对 `jobs.sync-pages` / `jobs.baseline-page` 的字节统计，6 个规模/投影/富化专项基准测试文件 `43/43` 通过（15,000 岗位热查询 `0.62–1.97 ms`）。
+- [x] `AutopilotStudioWorkspace.tsx`（`2,027 → 1,935` 行）抽离 `autopilot-pipeline-mappers.ts`；`AgentWorkspace.tsx`（`2,415 → 2,278` 行）抽离 `AgentEmptyPromptCards.tsx` 与 `AgentActiveJobHeader.tsx`；`AtlasWorkspace.tsx` 抽离 `AtlasEmptyJobList.tsx` 与 `AtlasJobDetailPane.tsx`。
+
+## 主包压入 500 kB、Kernel 拆层与 5 步端到端对话/朗读全链路 · 2026-11-18
+
+- [x] `App.tsx` 将 `AgentCompanion` 改为 `React.lazy`，配合 `vite.config.ts` 拆分 `vendor-yaml`/`fact-editor`/`desktop-shell`/`agent-sidebar-shell`/`better-me-opportunities`，`App-*.js` 降至 `456.69 kB`（gzip `156.47 kB`）、`App-*.css` 降至 `178K`。
+- [x] `apps/agent-host/src/kernel/service.ts` 抽出 `kernel/kernel-helpers.ts`（`205` 行纯工具）；`AtlasWorkspace.tsx` 抽出 `AtlasPrimarySearchBar.tsx`。
+- [x] `scripts/verify-golden-flow.mjs` 升级至 5 步全链路：覆盖本机账号注册、姓名编辑导出 DOCX、系统设置本机模型配置与来源切换、提交样本 JD 并发送真实对话、模型回复与自动本机朗读触发（`spokenUtterances: 1`，`pageErrors: 0`）。
+- [x] 第七轮全仓最终门禁通过（Node 24.19.0）：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`（9/9）、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（`rendererMounted: true`）、`pnpm test:golden`（5 步闭环 + `spokenUtterances: 1`，0 `pageErrors`）、`pnpm test`（隔离 PDF `1/1`、574 文件主单测 `5,116` 通过 / `0` 失败 / `20` 条件跳过、`test:resume-quality` `64/64`），`BetterMe.app` 644 资源同步通过（`installedHash: 75f2a279...`）。
+
+## 零 `as any` 收口、Vite 分包与黄金链路进 CI · 2026-11-18
+
+- [x] 清零生产源码全部 `21` 处 `as any`（覆盖 `MapLibrePrototype.tsx` 13 处、`file-parsers.ts`、`AtlasWorkspace.tsx`/`card-badges.ts`、`DesktopSettings.tsx`、`resume-prefill.ts`、`agent-host/src/server.ts` 与 `office-address-provider.ts`）。
+- [x] `package.json` 接入 `"test:golden"`，`.github/workflows/ci-pages.yml` 在 `pnpm build` 后自动执行；`verify-golden-flow.mjs` 精确定位「中文姓名」编辑并核验 `resume-zh-Lin Golden Flow.docx` 真实导出。
+- [x] `apps/web/vite.config.ts` 新增 `manualChunks` 拆分长缓存底座 chunk，`App-*.js` 降至 `961.81 kB`、`App-*.css` 降至 `342K`；从 `AtlasWorkspace.tsx` 抽离 `atlas-live-harvest-notice.ts`。
+- [x] 全仓最终复验通过（Node 24.19.0）：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（`rendererMounted: true`）、`pnpm test:golden`（`resume-zh-Lin Golden Flow.docx`，0 `pageErrors`）、`pnpm test`（隔离 PDF `1/1`、574 文件主单测 `5,116` 通过 / `0` 失败 / `20` 条件跳过、`test:resume-quality` `64/64`），`BetterMe.app` 629 资源同步通过（`installedHash: 1a3fa296...`）。
+
+## 搜索模块化、地图拆解、按需拆包、每会话自动朗读与黄金链路验收 · 2026-11-18
+
+- [x] `apps/web/server/jd-live-batch-search.ts`（`2,151 → 396` 行）拆分为 `jd-live-search-cards.ts`（`1,095` 行）与 `jd-live-cdp-capture.ts`（`731` 行），保留主模块全量兼容重导出并满足 `noUncheckedIndexedAccess`（`jd-live-*`/`jd-search-api`/`jd-linkedin-streaming` 74/74 通过）。
+- [x] `AtlasWorkspace.tsx`（`2,521 → 2,351` 行）拆出 `AtlasQuickFilters.tsx` 与 `AtlasSettingsModalBody.tsx`；`ResumePreview.tsx` 动态加载 `docx-export`，`App.tsx` 懒加载 `ImportSourceReview` 与 `ResumeDesignPanel`。
+- [x] `AgentSpeechControl.tsx` 新增 `useSessionAutoSpeech` 与 `AgentAutoSpeechToggle` 接入 `AgentCompanion` 与 `AgentWorkspace`（默认关闭、仅当前会话生效、不重放历史记录），补充 `apps/web/tests/session-auto-speech.test.tsx`。
+- [x] 新增隔离 Playwright Golden Flow 验证脚本 `scripts/verify-golden-flow.mjs`，实测通过本机账号注册、FactEditor 与预览实时同步、DOCX 真实下载与 AI 顾问示例 JD 提交及自动朗读开关切换（0 pageErrors）。
+- [x] 全仓最终门禁通过（Node 24.19.0）：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（`rendererMounted: true`）、`verify-golden-flow.mjs`（4/4 核心步骤，0 `pageErrors`）、`pnpm test`（隔离 PDF `1/1`、574 文件主单测 `5,116` 通过 / `0` 失败 / `20` 条件跳过、`test:resume-quality` `64/64`），`BetterMe.app` 639 资源同步通过（`03520a51...`）。
+
+## 首屏 CSS 瘦身、桌面强类型、F21 收口与二次模块化 · 2026-11-18
+
+- [x] `apps/web/src/vite-env.d.ts` 新增 `DesktopBridgeApi` 与 `Window.desktopApi` 类型定义，消除 `AutopilotStudioWorkspace.tsx`、`DesktopShell.tsx`、`IdentityGate.tsx`、`ResumePreview.tsx` 的 `(window as any).desktopApi` 强转；`AgentApplyModal.tsx` 与 `autopilot-nodes.ts` (`localizeStudioNode`) 补齐英文双语映射。
+- [x] 将 16 个简历纸张/模板主题 CSS 从登录前入口 `main.tsx` 迁移至登录后 `App.tsx`，`index-*.css` 由 `516K` 缩减至 `331K`（保留 `studio-workbench.css` + `studio-materials.css` 顺序不变）；从 `AutopilotStudioWorkspace.tsx` 抽出 `BlueprintMicroChamber.tsx`、`CyberJobCard3D.tsx`（主文件 `2,669 → 2,027` 行），从 `AgentWorkspace.tsx` 抽出 `AgentFitAnalyticsHeader.tsx` 与 `useAnimatedCounter`（主文件 `2,651 → 2,413` 行）。
+- [x] 最新全量复验通过：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（exit 0，`rendererMounted: true`）、`pnpm test`（隔离 PDF `1/1`、主单测 `5,115` 通过 / `0` 失败 / `20` 条件跳过、`test:resume-quality` `64/64`）；`sync-local-desktop-dist.mjs` 已同步 634 个 `BetterMe.app` 资源（`installedHash: caf4dbfe...`）。
+
+## 用量持久化、严格索引对齐与组件模块化 · 2026-11-18
+
+- [x] `apps/agent-host/src/tasks/usage-meter.ts` 与 `server.ts` 新增 per-owner `usage-metrics.json` 私有持久化（启动同步水合、`0o600` 常规文件边界校验、Zod 校 schema、本地跨日自动清空、`150ms` 防抖落盘与 `drain()` `flush()`），补充 `usage-meter.test.ts` 跨重启与跨日重置验证（3/3）。
+- [x] `apps/web/tsconfig.node.json` 启用 `"noUncheckedIndexedAccess": true`；完成 `jd-native-edge.ts`、`jd-native-liepin-browser.ts`、`jd-managed-browser-proxy.ts`、`jd-native-boss-expand.ts`、`jd-boss-expand.ts` 及 `jd-cdp-dom-snapshot.ts` 全量边界安全化，通过 `apps/web/tests/jd-*.test.*`（1,053 通过 / 0 失败 / 1 跳过）。
+- [x] 拆解 `AutopilotStudioWorkspace.tsx`（3,341 → 2,669 行：`AutopilotAgentSprites.tsx`、`autopilot-nodes.ts`）与 `AgentWorkspace.tsx`（3,497 → 2,651 行：`AgentReplyActionsCard.tsx`、`AgentJdDetailsView.tsx`、`AgentProposalListSection.tsx`、`AgentApplyModal.tsx`），保持现有回归套件与 UI token/IME 约束 100% 兼容。
+- [x] 最新全仓门禁通过：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（exit 0）、`pnpm test`（隔离 PDF `1/1`、主单测 `5,115` 通过 / `0` 失败 / `20` 条件跳过、`test:resume-quality` `64/64`）；`sync-local-desktop-dist.mjs` 已同步 634 个 `BetterMe.app` 资源并自动轮转旧备份。
+
+## 全链路闭环补齐、桌面端对齐与模块化治理 · 2026-11-18
+
+- [x] 新增 `apps/web/server/job-atlas-paths.ts` 跨平台解析 `job-atlas` 数据目录，并在 `nearby-companies.ts`、`company-intelligence.ts`、`atlas-dev-index.ts` 统一使用；确认 `packages/opportunities/src/query.ts` 与 `apps/job-service/src/repository.ts` 复用 `JobQueryIndex` 快照索引缓存。
+- [x] 打包桌面端 `runtime-gateway.ts`（`mode === "desktop"`）接入 `/api/network/*` 与 `/api/jd/*`（`jd-desktop-bridge.ts` + `dist/runtime/jd-middleware.mjs`），Docker 模式保持 `501`；桌面端默认首页切换为 `/?workspace=resume`，新增 `desktop:export-pdf`（`webContents.printToPDF`）原生导出通道并接入 `ResumePreview.tsx`。
+- [x] `App.tsx` 恢复 `CareerInventory` 完整入口与 `ResumeWritingCopilot` 联动，拆分重型工作区与弹窗为 `React.lazy` 懒加载（主 `App-*.js` 缩减至约 1.1 MB）；`docx-export.ts` 支持本地 `data:image/*` 头像内嵌并保持远端阻断。
+- [x] `AutopilotStudioWorkspace` 接入真实 `AgentTaskKernel` 任务遥测与 `/api/v1/agent/usage` 模型用量（`autopilot-telemetry.ts` / `AutopilotNodeInspector.tsx`），提取 `atlas-filter-presets.ts` 与 `maplibre-styles.ts`。
+- [x] `apps/agent-host` 新增 `tasks/metered-adapters.ts` 将 Capabilities、Coding Sandbox、TrainingKits、pdf2zh 翻译与 CareerStudio 本地调用纳入 `ModelUsageMeter`；修复 `VorkStudioCard.tsx` 卸载未取消异步请求；`sync-local-desktop-dist.mjs` 轮转清理旧 `.unified-agent-app-*` 备份（保留最近 2 个）。
+
+## 安全加固、I/O 性能优化与桌面源对齐 · 2026-11-18
+
+- [x] `vork` 路由收口至已认证 owner 与 `X-BetterMe-Owner` 校验后，移除 HTTP `sceneJson` 注入与共享 `/tmp/betterme-vork`，改为每任务隔离临时目录与串行队列；修复 `vork-client.ts` 鉴权头与 `VorkStudioCard.tsx` 硬编码个人路径/型号回退。
+- [x] `capabilities/sandbox.ts` 加固 QuickJS 沙箱为预捕获内建函数 + 间接 `eval` + 源码匹配校验；`identity/service.ts` 增加 `lstat` 元数据缓存与 `lastUsedAt` 落盘节流（10s）并放宽用户上限；`builtin-idp.ts` 改用原子写队列并门控 `auto_subject`。
+- [x] `kernel/service.ts` 在 `rootState()` 中引入 `rootIndex` 与 `storeCache` 命中路径，消除任务心跳时的目录文件全量读盘；`server.ts` 懒加载 `runManager`；`runtime-gateway.ts` 在桌面模式下开放 `/api/opportunities/source`。
+- [x] 复验通过（Node 24.19.0）：`pnpm lint`（0 warning）、`pnpm typecheck`（16/16）、`pnpm desktop:build`（9/9）、`pnpm test:desktop`（23/23）、`pnpm test:runtime`（10/10）、`pnpm desktop:smoke`（exit 0）、专项测试（55/55 与 206/206）及 `git diff --check`；`BetterMe.app` 598 资源已同步。未执行完整全仓 `pnpm test` 与跨平台 Windows/Linux CI，未删除根目录历史 `.unified-agent-app-*` 备份目录。
+
+## 模型配置与任务提示 · 2026-11-17
+
+- [x] 截图问题已用合成账号复现并修复：模型冲突在授权前解释，保存后可直接进入来源选择；模型列表缺项明确提示，任务额度报错可定位到实际面板。原生模态窗口隔离后台教程，打开测试会定位到结果。
+- [x] 完整 Web 设置走通保存到来源选择，Web 与原生 Electron 的隔离冲突场景保留旁批草稿、未新增模型调用。复验证据：`apps/web/tests/one-off-task-http.test.tsx`、`apps/agent-host/tests/task-root-scope.test.ts`、`output/playwright/model-guidance-20261117/`。本人 Key、真实付费生成、正式运行中的任务不在本次验证范围；未发布此片。
+
 ## 训练工坊发布与 README · 2026-11-17
 
 - [x] 本人明确授权后，README 增补入口、三类生成方式、模型与费用、账号/沙箱/复测边界；仓库与桌面版本同步准备为 1.2.0，发布说明已创建。

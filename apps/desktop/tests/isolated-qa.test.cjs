@@ -60,7 +60,7 @@ const qaEnvironment = () => ({ NODE_ENV: "test", BETTERME_DESKTOP_QA_MODE: "exte
 test("desktop QA accepts only an explicit unpackaged test process with numeric loopback non-production ports", () => {
   const { resolveDesktopQaConfig } = moduleUnderTest("../src/main/isolated-qa-config.ts");
   const config = resolveDesktopQaConfig({ environment: qaEnvironment(), isPackaged: false });
-  assert.equal(config.workspaceUrl, "http://127.0.0.1:5273/?workspace=autopilot");
+  assert.equal(config.workspaceUrl, "http://127.0.0.1:5273/?workspace=resume");
   assert.equal(config.host.endpoint, "http://127.0.0.1:5279");
   assert.equal(config.host.port, 5279);
   assert.equal(config.externalOnly, true);
@@ -109,7 +109,7 @@ test("the real desktop bootstrap sets every private profile path before readines
     setPath: (name, location) => { assert.equal(readyObserved, false); assert.ok(location.startsWith(root + path.sep)); profilePaths.set(name, location); },
     whenReady: async () => { readyObserved = true; assert.equal(profilePaths.size, 4, "profile boundaries must precede Electron readiness"); }, quit() {} });
   class BrowserWindow extends EventEmitter {
-    constructor() { super(); windows.push(this); this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send() {}, ipc: { handle() {}, on() {} }, session: { setPermissionCheckHandler() {}, setPermissionRequestHandler() {} } }); }
+    constructor() { super(); windows.push(this); this.webContents = Object.assign(new EventEmitter(), { mainFrame: {}, setWindowOpenHandler() {}, send() {}, ipc: { handle() {}, on() {} }, session: { setPermissionCheckHandler() {}, setPermissionRequestHandler() {} } }); }
     static getAllWindows() { return windows; }
     async loadURL(url) { this.url = url; }
   }
@@ -125,8 +125,9 @@ test("the real desktop bootstrap sets every private profile path before readines
     });
     for (let i = 0; i < 10 && windows.length === 0 && errors.length === 0; i++) await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(errors, []); assert.equal(windows.length, 1);
-    assert.equal(windows[0].url, "http://127.0.0.1:5273/?workspace=autopilot");
-    assert.equal((await handlers.get("desktop:get-agent-info")()).port, 5279);
+    assert.equal(windows[0].url, "http://127.0.0.1:5273/?workspace=resume");
+    assert.equal((await handlers.get("desktop:get-agent-info")({ sender: windows[0].webContents, senderFrame: windows[0].webContents.mainFrame })).port, 5279);
+    await assert.rejects(() => handlers.get("desktop:get-agent-info")(), /Untrusted agent info request/);
     let blocked = false; windows[0].webContents.emit("will-navigate", { preventDefault: () => { blocked = true; } }, "http://127.0.0.1:5173/"); assert.equal(blocked, true);
     app.emit("before-quit"); assert.equal(starts, 0);
     assert.ok(requests.every(url => url.startsWith("http://127.0.0.1:527")));

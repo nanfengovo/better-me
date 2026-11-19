@@ -171,11 +171,18 @@ export const VISIBLE_JOB_SNAPSHOT = `(() => {
   return {html:html.length<=2097152?html:'',url:location.href,title:document.title,oversized:html.length>2097152,pageLoad};
 })()`;
 
-export const persistentJobBrowser = createPersistentJobBrowser({
-  rootDirectory: path.resolve(import.meta.dirname, "../../../data/recruitment-browser"),
-  allowedResource: allowedBrowserResource,
-  inspectProfileOccupancy: inspectNativeProfileOccupancy,
+let jobBrowserProfileRoot = path.resolve(import.meta.dirname, "../../../data/recruitment-browser");
+const createBrowserPool = (rootDirectory: string) => createPersistentJobBrowser({
+  rootDirectory, allowedResource: allowedBrowserResource, inspectProfileOccupancy: inspectNativeProfileOccupancy,
 });
+export let persistentJobBrowser = createBrowserPool(jobBrowserProfileRoot);
+export function getJobBrowserProfileRoot() { return jobBrowserProfileRoot; }
+
+/** Set once during desktop startup, before the gateway accepts requests. */
+export function configureJobBrowserProfileRoot(rootDirectory: string) {
+  jobBrowserProfileRoot = path.resolve(rootDirectory);
+  persistentJobBrowser = createBrowserPool(jobBrowserProfileRoot);
+}
 
 export type BrowserReadOptions = {
   /** Isolated launch seam for local tests; production reads use the persistent runtime. */

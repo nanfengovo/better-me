@@ -9,6 +9,7 @@ import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { watchDevService } from "./dev-service-watch.js";
+import { resolveJobAtlasDataDirectory } from "./job-atlas-paths.js";
 
 /** Dev-server-only route. Production builds and `vite preview` never register it. */
 export const ATLAS_DEV_JOB_INDEX_PATH = "/__better-me/dev/local-job-index";
@@ -27,7 +28,7 @@ function jobServiceDirectory(): string {
 }
 
 export function defaultJobAtlasDataDirectory(home = homedir()): string {
-  return join(home, "Library", "Application Support", "BetterMe", "job-atlas");
+  return resolveJobAtlasDataDirectory({ home });
 }
 
 export function jobServiceLaunchArgs(spec: { dataDirectory: string; port: string; origins: readonly string[]; cliPath: string; tsxLoader: string; officeGeocoder?: string; proxy?: string }): string[] {

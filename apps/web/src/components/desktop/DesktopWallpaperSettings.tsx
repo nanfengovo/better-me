@@ -12,6 +12,7 @@ import { prepareWallpaper, type WallpaperFit } from "../../lib/desktop-wallpaper
 import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
 import {
   PRESET_WALLPAPERS,
+  resolveSavedWallpaper,
   WALLPAPER_CATEGORIES,
   type WallpaperCategoryId,
   type PresetWallpaperItem,
@@ -51,7 +52,7 @@ export function DesktopWallpaperSettings() {
     if (item.url === "aurora" && (!wallpaper || wallpaper === "aurora")) return true;
     if (item.url === "midnight" && wallpaper === "midnight") return true;
     if (item.url === "warm" && wallpaper === "warm") return true;
-    return wallpaper === item.url || wallpaper === item.id;
+    return resolveSavedWallpaper(wallpaper) === item.url || wallpaper === item.id;
   };
 
   const handleSelectPreset = (item: PresetWallpaperItem) => {

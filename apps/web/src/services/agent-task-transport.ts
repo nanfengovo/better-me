@@ -4,8 +4,8 @@ import { agentOrigin, captureIdentityLease, IdentityBoundaryError, ownedFetch } 
 import { readRuntimeConnection } from "../lib/runtime-connection";
 export class AgentTaskClientError extends Error { constructor(message:string,readonly code:string,readonly taskId?:string){super(message);this.name="AgentTaskClientError";} }
 export const taskIssueText:Record<string,string>={
-  model_call_budget:"本任务的模型额度已用尽，没有通过新建任务清账。请核对任务预算后再继续。",
-  root_runtime_binding_changed:"当前工作区根账固定了另一运行时；未自动换模型或另建预算。请先核对根任务。",
+  model_call_budget:"这个工作区的模型调用额度已用尽。打开「共识与进度 → 任务 → 工作区共享额度」查看用量；需要更多次数时，可在那里确认调整。新建对话不会清零。",
+  root_runtime_binding_changed:"这个工作区已绑定其他模型，本次请求没有发给新模型。打开「共识与进度 → 任务 → 工作区共享额度」可查看原模型；保存新配置或停止任务都不会更换它。",
   root_scope_changed:"父任务与工作区根账不一致，未继续或迁移旧授权。",
   root_scope_ambiguous:"工作区存在不唯一的根账，已停止派送；历史和用量保留。",
   root_scope_occupied:"当前工作区已有另一根账。未合并历史、免除旧用量或恢复授权，请核对两份记录。",
@@ -19,9 +19,9 @@ export const taskIssueText:Record<string,string>={
   pause_before_adjusting_budget:"请先停止整组运行，再核对根上限；没有自动中止或调额。",
   budget_below_usage:"根上限不能小于整组已经发生的用量；没有清零历史或修改额度。",
   task_revision_conflict:"任务状态已变化，请先读取现有结果；没有自动重发。",
-  runtime_binding_changed:"本任务的底座已变化，未切换模型或新建任务重置额度。",
+  runtime_binding_changed:"本任务的底座已变化，不能用新选择继续原任务。到「共识与进度 → 任务 → 工作区共享额度」查看原模型；原文和用量保留。",
   runtime_authorization_changed_new_task_required:"模型端点或账号授权已变化，本任务未继续。",
-  root_runtime_authorization_changed:"工作区根账固定的模型配置或授权已变化；没有派送、换用其他底座或重置旧用量。请核对原根账。",
+  root_runtime_authorization_changed:"此工作区原先使用的模型连接或账号授权已变化，本次没有发送。请在「共识与进度 → 任务 → 工作区共享额度」查看原模型，再到「系统设置 → 工具与授权」核对来源。重新保存 Key 不会改绑旧任务。",
   task_images_not_supported:"所选底座不支持图片；图片完整保留，未丢弃或换用其他通道。",
   model_output_incomplete:"模型报告输出未完成；原始输出已保存，未自动续答或标记为完整。",
   decision_output_budget:"输出超过任务解析额度，完整原文已另存到本任务，没有裁短或自动重试。",

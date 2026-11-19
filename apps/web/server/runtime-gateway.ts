@@ -4,11 +4,23 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { timingSafeEqual } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
 import { handleLocalLocationRoute } from "./network-geolocate";
+import { isLocalBridgeTransfer } from "./local-bridge";
+import { createNetworkMiddleware, createNetworkRuntime, setDefaultNetworkRuntime } from "./network-proxy";
+import { createOpportunitySourceMiddleware } from "./opportunity-sources";
+
+export type GatewayMiddleware = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: () => void,
+) => Promise<void> | void;
 
 export type GatewayOptions = {
   mode?: "docker" | "desktop";
   root: string; origins: string[]; agentEndpoint: string; jobEndpoint: string;
   agentToken: string; jobToken: string;
+  networkSettingsFile?: string;
+  jdMiddleware?: GatewayMiddleware;
+  onClose?: () => Promise<void> | void;
   health: () => Promise<boolean>;
   /** Container-side URL of a host Ollama. Never inferred from arbitrary URLs. */
   ollamaEndpoint?: string;
@@ -76,11 +88,27 @@ async function proxy(req: IncomingMessage, res: ServerResponse, endpoint: string
 const mime: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".geojson": "application/geo+json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".ico": "image/x-icon", ".wasm": "application/wasm", ".woff2": "font/woff2", ".txt": "text/plain", ".md": "text/plain" };
 
 export function createRuntimeGateway(options: GatewayOptions) {
-  return createServer((req, res) => { void (async () => {
+  const isDesktop = options.mode === "desktop";
+  const opportunitySource = isDesktop ? createOpportunitySourceMiddleware() : undefined;
+  let networkMiddleware: ReturnType<typeof createNetworkMiddleware> | undefined;
+  let networkRuntime: ReturnType<typeof createNetworkRuntime> | undefined;
+  if (isDesktop) {
+    networkRuntime = createNetworkRuntime({ settingsFile: options.networkSettingsFile ?? resolve(process.cwd(), "data/network-settings.json") });
+    setDefaultNetworkRuntime(networkRuntime);
+    networkMiddleware = createNetworkMiddleware(networkRuntime);
+  }
+  const server = createServer((req, res) => { void (async () => {
     const url = new URL(req.url ?? "/", "http://" + req.headers.host);
     const configured = options.origins.find(origin => new URL(origin).host === req.headers.host);
     const oidcCallback = Boolean(configured && req.method === "GET" && url.pathname === "/api/v1/agent/identity/oidc/callback"
       && (!req.headers.origin || req.headers.origin === configured));
+    if (isDesktop && configured && options.jdMiddleware && isLocalBridgeTransfer(req)) {
+      // The bridge verifies loopback, sender origin and a one-use grant itself.
+      let handled = true;
+      await options.jdMiddleware(req, res, () => { handled = false; });
+      if (!handled) return sendRuntimeJson(res, 404, { error: "not_found" });
+      return;
+    }
     // This route still requires one-use OIDC state + browser cookie + signed tokens at Agent Host.
     if (!oidcCallback && !trustedRuntimeRequest(req, options.origins)) return sendRuntimeJson(res, 403, { error: "local_origin_required" });
     if (url.pathname === "/healthz") {
@@ -96,10 +124,25 @@ export function createRuntimeGateway(options: GatewayOptions) {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
       return sendRuntimeJson(res, 200, { endpoint: configured, token: options.jobToken });
     }
-    if (options.mode === "desktop") {
+    if (isDesktop) {
+      if (networkMiddleware && url.pathname.startsWith("/api/network/")) {
+        let handled = true;
+        await networkMiddleware(req, res, () => { handled = false; });
+        if (handled) return;
+      }
       const locationResponse = await handleLocalLocationRoute(url.pathname, url.searchParams, req.method);
       if (locationResponse) {
         return sendRuntimeJson(res, locationResponse.status, locationResponse.body);
+      }
+      if (opportunitySource && url.pathname === "/api/opportunities/source") {
+        let handled = true;
+        await opportunitySource(req, res, () => { handled = false; });
+        if (handled) return;
+      }
+      if (options.jdMiddleware && url.pathname.startsWith("/api/jd/")) {
+        let handled = true;
+        await options.jdMiddleware(req, res, () => { handled = false; });
+        if (handled) return;
       }
     }
     if (url.pathname.startsWith("/api/v1/")) {
@@ -130,4 +173,16 @@ export function createRuntimeGateway(options: GatewayOptions) {
     }
     createReadStream(file).on("error", () => res.destroy()).pipe(res);
   })().catch(() => { if (!res.headersSent) sendRuntimeJson(res, 500, { error: "request_failed" }); else res.destroy(); }); });
+  if (isDesktop) {
+    let draining: Promise<void> | undefined;
+    const drain = () => draining ??= (async () => {
+      try { await options.onClose?.(); }
+      finally { await networkRuntime?.close(); }
+    })();
+    const close = server.close.bind(server);
+    server.close = callback => close(error => {
+      void drain().then(() => callback?.(error), () => callback?.(error ?? Error("gateway_shutdown_failed")));
+    });
+  }
+  return server;
 }

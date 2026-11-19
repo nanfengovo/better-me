@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { resolveJobAtlasCacheFile } from "./job-atlas-paths";
 import {
   classifyEnterpriseOwnershipAndOrigin,
   type EnterpriseControllerEntry,
@@ -91,7 +90,7 @@ let cachedIntelMap: Record<string, CachedIntelEntry> | null = null;
 function readCompanyIntelCache(): Record<string, CachedIntelEntry> {
   if (cachedIntelMap) return cachedIntelMap;
   try {
-    const file = join(homedir(), "Library", "Application Support", "BetterMe", "job-atlas", "company-intelligence-cache.json");
+    const file = resolveJobAtlasCacheFile("company-intelligence-cache.json");
     if (existsSync(file)) {
       const parsed = JSON.parse(readFileSync(file, "utf8"));
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {

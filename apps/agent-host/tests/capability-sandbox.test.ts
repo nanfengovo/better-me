@@ -31,3 +31,11 @@ test("cancellation terminates an active interpreter rather than leaving orphan w
 test("an allocation beyond the 16 MiB engine heap is rejected by memory policy, not merely a time limit", async () => {
   await assert.rejects(executeTransform("() => new Array(10*1024*1024).fill(0)", {}), /sandbox_memory_limit/);
 });
+
+test("expression breakouts and guest JSON monkey-patching cannot hijack serialized output", async () => {
+  await assert.rejects(executeTransform("() => 1); JSON.stringify = () => '\"hijacked\"'; (() => 2", {}));
+  assert.deepEqual(
+    await executeTransform("() => { globalThis.JSON = { stringify: () => '\"forged\"', parse: () => ({}) }; return { ok: true }; }", {}),
+    { ok: true },
+  );
+});

@@ -6,7 +6,7 @@ import { allowedJobUrl, normalizeJobShare, jobPostingPublication, readJdPublicat
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors";
 import { getNetworkFetch, isTrustedLocalRequest } from "./network-proxy";
 import { browserSessionManager } from "./jd-browser-session";
-import { checkCdpRunning } from "./jd-real-chrome-launcher";
+import { checkCdpRunning, realChromeCdpAddress } from "./jd-real-chrome-launcher";
 import type { JobSessionBackend } from "./jd-session-router";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
@@ -620,9 +620,9 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
 
   // 1. If real Chrome CDP port 9222 is active, connect directly (no new window, completely background)
   try {
-    const cdpRunning = await checkCdpRunning(9222);
-    if (cdpRunning) {
-      browser = await chromium.connectOverCDP("http://127.0.0.1:9222", { timeout: 2500 });
+    const cdpAddress = realChromeCdpAddress();
+    if (cdpAddress && await checkCdpRunning()) {
+      browser = await chromium.connectOverCDP(cdpAddress, { timeout: 2500 });
       isCdp = true;
     }
   } catch {

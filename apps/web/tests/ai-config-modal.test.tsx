@@ -56,7 +56,7 @@ function keyInput() {
 }
 const alertText = () => dom.document.querySelector('[role="alert"]')?.textContent ?? "";
 
-async function mount(policy: (request: Request, index: number) => Response | Promise<Response> = () => modelsResponse("model-a", "model-b"), initialConfig = config) {
+async function mount(policy: (request: Request, index: number) => Response | Promise<Response> = () => modelsResponse("model-a", "model-b"), initialConfig = config, onChooseAgentSource?:()=>void) {
   const calls: Request[] = [];
   const saved: LlmConfig[] = [];
   let visible = true;
@@ -71,7 +71,7 @@ async function mount(policy: (request: Request, index: number) => Response | Pro
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   root = createRoot(dom.document.getElementById("fixture")! as unknown as Element);
   const renderCurrent = () => root!.render(createElement(AiConfigModal, {
-    isOpen: visible, config: currentConfig,rootScopeKey:"synthetic-config-scope",
+    isOpen: visible, config: currentConfig,rootScopeKey:"synthetic-config-scope",onChooseAgentSource,
     onClose() { visible = false; renderCurrent(); },
     onSave(value: LlmConfig) { saved.push(value); },
   }));
@@ -96,6 +96,27 @@ test("the scroll region owns all form content while footer actions remain outsid
   assert.equal(scroll.getAttribute("tabindex"), "0");
 });
 
+test("配置弹窗置顶；不测试也能保存，并明确区分保存连接和选择 Agent 来源", async () => {
+  const { calls, saved } = await mount();
+  const dialog = dom.document.querySelector("dialog.ai-config-modal");
+  assert.ok(dialog?.hasAttribute("open"), "settings must enter the browser's modal top layer");
+  assert.match(dialog.textContent ?? "", /保存.*不会切换/);
+  await click("保存配置");
+  assert.equal(saved.length, 1);
+  assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /已保存.*user-chosen-model/);
+  assert.equal(calls.length, 0);
+  await click("完成");
+  assert.equal(dom.document.querySelector("dialog.ai-config-modal"), null);
+});
+
+test("保存后的来源入口只在本人点击后导航，不发送模型请求或隐式改选",async()=>{
+  let navigations=0;const {calls,saved}=await mount(undefined,config,()=>{navigations++;});
+  await click("保存配置");assert.equal(navigations,0);
+  await click("选择 Agent 来源");
+  assert.equal(navigations,1);assert.equal(saved.length,1);assert.equal(calls.length,0);
+  assert.equal(dom.document.querySelector("dialog.ai-config-modal"),null);
+});
+
 afterEach(async () => {
   await flush(() => { root?.unmount(); root = undefined; });
   globalThis.fetch = originalFetch;
@@ -118,6 +139,7 @@ test("成功获取列表保留用户模型，只有显式选择才更换并保�
   assert.ok(calls[0]!.init?.signal instanceof AbortSignal);
   assert.equal(modelSelect().value, config.model, "a successful refresh must not silently choose the first model");
   assert.deepEqual(optionValues(), ["model-a", "model-b", config.model]);
+  assert.match(dom.document.getElementById("ai-model-help")?.textContent ?? "", /列表中没有.*user-chosen-model/);
   assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /模型列表已获取/);
   assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /生成请求尚未验证/);
   assert.equal(alertText(), "");
@@ -264,8 +286,10 @@ test("旧 DeepSeek 配置不迁移模型或 Key，生成按钮只打开待授权
 test("未登录 BetterMe 时生成测试不派送，也不回退浏览器请求或泄露 Key", async () => {
   const { calls } = await mount(() => response({ error: { message: config.apiKey } }, 402), { ...config, baseUrl: "https://api.deepseek.com", model: "deepseek-flash" });
   await click("测试文本生成（计入总额度）");
-  await flush(()=>dom.document.querySelector<HTMLInputElement>('.agent-companion-run input[type="checkbox"]')!.click());
-  await click("开始运行");
+  assert.equal(dom.document.querySelector<HTMLInputElement>('.agent-companion-run input[type="checkbox"]')!.disabled,true);
+  const run=[...dom.document.querySelectorAll("button")].find(node=>node.textContent?.trim()==="开始运行")!;
+  assert.equal(run.disabled,true);
+  await flush(()=>run.click());
   assert.equal(calls.length, 0);
   assert.match(alertText(), /登录 BetterMe/);
   assert.ok(!alertText().includes(config.apiKey));
@@ -299,4 +323,10 @@ test("第三方兼容服务的 UUID 凭据不受 DeepSeek 官方 Tracking ID 检
   assert.equal(new Headers(calls[0]!.init?.headers).get("authorization"), `Bearer ${uuidCredential}`);
   await click("保存配置");
   assert.equal(saved[0]!.apiKey, uuidCredential);
+});
+
+test("保存后回执文案准确指向工具与授权来源入口", async () => {
+  await mount(undefined, config, () => {});
+  await click("保存配置");
+  assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /工具与授权 → 统一 Agent 来源/);
 });

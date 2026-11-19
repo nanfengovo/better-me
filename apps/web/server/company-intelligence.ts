@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { resolveJobAtlasCacheFile } from "./job-atlas-paths";
 import { z } from "zod";
 import {
   classifyEnterpriseOwnershipAndOrigin,
@@ -69,14 +69,7 @@ const STREET_ADDRESS_REGEX =
   /(?:([\u4e00-\u9fa5]{2,6}(?:新区|区|县|市)))?([\u4e00-\u9fa5A-Za-z0-9]{2,14}(?:路|大道|街|弄|道)\d{1,5}号[\u4e00-\u9fa5A-Za-z0-9\-—()（）#号楼栋座室大厦广场中心科技园软件园产业园]{0,22})/;
 
 function getCacheFilePath(): string {
-  return join(
-    homedir(),
-    "Library",
-    "Application Support",
-    "BetterMe",
-    "job-atlas",
-    "company-intelligence-cache.json",
-  );
+  return resolveJobAtlasCacheFile("company-intelligence-cache.json");
 }
 
 let memoryCache: Record<string, CachedCompanyRecord> | undefined;

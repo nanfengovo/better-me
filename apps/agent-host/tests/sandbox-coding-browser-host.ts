@@ -33,7 +33,7 @@ const host=createAgentServer({host:"127.0.0.1",port:0,authToken:"better-me-agent
   sandboxCoding:{resolveModel:async()=>"f".repeat(64),generate:async({previousSource})=>previousSource
     ? "function(input){return Math.abs(input.value)}":"function(input){return input.value}"}});
 await once(host,"listening");const addr=host.address();if(!addr||typeof addr==="string") throw Error("no host address");hostPort=addr.port;
-console.log(JSON.stringify({web:origin+"/?workspace=autopilot",host:`http://127.0.0.1:${hostPort}`,fixture:"abs-of-value; no real inference"}));
+console.log(JSON.stringify({web:origin+"/?workspace=resume",host:`http://127.0.0.1:${hostPort}`,fixture:"abs-of-value; no real inference"}));
 let closing=false;const close=async()=>{if(closing)return;closing=true;
   await Promise.all([web,host].map(s=>new Promise<void>(resolve=>{s.close(()=>resolve());s.closeAllConnections();})));
   await rm(scratch,{recursive:true,force:true});

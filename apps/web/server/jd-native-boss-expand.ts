@@ -50,7 +50,11 @@ function clickPoint(metrics: CdpObject, content: CdpObject): { input: { x: numbe
   if (!Array.isArray(quads) || quads.length !== 1 || !Array.isArray(quads[0])) return;
   const quad: unknown[] = quads[0];
   if (quad.length !== 8 || !quad.every(finite)) return;
-  const [left, top, right, top2, right2, bottom, left2, bottom2] = quad as number[];
+  const [left, top, right, top2, right2, bottom, left2, bottom2] = quad;
+  if (
+    left === undefined || top === undefined || right === undefined || top2 === undefined ||
+    right2 === undefined || bottom === undefined || left2 === undefined || bottom2 === undefined
+  ) return;
   if (left !== left2 || right !== right2 || top !== top2 || bottom !== bottom2
     || left < 0 || top < 0 || right > layout.clientWidth || bottom > layout.clientHeight
     || right - left < 2 || bottom - top < 2) return;

@@ -1,4 +1,4 @@
-import { AgentTaskSchema, LegacyTaskScopePreviewSchema, TaskRootScopeKeySchema, TaskScopeAssociationSchema, type AgentTask, type CareerTaskBudget, type TaskLineage, type LegacyTaskScopeCandidate } from "@better-me/agent-contracts";
+import { AgentTaskSchema, CareerRuntimeBindingSchema, LegacyTaskScopePreviewSchema, TaskRootScopeKeySchema, TaskScopeAssociationSchema, type AgentTask, type CareerTaskBudget, type TaskLineage, type LegacyTaskScopeCandidate } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { captureIdentityLease, IdentityBoundaryError } from "../lib/identity";
 import { AgentTaskClientError } from "./agent-task-transport";
@@ -60,3 +60,14 @@ export function createTaskLedgerClient(options:TaskClientOptions={}){
   };
 }
 export const defaultTaskLedgerClient=createTaskLedgerClient();
+
+const bindingEnvelope=z.object({ownerId:z.string().min(1),rootScopeKey:TaskRootScopeKeySchema,binding:CareerRuntimeBindingSchema.nullable()}).strict();
+const bindingTransport=createTaskTransport(AgentTaskSchema);
+/** No model call, credentials, task text, or task archive in this exchange. */
+export async function readWorkspaceBinding(scopeKey:string,signal:AbortSignal){
+  const scope=TaskRootScopeKeySchema.parse(scopeKey);
+  const {raw,ownerId}=await bindingTransport.request(`/workspace-binding?rootScopeKey=${encodeURIComponent(scope)}`,undefined,signal);
+  const result=bindingEnvelope.parse(raw);
+  if(result.ownerId!==ownerId||result.rootScopeKey!==scope)throw new IdentityBoundaryError();
+  return result.binding;
+}

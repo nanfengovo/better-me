@@ -14,6 +14,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 }
 const { createElement: h, act, StrictMode } = React;
 const { createRoot } = await import("react-dom/client");
+const { UiPreferencesProvider } = await import("../src/lib/ui-preferences");
 const { AgentRoutingProvider, useAgentRouting } = await import("../src/lib/agent-routing");
 const { AgentBaseControls } = await import("../src/components/AgentBaseControls");
 const { AgentTopBarStatus } = await import("../src/components/AgentTopBarStatus");
@@ -108,4 +109,29 @@ test("top bar follows the selected backend and never probes an old API during na
     await flush(() => (main.querySelector(".agent-top-bar-toggle-btn") as HTMLElement).click()); assert.match(main.textContent!, /刷新本账号底座状态/);
     assert.equal(probes, 0, "loading the policy, showing the badge and opening actions do not probe the old API");
   } finally { globalThis.fetch = previous; }
+});
+
+test("English UI renders consistent localized controls and guidance without mixing Chinese labels", async () => {
+  const f = fixture();
+  const main = dom.document.createElement("main");
+  dom.document.body.append(main);
+  root = createRoot(main as unknown as Element);
+  await flush(() =>
+    root!.render(
+      h(
+        UiPreferencesProvider,
+        { initialPreferences: { locale: "en", theme: "light" } },
+        h(
+          AgentRoutingProvider,
+          { client: f.client },
+          h(AgentBaseControls, { legacy: "current", onLegacy: () => {}, model: "test-model", client: f.tools }),
+        ),
+      ),
+    ),
+  );
+  const text = main.textContent ?? "";
+  assert.match(text, /Agent source/);
+  assert.match(text, /Configured API model/);
+  assert.match(text, /Refresh source status/);
+  assert.doesNotMatch(text, /统一 Agent 来源|刷新底座状态|调整首选与备用顺序/);
 });

@@ -4,6 +4,7 @@ import { hash, CONTRACT } from "./verification.js";
 export type GeneratedTool = { source: string; provider: string; model: string; modelDigest?: string; promptHash: string;
   generatedTokens?: number; durationMs: number };
 export type ToolBuilder = (feedback: string | undefined, signal: AbortSignal) => Promise<GeneratedTool>;
+export type MeasureToolGeneration = (generate: () => Promise<GeneratedTool>) => Promise<GeneratedTool>;
 export const LOCAL_MODEL = "gemma4:e2b-it-qat";
 const SPEC = `Write a short pure JavaScript function expression: function(input) { ... }. Return ONLY JavaScript, no JSON wrapper or markdown.
 Contract ${CONTRACT}. Input is {before:Export,after:Export}. Each Export is one of:
@@ -27,7 +28,7 @@ export async function localModelAvailable(): Promise<boolean> {
 }
 
 /** Loopback-only local weights. No env keys, provider fallback or cloud-tag execution. */
-export function ollamaBuilder(): ToolBuilder {
+export function ollamaBuilder(measureGeneration: MeasureToolGeneration = generate => generate()): ToolBuilder {
   return async (feedback, signal) => {
     const started = Date.now();
     const linked = AbortSignal.any([signal, AbortSignal.timeout(150_000)]);
@@ -37,17 +38,20 @@ export function ollamaBuilder(): ToolBuilder {
     const model = data.models.find(item => item.name === LOCAL_MODEL);
     if (!model || model.remote_host || model.remote_model) throw new Error("local_weights_required");
     const prompt = SPEC + (feedback ? `\nPrevious candidate failed the independent verifier (${feedback}). Generate a corrected complete function with strict input checks.` : "");
-    const response = await fetch("http://127.0.0.1:11434/api/chat", { method: "POST", redirect: "error", signal: linked,
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: LOCAL_MODEL, stream: false, think: false,
-        options: { temperature: 0, num_predict: 3000, num_ctx: 8192 },
-        messages: [{ role: "user", content: prompt }] }) });
-    if (!response.ok) throw new Error("local_ollama_generation_failed");
-    const result = z.object({ done: z.literal(true), done_reason: z.string().optional(), message: z.object({ content: z.string().max(96 * 1024) }), eval_count: z.number().optional() }).parse(await response.json());
-    if (result.done_reason === "length") throw new Error("generation_token_budget_exhausted");
-    // Strip transport fencing only; never repair/rewrite or replace generated code.
-    const source = result.message.content.trim().replace(/^```(?:javascript|js)?\s*\n/, "").replace(/\n```$/, "").trim();
-    const tool = z.object({ source: z.string().min(10).max(64 * 1024) }).strict().parse({ source });
-    return { ...tool, provider: "ollama-local", model: LOCAL_MODEL, modelDigest: model.digest, promptHash: hash(prompt),
-      generatedTokens: result.eval_count, durationMs: Date.now() - started };
+    linked.throwIfAborted();
+    return measureGeneration(async () => {
+      const response = await fetch("http://127.0.0.1:11434/api/chat", { method: "POST", redirect: "error", signal: linked,
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: LOCAL_MODEL, stream: false, think: false,
+          options: { temperature: 0, num_predict: 3000, num_ctx: 8192 },
+          messages: [{ role: "user", content: prompt }] }) });
+      if (!response.ok) throw new Error("local_ollama_generation_failed");
+      const result = z.object({ done: z.literal(true), done_reason: z.string().optional(), message: z.object({ content: z.string().max(96 * 1024) }), eval_count: z.number().optional() }).parse(await response.json());
+      if (result.done_reason === "length") throw new Error("generation_token_budget_exhausted");
+      // Strip transport fencing only; never repair/rewrite or replace generated code.
+      const source = result.message.content.trim().replace(/^```(?:javascript|js)?\s*\n/, "").replace(/\n```$/, "").trim();
+      const tool = z.object({ source: z.string().min(10).max(64 * 1024) }).strict().parse({ source });
+      return { ...tool, provider: "ollama-local", model: LOCAL_MODEL, modelDigest: model.digest, promptHash: hash(prompt),
+        generatedTokens: result.eval_count, durationMs: Date.now() - started };
+    });
   };
 }

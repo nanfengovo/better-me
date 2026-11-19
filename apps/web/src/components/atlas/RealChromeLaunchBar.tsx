@@ -29,7 +29,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
   };
 
   useEffect(() => {
-    if (readRuntimeConnection()) return;
+    if (readRuntimeConnection()?.mode === "docker") return;
     if (typeof window !== "undefined") {
       const host = window.location?.hostname || "";
       const isTestEnv = host.includes("fixture.invalid") || host.includes("test") || (typeof process !== "undefined" && Boolean(process.env?.NODE_TEST_CONTEXT));
@@ -114,7 +114,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
 
   const isRunning = status?.running ?? false;
 
-  if (readRuntimeConnection()) return <div className="real-chrome-bar-compact" role="note">{t("Docker 模式不接管个人浏览器。请粘贴岗位原文，或使用本机 pnpm dev 完成人工登录与网页读取。", "Docker does not attach your personal browser. Paste a job description, or use pnpm dev for interactive sign-in and page reading.")}</div>;
+  if (readRuntimeConnection()?.mode === "docker") return <div className="real-chrome-bar-compact" role="note">{t("Docker 模式请粘贴岗位原文。也可使用桌面端或本机开发模式打开专用浏览器。", "Paste the job description in Docker. The desktop app and local dev support the dedicated browser.")}</div>;
 
   if (compact) {
     return (
@@ -124,7 +124,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
             <>
               <span className="status-dot green" />
               <ShieldCheck size={14} className="icon-shield" />
-              <strong>{t("真实环境已接管 (CDP 9222)", "Real Chrome Connected (CDP 9222)")}</strong>
+              <strong>{t("招聘专用浏览器已连接", "Dedicated browser connected")}</strong>
             </>
           ) : (
             <>
@@ -174,14 +174,14 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
               )}
             </span>
             <span className="real-chrome-port-tag">
-              {isRunning ? `CDP Port: ${status?.port ?? 9222}` : t("推荐启动以规避滑块风控", "Recommended to avoid anti-bot sliders")}
+              {isRunning ? `CDP Port: ${status?.port ?? 9222}` : t("可手动登录", "Manual sign-in available")}
             </span>
           </div>
           <p className="real-chrome-bar-desc">
             {isRunning
               ? t(
-                  "当前采集已无缝接管本地真实 Chrome，享有完全一致的 TLS、Canvas 指纹及登录 Cookie，大幅降低人机验证拦截率。",
-                  "Web scraping is taking over your real Chrome browser, sharing authentic TLS, Canvas fingerprints, and cookies to bypass anti-bot mechanisms.",
+                  "已连接招聘专用 Chrome 窗口。遇到平台登录或验证时，请在该窗口完成。",
+                  "The dedicated recruitment browser is connected. Complete any platform sign-in or verification in that window.",
                 )
               : t(
                   "点击右侧按钮一键启动带独立 Profile 的真实 Chrome。您可在打开的窗口中登录招聘网站，登录态将持久保存并自动复用。",

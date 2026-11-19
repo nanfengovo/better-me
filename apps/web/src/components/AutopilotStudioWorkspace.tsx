@@ -10,7 +10,7 @@ import {
   type Opportunity,
 } from "../lib/opportunities";
 import { useUiPreferences } from "../lib/ui-preferences";
-import { captureIdentityLease } from "../lib/identity";
+import { captureIdentityLease, currentPrincipal } from "../lib/identity";
 import {
   buildSandboxedMicroApp,
   openReviewedPreset,
@@ -20,15 +20,19 @@ import {
 import { MicroAppPermissionModal } from "./MicroAppPermissionModal";
 import { SandboxCodingLab } from "./SandboxCodingLab";
 import {
+  EMPTY_AUTOPILOT_TELEMETRY,
+  fetchAutopilotKernelTelemetry,
+  type AutopilotKernelTelemetry,
+} from "./autopilot/autopilot-telemetry";
+import { AutopilotNodeInspector } from "./autopilot/AutopilotNodeInspector";
+import {
   Play,
   Pause,
   SkipForward,
   SkipBack,
-  Check,
   ShieldCheck,
   Terminal,
   ChevronRight,
-  MapPin,
   RotateCw,
   Orbit,
   BookmarkCheck,
@@ -49,1450 +53,46 @@ import { openSystemSettings } from "../lib/settings-navigation";
 import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
 import { StudioRuntimeIcon } from "./StudioRuntimeIcon";
 import "./autopilot-studio.css";
+import {
+  AGENT_KERNELS,
+  AgentTotemIcon,
+  AgentMascotSprite,
+  type AgentKernelConfig,
+} from "./autopilot/AutopilotAgentSprites";
+import {
+  PERIMETER_20_SLOTS,
+  STUDIO_20_NODES,
+  AUTOPILOT_CARDS,
+  getNodeTagBadge,
+  localizeStudioNode,
+  type StudioNode,
+} from "./autopilot/autopilot-nodes";
+import { BlueprintMicroChamber } from "./autopilot/BlueprintMicroChamber";
+import { CyberJobCard3D, type JobPipelineItem } from "./autopilot/CyberJobCard3D";
+import {
+  opportunityToPipelineItem,
+  stageLabel,
+} from "./autopilot/autopilot-pipeline-mappers";
 
-// ============================================================================
-// 1. 四大可选 AI AGENT 内核配置
-// ============================================================================
-export interface AgentKernelConfig {
-  id: string;
-  shortName: string;
-  brandName: string;
-  fullTitle: string;
-  cliHeaderTitle: string;
-  cliVersion: string;
-  heroBannerPrefix: string;
-  mascotName: string;
-  mascotRole: string;
-  modelSpec: string;
-  computeBadge: string;
-  primaryHex: string;
-  secondaryHex: string;
-  glowRgba: string;
-  spotlightRgba: string;
-  borderAccent: string;
-  terminalBoxBorder: string;
-  ambientBg: string;
-  signatureQuote: string;
-}
-
-export const AGENT_KERNELS: Record<string, AgentKernelConfig> = {
-  "opus-5.5": {
-    id: "opus-5.5",
-    shortName: "Opus 5.5",
-    brandName: "Claude Code",
-    fullTitle: "Claude Code · Opus 5.5 Max",
-    cliHeaderTitle: "Claude Code",
-    cliVersion: "v2.1.104",
-    heroBannerPrefix: "OPUS 5.5 + FACTBASE",
-    mascotName: "Clawd-5.5",
-    mascotRole: "16-Bit 像素赛博蟹 · 实证审计官",
-    modelSpec: "claude-opus-5.5-202611 · 200k ctx",
-    computeBadge: "Anthropic Max · Zero-Hallucination",
-    primaryHex: "#F59E0B",
-    secondaryHex: "#22D3EE",
-    glowRgba: "rgba(245, 158, 11, 0.42)",
-    spotlightRgba: "rgba(34, 211, 238, 0.36)",
-    borderAccent: "#F59E0B",
-    terminalBoxBorder: "rgba(245, 158, 11, 0.45)",
-    ambientBg:
-      "radial-gradient(circle at 50% 8%, rgba(245, 158, 11, 0.11) 0%, rgba(34, 211, 238, 0.06) 35%, transparent 65%)",
-    signatureQuote: "Every resume claim is grounded in the local FactBase.",
-  },
-  "deepseek-r2": {
-    id: "deepseek-r2",
-    shortName: "DeepSeek R2",
-    brandName: "OpenCode CLI",
-    fullTitle: "OpenCode · DeepSeek-R2 671B",
-    cliHeaderTitle: "OpenCode // DeepSeek-R2",
-    cliVersion: "v1.9.4-r2",
-    heroBannerPrefix: "DEEPSEEK R2 + FACTBASE",
-    mascotName: "Fin-R2",
-    mascotRole: "全息深海赛博鲸 · 链式推演引擎",
-    modelSpec: "deepseek-r2-671b-moe · CoT Stream",
-    computeBadge: "DeepSeek Native · 128k Reasoning",
-    primaryHex: "#38BDF8",
-    secondaryHex: "#818CF8",
-    glowRgba: "rgba(56, 189, 248, 0.45)",
-    spotlightRgba: "rgba(129, 140, 248, 0.38)",
-    borderAccent: "#38BDF8",
-    terminalBoxBorder: "rgba(56, 189, 248, 0.48)",
-    ambientBg:
-      "radial-gradient(circle at 50% 8%, rgba(56, 189, 248, 0.14) 0%, rgba(129, 140, 248, 0.08) 38%, transparent 65%)",
-    signatureQuote: "Multi-hop chain-of-thought decompilation across JD hidden weights & salary bands.",
-  },
-  "gpt-5.2": {
-    id: "gpt-5.2",
-    shortName: "GPT-5.2 Pro",
-    brandName: "Codex CLI",
-    fullTitle: "OpenAI Codex · GPT-5.2 Pro",
-    cliHeaderTitle: "Codex CLI // GPT-5.2",
-    cliVersion: "v3.6.0-pro",
-    heroBannerPrefix: "GPT-5.2 PRO + FACTBASE",
-    mascotName: "Hex-5.2",
-    mascotRole: "六轴翡翠矩阵无人机 · 沙箱架构师",
-    modelSpec: "gpt-5.2-pro-codex · High-Compute",
-    computeBadge: "OpenAI Pro · AST Sandbox Verified",
-    primaryHex: "#10B981",
-    secondaryHex: "#2DD4BF",
-    glowRgba: "rgba(16, 185, 129, 0.42)",
-    spotlightRgba: "rgba(45, 212, 191, 0.36)",
-    borderAccent: "#10B981",
-    terminalBoxBorder: "rgba(16, 185, 129, 0.45)",
-    ambientBg:
-      "radial-gradient(circle at 50% 8%, rgba(16, 185, 129, 0.13) 0%, rgba(45, 212, 191, 0.07) 36%, transparent 65%)",
-    signatureQuote: "Autonomous Workday ATS DOM simulation & zero-defect micro-app compilation.",
-  },
-  "ollama-qwen3": {
-    id: "ollama-qwen3",
-    shortName: "Qwen3-32B Local",
-    brandName: "Ollama Local",
-    fullTitle: "Ollama · Qwen3-Coder 32B (RTX 4060)",
-    cliHeaderTitle: "Ollama // Qwen3-Coder",
-    cliVersion: "v0.9.8-cuda",
-    heroBannerPrefix: "QWEN3 LOCAL + FACTBASE",
-    mascotName: "Tensor-Q3",
-    mascotRole: "机甲羊驼算力核 · 全隔离本地隐私沙箱",
-    modelSpec: "qwen3-coder:32b-q4_K_M · CUDA:0",
-    computeBadge: "Local RTX 4060 · Air-Gapped Privacy",
-    primaryHex: "#A855F7",
-    secondaryHex: "#EC4899",
-    glowRgba: "rgba(168, 85, 247, 0.45)",
-    spotlightRgba: "rgba(236, 72, 153, 0.36)",
-    borderAccent: "#A855F7",
-    terminalBoxBorder: "rgba(168, 85, 247, 0.48)",
-    ambientBg:
-      "radial-gradient(circle at 50% 8%, rgba(168, 85, 247, 0.14) 0%, rgba(236, 72, 153, 0.07) 36%, transparent 65%)",
-    signatureQuote: "Air-gapped local tensor inference — your resume stays on localhost.",
-  },
+export {
+  AGENT_KERNELS,
+  AgentTotemIcon,
+  AgentMascotSprite,
+  type AgentKernelConfig,
+  STUDIO_20_NODES,
+  AUTOPILOT_CARDS,
+  getNodeTagBadge,
+  type StudioNode,
+  type JobPipelineItem,
 };
 
-// ============================================================================
-// 2. 高精度定制 AI AGENT 徽标图腾
-// ============================================================================
-export function AgentTotemIcon({
-  agentId,
-  className = "w-7 h-7",
-  spinning = false,
-}: {
-  agentId: string;
-  className?: string;
-  spinning?: boolean;
-}) {
-  if (agentId === "opus-5.5") {
-    return (
-      <svg viewBox="0 0 32 32" className={`${className} ${spinning ? "animate-spin" : ""}`} fill="none">
-        <defs>
-          <radialGradient id="opusCore" cx="50%" cy="50%" r="55%">
-            <stop offset="0%" stopColor="#FFFBEB" />
-            <stop offset="35%" stopColor="#FBBF24" />
-            <stop offset="75%" stopColor="#EA580C" />
-            <stop offset="100%" stopColor="#9A3412" />
-          </radialGradient>
-          <linearGradient id="opusRim" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#FDE68A" />
-            <stop offset="0.5" stopColor="#F97316" />
-            <stop offset="1" stopColor="#22D3EE" />
-          </linearGradient>
-        </defs>
-        <circle cx="16" cy="16" r="14" fill="#0B111A" stroke="url(#opusRim)" strokeWidth="1.2" strokeOpacity="0.65" />
-        <path
-          d="M16 3L18.1 10.2L24.5 6.5L20.8 12.9L28 15L20.8 17.1L24.5 23.5L18.1 19.8L16 27L13.9 19.8L7.5 23.5L11.2 17.1L4 15L11.2 12.9L7.5 6.5L13.9 10.2L16 3Z"
-          fill="url(#opusCore)"
-          stroke="#FDE68A"
-          strokeWidth="0.75"
-        />
-        <rect x="14.5" y="11" width="3" height="8" rx="0.5" fill="#FFFBEB" fillOpacity="0.9" />
-        <rect x="12" y="13.5" width="8" height="3" rx="0.5" fill="#FFFBEB" fillOpacity="0.9" />
-      </svg>
-    );
-  }
-
-  if (agentId === "deepseek-r2") {
-    return (
-      <svg viewBox="0 0 32 32" className={className} fill="none">
-        <defs>
-          <linearGradient id="dsGrad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#67E8F9" />
-            <stop offset="0.5" stopColor="#0284C7" />
-            <stop offset="1" stopColor="#4F46E5" />
-          </linearGradient>
-        </defs>
-        <circle cx="16" cy="16" r="14" fill="#07101E" stroke="#38BDF8" strokeWidth="1.2" strokeOpacity="0.6" />
-        <circle cx="16" cy="16" r="10.5" stroke="#818CF8" strokeWidth="0.8" strokeDasharray="2 2" />
-        <path
-          d="M7 18.5C7 12.5 11.8 8.5 17.5 8.5C21.5 8.5 24.2 10.8 25.5 13.5C22.8 13.2 20.5 14.8 19.8 17.2C22.2 17.4 24.5 19.2 25.8 21.8C22.5 22.8 18.8 21.5 16.5 19.2C14.2 21.5 10.5 22.2 7 18.5Z"
-          fill="url(#dsGrad)"
-          stroke="#BAE6FD"
-          strokeWidth="0.9"
-        />
-        <circle cx="19.5" cy="12.2" r="1.4" fill="#FFF" />
-      </svg>
-    );
-  }
-
-  if (agentId === "gpt-5.2") {
-    return (
-      <svg viewBox="0 0 32 32" className={className} fill="none">
-        <defs>
-          <linearGradient id="gptGrad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#6EE7B7" />
-            <stop offset="0.5" stopColor="#10B981" />
-            <stop offset="1" stopColor="#047857" />
-          </linearGradient>
-        </defs>
-        <polygon
-          points="16,2.5 27.5,9.2 27.5,22.8 16,29.5 4.5,22.8 4.5,9.2"
-          fill="#06130F"
-          stroke="#10B981"
-          strokeWidth="1.3"
-        />
-        <polygon
-          points="16,6.5 24,11.2 24,20.8 16,25.5 8,20.8 8,11.2"
-          fill="url(#gptGrad)"
-          fillOpacity="0.28"
-          stroke="#A7F3D0"
-          strokeWidth="1"
-        />
-        <path d="M16 6.5V16M16 16L24 20.8M16 16L8 20.8" stroke="#ECFDF5" strokeWidth="1.3" strokeLinecap="round" />
-        <circle cx="16" cy="16" r="2.8" fill="#10B981" stroke="#FFF" strokeWidth="1" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 32 32" className={className} fill="none">
-      <defs>
-        <linearGradient id="qwenGrad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#E879F9" />
-          <stop offset="0.5" stopColor="#A855F7" />
-          <stop offset="1" stopColor="#6366F1" />
-        </linearGradient>
-      </defs>
-      <rect x="3.5" y="3.5" width="25" height="25" rx="6" fill="#11091C" stroke="url(#qwenGrad)" strokeWidth="1.3" />
-      <path
-        d="M9 1.5V3.5M16 1.5V3.5M23 1.5V3.5M9 28.5V30.5M16 28.5V30.5M23 28.5V30.5M1.5 9H3.5M1.5 16H3.5M1.5 23H3.5M28.5 9H30.5M28.5 16H30.5M28.5 23H30.5"
-        stroke="#C084FC"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <polygon
-        points="16,7.5 23.5,11.8 23.5,20.2 16,24.5 8.5,20.2 8.5,11.8"
-        fill="url(#qwenGrad)"
-        stroke="#F5D0FE"
-        strokeWidth="0.9"
-      />
-      <rect x="11.5" y="13" width="9" height="3.2" rx="1" fill="#090514" stroke="#F0ABFC" strokeWidth="0.8" />
-    </svg>
-  );
-}
-
-// ============================================================================
-// 3. 高精度动态 AI 游走精灵组件 (Agent Roaming Mascot Sprite)
-// ============================================================================
-export function AgentMascotSprite({
-  agentId,
-  className = "w-11 h-11",
-  showPedestal = false,
-}: {
-  agentId: string;
-  className?: string;
-  showPedestal?: boolean;
-}) {
-  return (
-    <div className="relative inline-flex flex-col items-center justify-center">
-      {agentId === "opus-5.5" && (
-        <svg viewBox="0 0 24 20" className={className} shapeRendering="crispEdges">
-          <rect x="4" y="18" width="16" height="1.5" fill="rgba(245, 158, 11, 0.35)" />
-          <rect x="2" y="2" width="3" height="2" fill="#FDE68A" />
-          <rect x="1" y="4" width="3" height="3" fill="#FB923C" />
-          <rect x="3" y="5" width="2" height="2" fill="#EA580C" />
-          <rect x="19" y="2" width="3" height="2" fill="#FDE68A" />
-          <rect x="20" y="4" width="3" height="3" fill="#FB923C" />
-          <rect x="19" y="5" width="2" height="2" fill="#EA580C" />
-          <rect x="6" y="4" width="12" height="2" fill="#FDBA74" />
-          <rect x="5" y="6" width="14" height="6" fill="#F97316" />
-          <rect x="4" y="7" width="16" height="4" fill="#EA580C" />
-          <rect x="6" y="12" width="12" height="2" fill="#9A3412" />
-          <rect x="7" y="7" width="2.5" height="3" fill="#05080D" />
-          <rect x="14.5" y="7" width="2.5" height="3" fill="#05080D" />
-          <rect x="7.5" y="7.5" width="1.2" height="1.2" fill="#22D3EE" />
-          <rect x="15" y="7.5" width="1.2" height="1.2" fill="#22D3EE" />
-          <rect x="3" y="13" width="2" height="3" fill="#FB923C" />
-          <rect x="7" y="14" width="2" height="3" fill="#EA580C" />
-          <rect x="15" y="14" width="2" height="3" fill="#EA580C" />
-          <rect x="19" y="13" width="2" height="3" fill="#FB923C" />
-        </svg>
-      )}
-
-      {agentId === "deepseek-r2" && (
-        <svg viewBox="0 0 28 22" className={className} fill="none">
-          <defs>
-            <linearGradient id="whaleBody" x1="2" y1="4" x2="24" y2="18" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#A5F3FC" />
-              <stop offset="0.45" stopColor="#38BDF8" />
-              <stop offset="1" stopColor="#4338CA" />
-            </linearGradient>
-          </defs>
-          <ellipse cx="14" cy="19.5" rx="9" ry="1.6" stroke="#38BDF8" strokeWidth="0.8" strokeDasharray="2 2" />
-          <path
-            d="M3 12.5C3 7.5 7.8 4.5 14.5 4.5C19.5 4.5 22.5 7.5 24.5 4.5C24.2 8.2 22.8 10.2 21 11.2C23.2 12.4 25 14.2 26 16.5C22.5 16.5 20.2 15.2 18.5 13.8C15.5 15.8 7.5 16.5 3 12.5Z"
-            fill="url(#whaleBody)"
-            stroke="#E0F2FE"
-            strokeWidth="1"
-          />
-          <path d="M6 13.2C9.5 14.5 13.5 14.5 16.5 13.2" stroke="#BAE6FD" strokeWidth="0.9" strokeLinecap="round" />
-          <circle cx="8.5" cy="9.8" r="1.6" fill="#05080D" stroke="#67E8F9" strokeWidth="0.9" />
-          <circle cx="8.2" cy="9.5" r="0.6" fill="#FFF" />
-          <circle cx="6" cy="3.2" r="1" fill="#38BDF8" />
-          <circle cx="9.2" cy="2.2" r="0.7" fill="#818CF8" />
-        </svg>
-      )}
-
-      {agentId === "gpt-5.2" && (
-        <svg viewBox="0 0 28 24" className={className} fill="none">
-          <ellipse cx="14" cy="21" rx="8" ry="1.5" fill="rgba(16, 185, 129, 0.35)" />
-          <ellipse
-            cx="14"
-            cy="11"
-            rx="12"
-            ry="5.5"
-            transform="rotate(-16 14 11)"
-            stroke="#34D399"
-            strokeWidth="1"
-            strokeDasharray="3 2"
-          />
-          <ellipse
-            cx="14"
-            cy="11"
-            rx="12"
-            ry="5.5"
-            transform="rotate(16 14 11)"
-            stroke="#2DD4BF"
-            strokeWidth="0.9"
-            strokeOpacity="0.7"
-          />
-          <polygon
-            points="14,3.5 21,7.2 21,14.8 14,18.5 7,14.8 7,7.2"
-            fill="#06281E"
-            stroke="#6EE7B7"
-            strokeWidth="1.2"
-          />
-          <rect x="9.5" y="9.2" width="9" height="3.6" rx="1.8" fill="#020604" stroke="#10B981" strokeWidth="0.9" />
-          <circle cx="14" cy="11" r="1.4" fill="#34D399" />
-          <circle cx="14" cy="11" r="0.6" fill="#FFF" />
-        </svg>
-      )}
-
-      {agentId === "ollama-qwen3" && (
-        <svg viewBox="0 0 28 24" className={className} fill="none">
-          <ellipse cx="14" cy="21.5" rx="8" ry="1.5" fill="rgba(168, 85, 247, 0.38)" />
-          <rect x="2" y="6" width="3" height="3" rx="0.6" fill="#E879F9" stroke="#FFF" strokeWidth="0.5" />
-          <rect x="23" y="6" width="3" height="3" rx="0.6" fill="#A855F7" stroke="#FFF" strokeWidth="0.5" />
-          <path d="M8.5 7L7 2.5L11 5.5Z" fill="#C084FC" stroke="#F5D0FE" strokeWidth="0.8" />
-          <path d="M19.5 7L21 2.5L17 5.5Z" fill="#C084FC" stroke="#F5D0FE" strokeWidth="0.8" />
-          <rect x="7" y="5.5" width="14" height="12.5" rx="3.5" fill="#1E1035" stroke="#D8B4FE" strokeWidth="1.1" />
-          <rect x="8.5" y="8.2" width="11" height="4.2" rx="1.5" fill="#090414" stroke="#F0ABFC" strokeWidth="1" />
-          <line x1="10" y1="10.3" x2="13" y2="10.3" stroke="#22D3EE" strokeWidth="1.4" strokeLinecap="round" />
-          <line x1="15" y1="10.3" x2="18" y2="10.3" stroke="#EC4899" strokeWidth="1.4" strokeLinecap="round" />
-          <rect x="11" y="14.2" width="6" height="2" rx="0.6" fill="#A855F7" />
-        </svg>
-      )}
-
-      {showPedestal && (
-        <div className="mt-1 w-14 h-2 rounded-full bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent blur-[1px]" />
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
-// 4. 6x6 外环 20 槽位逆时针映射
-// ============================================================================
-const PERIMETER_20_SLOTS = [
-  { row: 1, col: 1, zone: "TOP" },
-  { row: 1, col: 2, zone: "TOP" },
-  { row: 1, col: 3, zone: "SPOTLIGHT" }, // 顶部中央黄金聚光位
-  { row: 1, col: 4, zone: "TOP" },
-  { row: 1, col: 5, zone: "TOP" },
-  { row: 1, col: 6, zone: "TOP" },
-  { row: 2, col: 6, zone: "RIGHT" },
-  { row: 3, col: 6, zone: "RIGHT" },
-  { row: 4, col: 6, zone: "RIGHT" },
-  { row: 5, col: 6, zone: "RIGHT" },
-  { row: 6, col: 6, zone: "BOTTOM" },
-  { row: 6, col: 5, zone: "BOTTOM" },
-  { row: 6, col: 4, zone: "BOTTOM" },
-  { row: 6, col: 3, zone: "BOTTOM" },
-  { row: 6, col: 2, zone: "BOTTOM" },
-  { row: 6, col: 1, zone: "BOTTOM" },
-  { row: 5, col: 1, zone: "LEFT" },
-  { row: 4, col: 1, zone: "LEFT" },
-  { row: 3, col: 1, zone: "LEFT" },
-  { row: 2, col: 1, zone: "LEFT" },
-];
-
-// ============================================================================
-// 5. 20 节点求职工程流水线全链路拓扑定义
-// ============================================================================
-export interface StudioNode {
-  id: number;
-  code: string;
-  name: string;
-  tag: string;
-  sub: string;
-  vizType: string;
-  latency: string;
-  tokens: string;
-  bulletColor: string;
-  cmdTitle: string;
-  cmdDetail: string;
-}
-
-export function getNodeTagBadge(tag: string, theme: "light" | "dark") {
-  const isLight = theme === "light";
-  switch (tag) {
-    case "CORE":
-      return isLight ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-amber-400/15 text-amber-300 border-amber-400/30";
-    case "SOURCING":
-      return isLight ? "bg-sky-100 text-sky-900 border-sky-300" : "bg-sky-400/15 text-sky-300 border-sky-400/30";
-    case "GUARD":
-      return isLight ? "bg-emerald-100 text-emerald-900 border-emerald-300" : "bg-emerald-400/15 text-emerald-300 border-emerald-400/30";
-    case "ANALYSIS":
-      return isLight ? "bg-purple-100 text-purple-900 border-purple-300" : "bg-purple-400/15 text-purple-300 border-purple-400/30";
-    case "TRIAGE":
-      return isLight ? "bg-indigo-100 text-indigo-900 border-indigo-300" : "bg-indigo-400/15 text-indigo-300 border-indigo-400/30";
-    case "TAILOR":
-      return isLight ? "bg-orange-100 text-orange-900 border-orange-300" : "bg-orange-400/15 text-orange-300 border-orange-400/30";
-    case "VERIFY":
-      return isLight ? "bg-teal-100 text-teal-900 border-teal-300" : "bg-teal-400/15 text-teal-300 border-teal-400/30";
-    case "DELIVERY":
-      return isLight ? "bg-blue-100 text-blue-900 border-blue-300" : "bg-blue-400/15 text-blue-300 border-blue-400/30";
-    case "TRACKING":
-      return isLight ? "bg-cyan-100 text-cyan-900 border-cyan-300" : "bg-cyan-400/15 text-cyan-300 border-cyan-400/30";
-    case "INTERVIEW":
-      return isLight ? "bg-rose-100 text-rose-900 border-rose-300" : "bg-rose-400/15 text-rose-300 border-rose-400/30";
-    case "DECISION":
-      return isLight ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-amber-400/15 text-amber-300 border-amber-400/30";
-    case "SANDBOX":
-      return isLight ? "bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300" : "bg-fuchsia-400/15 text-fuchsia-300 border-fuchsia-400/30";
-    default:
-      return isLight ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-slate-800 text-slate-300 border-slate-700";
-  }
-}
-
-export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
-  {
-    id: 1,
-    code: "01",
-    name: "BetterMe Agent",
-    tag: "CORE",
-    sub: "多内核编排 · 调度全部 20 项能力",
-    vizType: "hub",
-    latency: "Ready",
-    tokens: "Local",
-    bulletColor: "#F59E0B",
-    cmdTitle: "kernel.orchestrate(skills=20, mode='local-first')",
-    cmdDetail: "FactBase lock & saved opportunity library ready for advisor execution",
-  },
-  {
-    id: 2,
-    code: "02",
-    name: "招聘检索",
-    tag: "SOURCING",
-    sub: "公开岗位卡 · SimHash 语义去重",
-    vizType: "bars",
-    latency: "待运行",
-    tokens: "—",
-    bulletColor: "#38BDF8",
-    cmdTitle: "sourcing.query(sources=['careers', 'greenhouse', 'lever'])",
-    cmdDetail: "Reads verified public sources configured in Opportunity Space",
-  },
-  {
-    id: 3,
-    code: "03",
-    name: "BOSS直聘",
-    tag: "SOURCING",
-    sub: "只读公开卡片 · 绝不自动代发打招呼",
-    vizType: "bridge",
-    latency: "只读",
-    tokens: "—",
-    bulletColor: "#10B981",
-    cmdTitle: "cdp.boss_readonly(auto_send=false)",
-    cmdDetail: "Read-only capture with user confirmation; zero auto-messaging",
-  },
-  {
-    id: 4,
-    code: "04",
-    name: "企业官网",
-    tag: "SOURCING",
-    sub: "Careers / ATS 公开招聘直连",
-    vizType: "tree3",
-    latency: "待运行",
-    tokens: "—",
-    bulletColor: "#22D3EE",
-    cmdTitle: "ats.probe_official(mode='public_api')",
-    cmdDetail: "Fetches official postings via authenticated / public adapters",
-  },
-  {
-    id: 5,
-    code: "05",
-    name: "LinkedIn",
-    tag: "SOURCING",
-    sub: "外企研发中心 · 远程与混合办公筛选",
-    vizType: "dotmatrix",
-    latency: "待运行",
-    tokens: "—",
-    bulletColor: "#60A5FA",
-    cmdTitle: "linkedin.read_public_card(filter_work_mode=true)",
-    cmdDetail: "Preserves original URL and publication timestamp verbatim",
-  },
-  {
-    id: 6,
-    code: "06",
-    name: "JD Guard",
-    tag: "GUARD",
-    sub: "隐藏指令剥离 · 零宽字符清洗",
-    vizType: "guard",
-    latency: "Guard",
-    tokens: "—",
-    bulletColor: "#F59E0B",
-    cmdTitle: "jd_guard.sanitize(strip_zero_width=true)",
-    cmdDetail: "Isolates untrusted JD markup before prompt construction",
-  },
-  {
-    id: 7,
-    code: "07",
-    name: "JD 原句拆解",
-    tag: "ANALYSIS",
-    sub: "职责权重 · 硬性门槛 · 隐性加分项",
-    vizType: "splitbars",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#38BDF8",
-    cmdTitle: "jd.decompose_requirements(source='saved_opportunity')",
-    cmdDetail: "Send job to Advisor to generate structured requirement breakdown",
-  },
-  {
-    id: 8,
-    code: "08",
-    name: "证据链对齐",
-    tag: "ANALYSIS",
-    sub: "FactBase 实证 · 弱表达诊断 · 缺口",
-    vizType: "spectrum",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#10B981",
-    cmdTitle: "factbase.align(ground_truth_only=true)",
-    cmdDetail: "Links resume phrasing directly to saved FactBase claims",
-  },
-  {
-    id: 9,
-    code: "09",
-    name: "机会评级",
-    tag: "TRIAGE",
-    sub: "按真实需求与阶段做人工分层",
-    vizType: "tiers",
-    latency: "人工/顾问",
-    tokens: "—",
-    bulletColor: "#F59E0B",
-    cmdTitle: "triage.evaluate(requires_advisor_receipt=true)",
-    cmdDetail: "Scores appear only after explicit Advisor execution receipt",
-  },
-  {
-    id: 10,
-    code: "10",
-    name: "企业来源核对",
-    tag: "TRIAGE",
-    sub: "发布主体 / 原始链接 / 时间核验",
-    vizType: "radar",
-    latency: "待核验",
-    tokens: "—",
-    bulletColor: "#A855F7",
-    cmdTitle: "recon.inspect_provenance(source='opportunity_record')",
-    cmdDetail: "Displays verified origin metadata without fabricated verdicts",
-  },
-  {
-    id: 11,
-    code: "11",
-    name: "简历润色",
-    tag: "TAILOR",
-    sub: "结构化 old -> new · 绑定真实经历",
-    vizType: "diff",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#22D3EE",
-    cmdTitle: "tailor.prepare_diff(grounded_in_factbase=true)",
-    cmdDetail: "Open job in Advisor to review candidate rewrite proposals",
-  },
-  {
-    id: 12,
-    code: "12",
-    name: "Reviewer",
-    tag: "TAILOR",
-    sub: "独立复核 · 拒绝虚构参数",
-    vizType: "bridge",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#10B981",
-    cmdTitle: "reviewer.verify_claims(allow_invented=false)",
-    cmdDetail: "Verifies every tailored bullet against your local FactBase",
-  },
-  {
-    id: 13,
-    code: "13",
-    name: "ATS / 版式",
-    tag: "VERIFY",
-    sub: "简历材料快照 · 单页版式与 DOM 检查",
-    vizType: "docscan",
-    latency: "Ready",
-    tokens: "—",
-    bulletColor: "#38BDF8",
-    cmdTitle: "verify.check_materials(target='saved_opportunity')",
-    cmdDetail: "Inspect saved resume snapshots or run Advisor ATS check",
-  },
-  {
-    id: 14,
-    code: "14",
-    name: "材料快照",
-    tag: "DELIVERY",
-    sub: "所投即所存 · 独立 Markdown 快照归档",
-    vizType: "stack",
-    latency: "Local",
-    tokens: "—",
-    bulletColor: "#60A5FA",
-    cmdTitle: "snapshot.record_material(immutable_copy=true)",
-    cmdDetail: "Subsequent resume edits never mutate archived job snapshots",
-  },
-  {
-    id: 15,
-    code: "15",
-    name: "本人交接",
-    tag: "DELIVERY",
-    sub: "保留原申请页入口 · 由本人确认投递",
-    vizType: "handover",
-    latency: "Human",
-    tokens: "—",
-    bulletColor: "#F59E0B",
-    cmdTitle: "delivery.human_confirm(require_explicit_submit=true)",
-    cmdDetail: "Opening a link never fakes an applied status",
-  },
-  {
-    id: 16,
-    code: "16",
-    name: "投递追踪",
-    tag: "TRACKING",
-    sub: "收藏 -> 投递 -> 面试 -> Offer 阶段树",
-    vizType: "wave",
-    latency: "Local",
-    tokens: "—",
-    bulletColor: "#10B981",
-    cmdTitle: "tracking.stage_history(local_storage=true)",
-    cmdDetail: "Tracks real stage transitions and user follow-up reminders",
-  },
-  {
-    id: 17,
-    code: "17",
-    name: "面试攻防",
-    tag: "INTERVIEW",
-    sub: "基于真实项目经历组织深挖预案",
-    vizType: "qa",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#A855F7",
-    cmdTitle: "interview.prepare(source='factbase')",
-    cmdDetail: "Send job to Advisor for tailored interview drill",
-  },
-  {
-    id: 18,
-    code: "18",
-    name: "STAR 对练",
-    tag: "INTERVIEW",
-    sub: "S-T-A-R 结构化复盘演练",
-    vizType: "star",
-    latency: "待执行",
-    tokens: "—",
-    bulletColor: "#22D3EE",
-    cmdTitle: "interview.star_chain(nodes=['S', 'T', 'A', 'R'])",
-    cmdDetail: "Builds structured STAR prompts around your verified work",
-  },
-  {
-    id: 19,
-    code: "19",
-    name: "薪酬测算",
-    tag: "DECISION",
-    sub: "用户假设模拟 · 非岗位实际待遇承诺",
-    vizType: "wagebars",
-    latency: "Sim",
-    tokens: "—",
-    bulletColor: "#F59E0B",
-    cmdTitle: "decision.simulate_hourly(tax_assumption=0.88)",
-    cmdDetail: "Hypothetical calculator based on user sliders only",
-  },
-  {
-    id: 20,
-    code: "20",
-    name: "沙箱应用工坊",
-    tag: "SANDBOX",
-    sub: "内置预设 · 本地模型编码实验台",
-    vizType: "polygon",
-    latency: "—",
-    tokens: "—",
-    bulletColor: "#38BDF8",
-    cmdTitle: "sandbox · choose a reviewed preset or start a local coding task",
-    cmdDetail: "Manual authorization required. Check the Host receipt for actual results.",
-  },
-];
-
-// Compatibility export
-export const AUTOPILOT_CARDS = STUDIO_20_NODES.map((n) => [n.tag, n.name, n.sub, `node-${n.code}`, n.vizType] as const);
-
-// ============================================================================
-// 6. 真实机会库映射（不注入任何演示岗位或虚构指标）
-// ============================================================================
-export interface JobPipelineItem {
-  id: string;
-  queueRank: string;
-  tier: string;
-  company: string;
-  shortName: string;
-  logoText: string;
-  logoGradient: string;
-  glowColor: string;
-  role: string;
-  city: string;
-  salary: string;
-  annualTotal: string;
-  workHours: string;
-  sourcePlatform: string;
-  sourceUrl: string;
-  description: string;
-  nextAction: string;
-  updatedAt: string;
-  materialsCount: number;
-  communicationsCount: number;
-  collectedIn3D: boolean;
-  isNewMint: boolean;
-  stage3D: string;
-  tags: string[];
-  sourceJob: Opportunity;
-}
-
-const STUDIO_STAGE_ZH: Record<Opportunity["application"]["stage"], string> = {
-  saved: "已收藏",
-  evaluating: "待评估",
-  preparing: "准备中",
-  applied: "已投递",
-  interview: "面试中",
-  offer: "Offer",
-  rejected: "未通过",
-  withdrawn: "已撤回",
-};
-
-const STUDIO_WORK_MODE_TEXT: Record<Opportunity["workMode"], readonly [string, string]> = {
-  remote: ["远程办公", "Remote"],
-  hybrid: ["混合办公", "Hybrid"],
-  "on-site": ["现场办公", "On-site"],
-  unknown: ["办公方式待核", "Work mode unverified"],
-};
-
-const STUDIO_EMP_TEXT: Record<Opportunity["employmentType"], readonly [string, string]> = {
-  social: ["社招", "Experienced"],
-  campus: ["校招", "New grad"],
-  internship: ["实习", "Internship"],
-  unknown: ["招聘类型待核", "Type unverified"],
-};
-
-const CARD_PALETTES = [
-  { gradient: "linear-gradient(135deg, #06B6D4 0%, #0284C7 55%, #1E3A8A 100%)", glow: "rgba(34, 211, 238, 0.42)" },
-  { gradient: "linear-gradient(135deg, #F59E0B 0%, #EA580C 55%, #9A3412 100%)", glow: "rgba(245, 158, 11, 0.42)" },
-  { gradient: "linear-gradient(135deg, #10B981 0%, #059669 55%, #065F46 100%)", glow: "rgba(16, 185, 129, 0.42)" },
-  { gradient: "linear-gradient(135deg, #A855F7 0%, #7E22CE 55%, #3B0764 100%)", glow: "rgba(168, 85, 247, 0.42)" },
-] as const;
-
-function companyMonogram(company: string): string {
-  const cleaned = company.trim().replace(/[^\p{L}\p{N}]/gu, "");
-  return (cleaned.slice(0, 2) || "BM").toUpperCase();
-}
-
-function opportunityToPipelineItem(job: Opportunity, index: number, t: Translate): JobPipelineItem {
-  const palette = CARD_PALETTES[index % CARD_PALETTES.length]!;
-  const city = [job.location.city, job.location.region, job.location.country].filter(Boolean).join(" · ") || t("地点未披露", "Location not disclosed");
-  const modePair = STUDIO_WORK_MODE_TEXT[job.workMode];
-  const empPair = STUDIO_EMP_TEXT[job.employmentType];
-  const stage3D = STUDIO_STAGE_ZH[job.application.stage];
-  return {
-    id: job.id,
-    queueRank: `#${index + 1}`,
-    tier: stageLabel(stage3D, t),
-    company: job.company,
-    shortName: job.company.slice(0, 12),
-    logoText: companyMonogram(job.company),
-    logoGradient: palette.gradient,
-    glowColor: palette.glow,
-    role: job.title,
-    city,
-    salary: job.salaryText || t("未披露", "Not disclosed"),
-    annualTotal: job.sourcePlatform || t("来源待核验", "Source unverified"),
-    workHours: t(`${modePair[0]} · ${empPair[0]}`, `${modePair[1]} · ${empPair[1]}`),
-    sourcePlatform: job.sourcePlatform || t("手动录入 / 待核验", "Manual / unverified"),
-    sourceUrl: job.sourceUrl || "",
-    description: job.description || "",
-    nextAction: job.application.nextAction || t("下一步：核对岗位原文与申请入口", "Next: review original posting and application link"),
-    updatedAt: job.updatedAt,
-    materialsCount: job.materials.length,
-    communicationsCount: job.application.communications.length,
-    collectedIn3D: true,
-    isNewMint: index === 0,
-    stage3D,
-    tags: [
-      job.sourcePlatform || t("来源待核验", "Source unverified"),
-      t(modePair[0], modePair[1]),
-      job.employmentType !== "unknown" ? t(empPair[0], empPair[1]) : "",
-    ].filter(Boolean),
-    sourceJob: job,
-  };
-}
-
-// ============================================================================
-// 7. 内凹微缩蓝图舱 (CNC-Milled Inset Chamber with Living Telemetry Motion)
-// ============================================================================
-type Translate = (chinese: string, english: string) => string;
-const STAGE_TEXT: Record<string, readonly [string, string]> = {
-  "已收藏": ["Saved", "Saved"],
-  "待评估": ["Evaluating", "Eval"],
-  "准备中": ["Preparing", "Prep"],
-  "已投递": ["Applied", "Sent"],
-  "面试中": ["Interviewing", "Intv"],
-  "Offer": ["Offer", "Offer"],
-  "未通过": ["Rejected", "Decl"],
-  "已撤回": ["Withdrawn", "Wdr"],
-  "简历润色中": ["Polishing resume", "Polish"],
-  "ATS 核验通过": ["ATS check passed", "ATS ok"],
-  "面试攻防准备": ["Interview prep", "Prep"],
-};
-const stageLabel = (stage: string, t: Translate) => t(stage, STAGE_TEXT[stage]?.[0] ?? stage);
-
-function BlueprintMicroChamber({
-  type,
-  isSpotlight,
-  code,
-  agent,
-  theme = "dark",
-}: {
-  type: string;
-  isSpotlight: boolean;
-  code: string;
-  agent: AgentKernelConfig;
-  theme?: "light" | "dark";
-}) {
-  const { t } = useUiPreferences();
-  const isLight = theme === "light";
-  const cPrimary = isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex;
-  const cSecondary = isLight ? (agent.id === "opus-5.5" ? "#0284C7" : agent.secondaryHex) : agent.secondaryHex;
-
-  return (
-    <div
-      style={{
-        backgroundColor: isLight
-          ? isSpotlight ? "#ECFDF5" : "#EBF1F6"
-          : isSpotlight ? "#020810" : "#03060A",
-        boxShadow: isLight
-          ? isSpotlight
-            ? "inset 0 3px 6px -1px rgba(6, 95, 70, 0.18), inset 0 1px 2px rgba(6, 95, 70, 0.15), 0 0 12px rgba(16, 185, 129, 0.22), 0 1px 0 rgba(255, 255, 255, 0.95)"
-            : "inset 0 3px 6px -1px rgba(15, 23, 42, 0.18), inset 0 1px 2px rgba(15, 23, 42, 0.15), inset 0 0 0 1px rgba(15, 23, 42, 0.06), 0 1px 0 rgba(255, 255, 255, 0.95)"
-          : isSpotlight
-            ? "inset 0 4px 10px rgba(0, 0, 0, 0.98), inset 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 16px rgba(56, 189, 248, 0.25), 0 1px 0 rgba(255, 255, 255, 0.12)"
-            : "inset 0 4px 10px rgba(0, 0, 0, 0.98), inset 0 1px 4px rgba(0, 0, 0, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 1px 0 rgba(255, 255, 255, 0.08)",
-        border: isLight
-          ? isSpotlight ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(203, 213, 225, 0.8)"
-          : isSpotlight ? "1px solid rgba(56, 189, 248, 0.45)" : "1px solid rgba(0, 0, 0, 0.9)",
-      }}
-      className="relative w-full h-[52px] rounded-lg overflow-hidden flex items-center justify-between px-2.5 py-1 transition-all duration-300"
-    >
-      <div
-        style={{
-          backgroundImage: isLight
-            ? "radial-gradient(rgba(100, 116, 139, 0.28) 0.75px, transparent 0.75px)"
-            : "radial-gradient(rgba(56, 189, 248, 0.16) 0.75px, transparent 0.75px)",
-          backgroundSize: "6px 6px",
-        }}
-        className="pointer-events-none absolute inset-0 opacity-70"
-      />
-
-      <div className="relative z-10 flex-1 h-full flex items-center pr-1.5 overflow-hidden">
-        {type === "hub" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <line x1="64" y1="18" x2="22" y2="8" stroke={cSecondary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <line x1="64" y1="18" x2="22" y2="28" stroke={cSecondary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <line x1="64" y1="18" x2="106" y2="8" stroke={cPrimary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <line x1="64" y1="18" x2="106" y2="28" stroke={cSecondary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <rect x="6" y="4" width="22" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="0.9" />
-            <rect x="6" y="23" width="22" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={"var(--ap-tone-2)"} strokeWidth="0.9" />
-            <rect x="46" y="11" width="36" height="14" rx="3" fill={"var(--ap-tone-3)"} stroke={cPrimary} strokeWidth="1.3" />
-            <text x="64" y="20.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
-              AGENT
-            </text>
-            <rect x="98" y="4" width="24" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cPrimary} strokeWidth="0.9" />
-            <rect x="98" y="23" width="24" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="0.9" />
-          </svg>
-        )}
-
-        {type === "bridge" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <rect x="6" y="11" width="38" height="14" rx="3.5" fill={"var(--ap-tone-5)"} stroke={cSecondary} strokeWidth="1" />
-            <text x="25" y="20.5" textAnchor="middle" fill={"var(--ap-tone-6)"} fontSize="6" fontFamily="monospace" fontWeight="bold">
-              {code === "12" ? "DRAFT" : "CARD"}
-            </text>
-            <line x1="44" y1="15" x2="78" y2="15" stroke={cPrimary} strokeWidth="1.1" />
-            <line
-              x1="44"
-              y1="21"
-              x2="78"
-              y2="21"
-              stroke={cSecondary}
-              strokeWidth="1.2"
-              strokeDasharray="3 3"
-              style={{ animation: "ap-dash-flow 1.2s linear infinite" }}
-            />
-            <rect x="78" y="11" width="44" height="14" rx="3.5" fill={"var(--ap-tone-7)"} stroke={cPrimary} strokeWidth="1.1" />
-            <text x="100" y="20.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6" fontFamily="monospace" fontWeight="bold">
-              {code === "12" ? "REVIEW" : "VERIFY"}
-            </text>
-          </svg>
-        )}
-
-        {type === "diff" && (
-          <div className="w-full space-y-1.5 font-mono text-[8px]">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-6 ${isLight ? "text-slate-600 font-bold" : "text-slate-500"}`}>old</span>
-              <div className={`h-2 w-14 rounded-xs ${isLight ? "bg-slate-300" : "bg-slate-700/80"}`} />
-              <div className={`h-2 w-9 rounded-xs ${isLight ? "bg-rose-100 border border-rose-300 text-rose-800" : "bg-rose-500/45 border border-rose-400/50"}`} />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ color: cSecondary }} className="font-bold w-6">
-                new
-              </span>
-              <div className="relative h-2 w-12 rounded-xs overflow-hidden" style={{ backgroundColor: cSecondary }}>
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent"
-                  style={{ animation: "ap-shimmer-slide 1.8s ease-in-out infinite" }}
-                />
-              </div>
-              <div className="relative h-2 w-16 rounded-xs overflow-hidden" style={{ backgroundColor: cPrimary }}>
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent"
-                  style={{ animation: "ap-shimmer-slide 1.8s ease-in-out infinite 0.4s" }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {type === "docscan" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-hidden">
-            <rect x="8" y="3" width="22" height="30" rx="2" fill={"var(--ap-tone-8)"} stroke={cSecondary} strokeWidth="1.1" />
-            <line x1="12" y1="9" x2="26" y2="9" stroke={cSecondary} strokeWidth="1.3" />
-            <line x1="12" y1="14" x2="24" y2="14" stroke={"var(--ap-tone-9)"} strokeWidth="1.1" />
-            <line x1="12" y1="19" x2="26" y2="19" stroke={cPrimary} strokeWidth="1.3" />
-            <line x1="12" y1="24" x2="22" y2="24" stroke={"var(--ap-tone-9)"} strokeWidth="1.1" />
-            {/* Animated Laser Beam */}
-            <g style={{ animation: "ap-laser-scan 2.2s ease-in-out infinite alternate" }}>
-              <line x1="7" y1="5" x2="31" y2="5" stroke="#06B6D4" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="9" y1="5" x2="29" y2="5" stroke="#FFFFFF" strokeWidth="0.8" />
-            </g>
-            <path d="M32 18H56" stroke={cSecondary} strokeWidth="1" strokeDasharray="2 2" style={{ animation: "ap-dash-flow 1.2s linear infinite" }} />
-            <rect x="56" y="7" width="64" height="22" rx="3.5" fill={"var(--ap-tone-10)"} stroke={cSecondary} strokeWidth="1" />
-            <text x="88" y="16" textAnchor="middle" fill={"var(--ap-tone-11)"} fontSize="6.5" fontFamily="monospace">
-              1 page · A4
-            </text>
-            <text x="88" y="25" textAnchor="middle" fill={isLight ? "#0284C7" : cSecondary} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
-              {t("待顾问核验", "Advisor check")}
-            </text>
-          </svg>
-        )}
-
-        {type === "radar" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <polygon
-              points="24,3 39,13 33,31 15,31 9,13"
-              fill={isLight ? `${cSecondary}14` : `${cSecondary}20`}
-              stroke={cSecondary}
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <polygon
-              points="24,8 34,15 30,27 18,27 14,15"
-              fill={isLight ? `${cPrimary}18` : `${cPrimary}28`}
-              stroke={cPrimary}
-              strokeWidth="0.9"
-            />
-            {/* Animated Rotating Radar Sweep Ray */}
-            <g style={{ transformOrigin: "24px 17px", animation: "ap-radar-sweep 2.8s linear infinite" }}>
-              <line x1="24" y1="17" x2="38" y2="17" stroke={"var(--ap-tone-12)"} strokeWidth="1.6" strokeLinecap="round" />
-              <polygon points="24,17 38,13 38,21" fill={"var(--ap-tone-13)"} />
-            </g>
-            {/* Blinking Target Ping */}
-            <circle cx="31" cy="11" r="2.2" fill={"var(--ap-tone-14)"} style={{ animation: "ap-led-ping 1.4s ease-in-out infinite" }} />
-            <text x="48" y="15" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              {t("来源与发布方", "Origin audit")}
-            </text>
-            <text x="48" y="26" fill={isLight ? "#0284C7" : cSecondary} fontSize="7" fontFamily="monospace" fontWeight="bold">
-              {t("核对原始链接", "Inspect source")}
-            </text>
-          </svg>
-        )}
-
-        {type === "dotmatrix" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            {Array.from({ length: 24 }).map((_, i) => {
-              const col = i % 8;
-              const row = Math.floor(i / 8);
-              const active = i === 3 || i === 10 || i === 13 || i === 19;
-              return (
-                <circle
-                  key={i}
-                  cx={12 + col * 14}
-                  cy={8 + row * 10}
-                  r={active ? 2.4 : 1.2}
-                  fill={active ? (i % 2 === 0 ? (isLight ? "#D97706" : cPrimary) : (isLight ? "#0284C7" : cSecondary)) : ("var(--ap-tone-15)")}
-                  style={active ? { animation: `ap-led-ping ${1.2 + (i % 3) * 0.4}s ease-in-out infinite alternate` } : undefined}
-                />
-              );
-            })}
-          </svg>
-        )}
-
-        {type === "wagebars" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <g style={{ transformOrigin: "12px 32px", animation: "ap-bar-pulse-1 1.6s ease-in-out infinite alternate" }}>
-              <rect x="8" y="18" width="9" height="14" rx="1.5" fill={"var(--ap-tone-2)"} />
-            </g>
-            <g style={{ transformOrigin: "26px 32px", animation: "ap-bar-pulse-2 1.8s ease-in-out infinite alternate 0.2s" }}>
-              <rect x="22" y="12" width="9" height="20" rx="1.5" fill={isLight ? "#0284C7" : cSecondary} />
-            </g>
-            <g style={{ transformOrigin: "40px 32px", animation: "ap-bar-pulse-3 1.5s ease-in-out infinite alternate 0.4s" }}>
-              <rect x="36" y="5" width="9" height="27" rx="1.5" fill={isLight ? "#D97706" : cPrimary} />
-            </g>
-            <g style={{ transformOrigin: "54px 32px", animation: "ap-bar-pulse-4 1.7s ease-in-out infinite alternate 0.1s" }}>
-              <rect x="50" y="9" width="9" height="23" rx="1.5" fill="#10B981" />
-            </g>
-            <text x="66" y="16" fill={isLight ? "#B45309" : cPrimary} fontSize="7.5" fontFamily="monospace" fontWeight="bold">
-              {t("假设测算", "Simulator")}
-            </text>
-            <text x="66" y="26" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              {t("用户滑块折算", "Slider only")}
-            </text>
-          </svg>
-        )}
-
-        {type === "star" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            {["S", "T", "A", "R"].map((letter, idx) => (
-              <g key={letter}>
-                {idx < 3 && (
-                  <line
-                    x1={24 + idx * 30}
-                    y1="18"
-                    x2={36 + idx * 30}
-                    y2="18"
-                    stroke={cSecondary}
-                    strokeWidth="1.2"
-                    strokeDasharray="2 2"
-                    style={{ animation: "ap-dash-flow 1.4s linear infinite" }}
-                  />
-                )}
-                <rect
-                  x={8 + idx * 30}
-                  y="10"
-                  width="16"
-                  height="16"
-                  rx="3"
-                  fill={"var(--ap-tone-16)"}
-                  stroke={idx === 2 ? cPrimary : cSecondary}
-                  strokeWidth="1.1"
-                />
-                <text
-                  x={16 + idx * 30}
-                  y="20.5"
-                  textAnchor="middle"
-                  fill={"var(--ap-tone-4)"}
-                  fontSize="7"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  {letter}
-                </text>
-              </g>
-            ))}
-          </svg>
-        )}
-
-        {type === "polygon" && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <g style={{ transformOrigin: "24px 17px", animation: "ap-spin-slow 10s linear infinite" }}>
-              <polygon
-                points="24,4 39,11 35,29 14,30 9,13"
-                fill={"var(--ap-tone-17)"}
-                stroke={"var(--ap-tone-18)"}
-                strokeWidth="1.2"
-              />
-              <circle cx="24" cy="4" r="2.2" fill={"var(--ap-tone-12)"} />
-              <circle cx="39" cy="11" r="2.2" fill={"var(--ap-tone-19)"} />
-            </g>
-            <text x="48" y="15" fill={"var(--ap-tone-20)"} fontSize="7" fontFamily="monospace" fontWeight="bold">
-              esbuild · QuickJS
-            </text>
-            <text x="48" y="26" fill={"var(--ap-tone-21)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              {t("预设 / 本机编码", "Preset / local coding")}
-            </text>
-          </svg>
-        )}
-
-        {!["hub", "bridge", "diff", "docscan", "radar", "dotmatrix", "wagebars", "star", "polygon"].includes(type) && (
-          <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <rect x="6" y="8" width="44" height="6" rx="2" fill={"var(--ap-tone-22)"} />
-            <rect x="6" y="8" width="32" height="6" rx="2" fill={cSecondary} />
-            <rect x="6" y="20" width="58" height="6" rx="2" fill={"var(--ap-tone-22)"} />
-            <rect x="6" y="20" width="46" height="6" rx="2" fill={cPrimary} />
-            <circle cx="78" cy="17" r="3.5" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="1.2" />
-            <line x1="82" y1="17" x2="98" y2="17" stroke={cSecondary} strokeWidth="1" strokeDasharray="2 2" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <rect x="98" y="10" width="26" height="14" rx="3" fill={"var(--ap-tone-16)"} stroke={cPrimary} strokeWidth="1.1" />
-            <text x="111" y="19.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
-              #{code}
-            </text>
-          </svg>
-        )}
-      </div>
-
-      <div
-        style={{
-          borderColor: isSpotlight ? cSecondary : ("var(--ap-tone-23)"),
-          backgroundColor: isSpotlight
-            ? (isLight ? "#ECFDF5" : `${cSecondary}22`)
-            : ("var(--ap-tone-24)"),
-          color: isSpotlight ? ("var(--ap-tone-25)") : ("var(--ap-tone-9)"),
-          boxShadow: isSpotlight ? `0 0 10px ${cSecondary}55` : "none",
-          animation: isSpotlight ? "ap-glow-pulse 2s ease-in-out infinite" : undefined,
-        }}
-        className="relative z-10 w-[18px] h-[18px] rounded-[5px] flex items-center justify-center border shrink-0 transition-all"
-      >
-        <Check className="w-2.5 h-2.5 stroke-[2.8]" />
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// 8. 真 3D 立体毛玻璃岗位卡 (CyberJobCard3D)
-// ============================================================================
-function CyberJobCard3D({
-  job,
-  agent,
-  isFlipped,
-  onToggleFlip,
-  onInspectInStudio,
-  onAnalyze,
-  onOpenRecord,
-  theme = "dark",
-}: {
-  job: JobPipelineItem;
-  agent: AgentKernelConfig;
-  isFlipped: boolean;
-  onToggleFlip: () => void;
-  onInspectInStudio: (id: string) => void;
-  onAnalyze?: (job: Opportunity) => void;
-  onOpenRecord?: (id: string) => void;
-  theme?: "light" | "dark";
-}) {
-  const { t, locale } = useUiPreferences();
-  const isLight = theme === "light";
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 30, hover: false });
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isFlipped || !cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const rotY = ((x - rect.width / 2) / (rect.width / 2)) * 11;
-    const rotX = -((y - rect.height / 2) / (rect.height / 2)) * 11;
-    setTilt({
-      rotateX: Number(rotX.toFixed(2)),
-      rotateY: Number(rotY.toFixed(2)),
-      glareX: Math.round((x / rect.width) * 100),
-      glareY: Math.round((y / rect.height) * 100),
-      hover: true,
-    });
-  };
-
-  const handleMouseLeave = () => {
-    setTilt({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 25, hover: false });
-  };
-
-  const activeTiltX = isFlipped ? 0 : tilt.rotateX;
-  const activeTiltY = isFlipped ? 0 : tilt.rotateY;
-  const totalRotateY = (isFlipped ? 180 : 0) + activeTiltY;
-  const updatedText = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "zh-CN", {
-    timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(new Date(job.updatedAt));
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={onToggleFlip}
-      style={{ perspective: "1400px" }}
-      data-cyber-card-id={job.id}
-      data-job-id={job.id}
-      className="cyber-3d-card group relative w-full h-[356px] select-none cursor-pointer"
-    >
-      <div
-        style={{
-          background: job.glowColor,
-          transform: `translate3d(${-activeTiltY * 1.2}px, ${12 + activeTiltX}px, -30px) scale(${
-            tilt.hover && !isFlipped ? 0.96 : 0.86
-          })`,
-          opacity: tilt.hover && !isFlipped ? 0.58 : 0.24,
-        }}
-        className="pointer-events-none absolute inset-x-6 bottom-1 h-20 rounded-3xl blur-2xl transition-all duration-300"
-      />
-
-      <div
-        style={{
-          transformStyle: "preserve-3d",
-          transform: `translateZ(${tilt.hover && !isFlipped ? 14 : 0}px) rotateX(${activeTiltX}deg) rotateY(${totalRotateY}deg)`,
-          transition: tilt.hover && !isFlipped
-            ? "transform 110ms cubic-bezier(0.2, 0.85, 0.3, 1)"
-            : "transform 650ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-        className="relative w-full h-full"
-      >
-        {/* 正面 */}
-        <div
-          style={{
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
-            transformStyle: "preserve-3d",
-            backdropFilter: "blur(28px) saturate(190%)",
-            backgroundColor: "var(--ap-tone-26)",
-            pointerEvents: isFlipped ? "none" : "auto",
-            boxShadow: tilt.hover && !isFlipped
-              ? isLight
-                ? `0 22px 48px -10px rgba(0,0,0,0.14), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.95)`
-                : `0 24px 50px -12px rgba(0,0,0,0.9), 0 0 0 1.5px ${agent.secondaryHex}aa, inset 0 1px 0 rgba(255,255,255,0.24)`
-              : isLight
-                ? "0 10px 28px -10px rgba(0,0,0,0.08), 0 0 0 1px #CBD5E1, inset 0 1px 0 rgba(255,255,255,0.95)"
-                : "0 20px 42px -12px rgba(0,0,0,0.8), 0 0 0 1px #1E2E42, inset 0 1px 0 rgba(255,255,255,0.12)",
-          }}
-          className="absolute inset-0 rounded-2xl p-5 flex flex-col justify-between overflow-hidden"
-        >
-          <div
-            style={{
-              background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, ${agent.secondaryHex}28 0%, transparent 62%)`,
-            }}
-            className="pointer-events-none absolute inset-0"
-          />
-
-          <div style={{ transform: "translateZ(32px)" }} className="relative flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div
-                style={{
-                  background: job.logoGradient,
-                  boxShadow: "0 10px 18px -4px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.5)",
-                }}
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-mono font-black text-sm shrink-0 relative"
-              >
-                {job.logoText}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] font-bold border ${
-                    isLight
-                      ? "bg-amber-100 text-amber-900 border-amber-300"
-                      : "bg-amber-400/15 text-amber-300 border-amber-400/30"
-                  }`}>
-                    {job.queueRank} · {stageLabel(job.stage3D, t)}
-                  </span>
-                  <span className={`text-xs font-medium truncate ${isLight ? "text-slate-600 font-semibold" : "text-slate-300"}`}>
-                    {job.company}
-                  </span>
-                </div>
-                <h3 className={`text-[15px] font-bold tracking-tight mt-0.5 truncate ${isLight ? "text-slate-900" : "text-white"}`}>
-                  {job.role}
-                </h3>
-                <div className={`text-[11px] mt-0.5 flex items-center gap-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  <MapPin className="w-3 h-3 text-cyan-500 shrink-0" />
-                  <span className="truncate">{job.city}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={`shrink-0 font-mono text-center px-2.5 py-1.5 rounded-xl border ${
-              isLight ? "bg-cyan-50 border-cyan-200" : "bg-cyan-400/10 border-cyan-400/30"
-            }`}>
-              <div className={`text-xs font-black ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>{job.materialsCount}</div>
-              <div className={`text-[9px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t("快照", "SNAP")}</div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              transform: "translateZ(22px)",
-              boxShadow: isLight ? "inset 0 1px 3px rgba(0,0,0,0.06)" : "inset 0 2px 6px rgba(0,0,0,0.9)",
-            }}
-            className={`relative rounded-xl p-3 border flex items-center justify-between gap-2 font-mono ${
-              isLight ? "bg-slate-50 border-slate-200" : "bg-[#05080D] border-[#182638]"
-            }`}
-          >
-            <div className="min-w-0">
-              <div className={`text-[10px] truncate ${isLight ? "text-slate-500" : "text-slate-400"}`}>{job.annualTotal}</div>
-              <div className={`text-sm font-extrabold mt-0.5 truncate ${isLight ? "text-amber-800" : "text-amber-400"}`}>{job.salary}</div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold ${
-                isLight ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-              }`}>
-                {updatedText}
-              </div>
-              <div className={`text-[10px] mt-1 ${isLight ? "text-slate-600 font-medium" : "text-cyan-300/90"}`}>{job.workHours}</div>
-            </div>
-          </div>
-
-          <div style={{ transform: "translateZ(18px)" }} className="relative flex flex-wrap gap-1.5">
-            {job.tags.map((tag, i) => (
-              <span
-                key={i}
-                className={`px-2 py-0.5 rounded-md text-[10.5px] font-mono border ${
-                  isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#0E1724] border-[#1E3048] text-slate-200"
-                }`}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-
-          <div
-            style={{ transform: "translateZ(24px)" }}
-            className={`relative pt-2 border-t flex items-center justify-between text-[11px] font-mono ${
-              isLight ? "border-slate-200" : "border-white/[0.08]"
-            }`}
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <StudioRuntimeIcon agentId={agent.id} className="w-4 h-4 shrink-0" />
-              <span className={`truncate ${isLight ? "text-slate-600" : "text-slate-300"}`}>{agent.shortName}</span>
-            </div>
-            <div className={`flex items-center gap-1 font-medium shrink-0 ${isLight ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-300"}`}>
-              <RotateCw className="w-3 h-3 transition-transform duration-500 group-hover:rotate-180" />
-              <span>{t("180° 翻转详情", "Flip 180° details")}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 背面 */}
-        <div
-          style={{
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
-            transform: "rotateY(180deg)",
-            transformStyle: "preserve-3d",
-            backdropFilter: "blur(30px) saturate(200%)",
-            backgroundColor: "var(--ap-tone-27)",
-            pointerEvents: isFlipped ? "auto" : "none",
-            boxShadow: isLight
-              ? `0 24px 50px -12px rgba(0,0,0,0.15), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.9)`
-              : `0 24px 50px -12px rgba(0,0,0,0.92), 0 0 0 1.5px ${agent.primaryHex}aa, inset 0 1px 0 rgba(255,255,255,0.22)`,
-          }}
-          className="absolute inset-0 rounded-2xl p-5 flex flex-col justify-between overflow-hidden"
-        >
-          <div style={{ transform: "translateZ(24px)" }} className={`flex items-center justify-between border-b pb-2 gap-2 ${
-            isLight ? "border-slate-200" : "border-white/10"
-          }`}>
-            <div className="flex items-center gap-2 font-mono text-xs font-bold truncate" style={{ color: isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex }}>
-              <StudioRuntimeIcon agentId={agent.id} className="w-5 h-5 shrink-0" />
-              <span className="truncate">{job.sourcePlatform}</span>
-            </div>
-            <span className={`font-mono text-[10px] px-2 py-0.5 rounded border shrink-0 ${
-              isLight
-                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-            }`}>
-              {stageLabel(job.stage3D, t)}
-            </span>
-          </div>
-
-          <div style={{ transform: "translateZ(28px)" }} className="space-y-2 text-[11px] leading-relaxed my-1">
-            <div className={`p-2.5 rounded-xl border ${
-              isLight
-                ? "bg-emerald-50 border-emerald-200 text-emerald-950"
-                : "bg-emerald-950/35 border-emerald-500/30 text-emerald-100"
-            }`}>
-              <div className={`font-mono font-bold text-[10.5px] mb-0.5 ${
-                isLight ? "text-emerald-800" : "text-emerald-300"
-              }`}>
-                {t("下一步跟进", "Next follow-up")}
-              </div>
-              <p className="line-clamp-2 opacity-95">{job.nextAction}</p>
-            </div>
-            <div className={`p-2.5 rounded-xl border ${
-              isLight
-                ? "bg-cyan-50 border-cyan-200 text-cyan-950"
-                : "bg-cyan-950/35 border-cyan-500/30 text-cyan-100"
-            }`}>
-              <div className={`font-mono font-bold text-[10.5px] mb-0.5 ${
-                isLight ? "text-cyan-800" : "text-cyan-300"
-              }`}>
-                {t(`沟通 ${job.communicationsCount} · 材料 ${job.materialsCount}`, `Comms ${job.communicationsCount} · Snapshots ${job.materialsCount}`)}
-              </div>
-              <p className="line-clamp-2 opacity-95">
-                {job.description ? job.description : t("尚未保存 JD 正文；背调与匹配需送入顾问执行后生成真实回执。", "No description saved yet; run Advisor for real research and match receipts.")}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ transform: "translateZ(30px)" }} onClick={(e) => e.stopPropagation()} className="grid grid-cols-2 gap-2">
-            {onOpenRecord && (
-              <button
-                type="button"
-                onClick={() => onOpenRecord(job.id)}
-                className={`py-1.5 px-2.5 rounded-xl font-mono text-[11px] font-bold border transition ${
-                  isLight ? "bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200" : "bg-white/10 border-white/15 text-slate-100 hover:bg-white/15"
-                }`}
-              >
-                {t("核对岗位记录", "Review record")}
-              </button>
-            )}
-            {onAnalyze && (
-              <button
-                type="button"
-                onClick={() => onAnalyze(job.sourceJob)}
-                className="py-1.5 px-2.5 rounded-xl font-mono text-[11px] font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-cyan-300 hover:brightness-110 shadow flex items-center justify-center gap-1 transition"
-              >
-                <span>{t("送入顾问", "Send to advisor")}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onInspectInStudio(job.id)}
-              className={`col-span-2 py-1.5 px-3 rounded-xl font-mono text-[11px] font-bold border flex items-center justify-center gap-1.5 transition ${
-                isLight ? "bg-cyan-50 border-cyan-300 text-cyan-900 hover:bg-cyan-100" : "bg-cyan-500/15 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/25"
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>{t(`载入 ${agent.shortName} 20-Node 工坊`, `Open ${agent.shortName} in the 20-Node studio`)} ➔</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Real opportunity library mappers live in ./autopilot/autopilot-pipeline-mappers.ts
 
 // ============================================================================
 // 9. 主工作区组件：AutopilotStudioWorkspace
 // ============================================================================
 export type AutopilotStudioWorkspaceProps = {
+  active?: boolean;
   factBase?: FactBase;
   resume?: ProjectedResume;
   projectedResume?: ProjectedResume;
@@ -1508,16 +108,21 @@ export type AutopilotStudioWorkspaceProps = {
 };
 
 export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
-  const { data: libraryState, mutate } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
+  const active = props.active ?? true;
+  const ownerId = currentPrincipal()?.id;
+  const libraryKey = ownerId ? ["studio:opportunity-library", ownerId] : "studio:opportunity-library";
+  const { data: libraryState, mutate } = useSWR(active ? libraryKey : null, () => readOpportunityLibrary(), { refreshInterval: 5_000 });
+  const { data: kernelTelemetry, mutate: mutateTelemetry } = useSWR(active && ownerId ? ["studio:kernel-telemetry", ownerId] : null, fetchAutopilotKernelTelemetry, { refreshInterval: 8_000 });
   useEffect(() => {
-    const sync = () => { void mutate(); };
+    if (!active) return;
+    const sync = () => { void mutate(); void mutateTelemetry(); };
     window.addEventListener("betterme:opportunities-updated", sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener("betterme:opportunities-updated", sync);
       window.removeEventListener("storage", sync);
     };
-  }, [mutate]);
+  }, [active, mutate, mutateTelemetry]);
   const jobs = libraryState?.library?.jobs ?? [];
   return (
     <AutopilotWorkbenchPrototype
@@ -1525,7 +130,8 @@ export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
       opportunities={jobs}
       loadingOpportunities={!libraryState}
       opportunityError={libraryState?.error}
-      onRefreshOpportunities={() => { void mutate(); }}
+      kernelTelemetry={kernelTelemetry}
+      onRefreshOpportunities={active ? () => { void mutate(); void mutateTelemetry(); } : undefined}
     />
   );
 }
@@ -1539,6 +145,7 @@ export function AutopilotWorkbenchPrototype({
   opportunities = [],
   loadingOpportunities = false,
   opportunityError = "",
+  kernelTelemetry = EMPTY_AUTOPILOT_TELEMETRY,
   onRefreshOpportunities,
   onOpenMicroApp,
   onOpenOpportunity,
@@ -1551,6 +158,7 @@ export function AutopilotWorkbenchPrototype({
   opportunities?: Opportunity[];
   loadingOpportunities?: boolean;
   opportunityError?: string;
+  kernelTelemetry?: AutopilotKernelTelemetry;
   onRefreshOpportunities?: () => void;
 }) {
   const { theme, setTheme, t } = useUiPreferences();
@@ -1571,7 +179,7 @@ export function AutopilotWorkbenchPrototype({
   };
   const studioNodes = useMemo(() => STUDIO_20_NODES.map(node => node.id === 1
     ? { ...node, name: runtimeName, sub: t(`系统设置 · ${runtimeStatus}`, `System settings · ${runtimeStatus}`) }
-    : node), [runtimeName, runtimeStatus, t]);
+    : localizeStudioNode(node, t)), [runtimeName, runtimeStatus, t]);
 
   // 2. 工作台模式 ('studio' | 'space3d' | 'split')
   const [workspaceMode, setWorkspaceMode] = useState<"studio" | "space3d" | "split">("studio");
@@ -1936,6 +544,14 @@ export function AutopilotWorkbenchPrototype({
             <span className="text-amber-500 font-semibold shrink-0">{sourcedJobsCount}{t(" 带来源", " sourced")}</span>
             <span className="opacity-30">•</span>
             <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点${claimCount}`, `${claimCount} fact claims`)}</span>
+            {kernelTelemetry.authenticated && (
+              <>
+                <span className="opacity-30">•</span>
+                <span className="text-emerald-500 font-semibold shrink-0">
+                  {t(`内核任务${kernelTelemetry.totalTasks}`, `${kernelTelemetry.totalTasks} tasks`)}
+                </span>
+              </>
+            )}
           </div>
 
           {onRefreshOpportunities && (
@@ -3013,34 +1629,19 @@ export function AutopilotWorkbenchPrototype({
                       </div>
                     )}
 
-                    {/* 其余节点的默认工程工件 */}
+                    {/* 其余节点的实时 AgentTaskKernel 运行状态面板 */}
                     {![10, 11, 13, 19, 20].includes(activeNode.id) && (
-                      <div className={`p-4 rounded-xl border space-y-2 ${
-                        theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
-                      }`}>
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className={`font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
-                            #{activeNode.code} {activeNode.name} {t("运行时状态", "runtime status")}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] ${
-                            theme === "light"
-                              ? "bg-cyan-100 text-cyan-900 border border-cyan-300 font-bold"
-                              : "bg-cyan-400/20 text-cyan-300"
-                          }`}>
-                            {activeNode.latency} • {activeNode.tokens === "—" ? t("按需触发", "On demand") : activeNode.tokens}
-                          </span>
-                        </div>
-                        <div className={`text-[11px] ${theme === "light" ? "text-slate-600" : "text-slate-300"}`}>
-                          {activeNode.cmdDetail}
-                        </div>
-                        <div className={`p-2 rounded text-[10px] font-mono border ${
-                          theme === "light"
-                            ? "bg-slate-100 text-slate-700 border-slate-200"
-                            : "bg-black/60 text-slate-400 border-white/5"
-                        }`}>
-                          payload: {JSON.stringify({ skill: activeNode.cmdTitle, target: activeJob?.company ?? null, savedJobs: jobs.length, factBaseClaims: claimCount }, null, 2)}
-                        </div>
-                      </div>
+                      <AutopilotNodeInspector
+                        node={activeNode}
+                        theme={theme}
+                        savedJobsCount={jobs.length}
+                        claimCount={claimCount}
+                        targetCompany={activeJob?.company}
+                        telemetry={kernelTelemetry}
+                        onOpenOpportunitySources={onOpenOpportunitySources}
+                        onAnalyzeActiveJob={activeJob && onAnalyzeOpportunity ? () => onAnalyzeOpportunity(activeJob.sourceJob) : undefined}
+                        onOpenActiveRecord={activeJob && onOpenOpportunity ? () => onOpenOpportunity(activeJob.id) : undefined}
+                      />
                     )}
                   </div>
                 )}
@@ -3127,6 +1728,7 @@ export function AutopilotWorkbenchPrototype({
                     job={j}
                     agent={currentAgent}
                     isFlipped={Boolean(flipped3DMap[j.id])}
+                    stageLabelText={stageLabel(j.stage3D, t)}
                     onToggleFlip={() => setFlipped3DMap((p) => ({ ...p, [j.id]: !p[j.id] }))}
                     onAnalyze={onAnalyzeOpportunity}
                     onOpenRecord={onOpenOpportunity}
@@ -3232,8 +1834,8 @@ export function AutopilotWorkbenchPrototype({
             <button
               type="button"
               onClick={() => {
-                if (typeof window !== "undefined" && (window as any).desktopApi?.toggleStarPrompterHud) {
-                  (window as any).desktopApi.toggleStarPrompterHud();
+                if (typeof window !== "undefined" && window.desktopApi?.toggleStarPrompterHud) {
+                  void window.desktopApi.toggleStarPrompterHud();
                 } else {
                   triggerToast(t("🎙 STAR 提词 HUD", "STAR prompter HUD"), t("桌面端专享：全局置顶、毛玻璃半透明、多屏跟随悬浮提词窗 (快捷键 ⌘+Shift+H)", "Desktop only: an always-on-top, frosted translucent prompter window that follows you across screens (shortcut ⌘+Shift+H)"));
                 }

@@ -9,6 +9,7 @@ import { DesktopAppMenu } from "./DesktopAppMenu";
 import { DesktopMenuBar } from "./DesktopMenuBar";
 import { DynamicIsland, StatusDots } from "./DynamicIsland";
 import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
+import { resolveSavedWallpaper } from "../../lib/preset-wallpapers";
 import { useInstalledMicroApps, type InstalledMicroApp } from "../../lib/micro-app-registry";
 import { SandboxedAppHost } from "../SandboxedAppHost";
 import { ProductMark } from "../ProductMark";
@@ -50,17 +51,21 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(timer); }, []);
   useEffect(() => {
     if (settingsOpen) shell.current?.querySelector<HTMLButtonElement>(".os-settings-window .os-traffic button")?.focus({ preventScroll: true });
-  }, [settingsOpen]);
+  }, [settingsOpen, settingsRequest?.id]);
   const titles: Record<DesktopPage, string> = { resume: t("简历工作室", "Resume studio"), agent: t("AI 顾问", "AI workspace"), opportunities: t("机会与投递", "Opportunities"), resources: t("资料库", "Resources"), atlas: t("岗位地图", "Opportunity atlas"), autopilot: t("自动化工坊", "Autopilot studio") };
   function focusDock(id: string) { shell.current?.querySelector<HTMLButtonElement>(`[data-dock-app="${id}"]`)?.focus({ preventScroll: true }); }
   function closeSettings() { setSettingsOpen(false); focusDock("settings"); }
   function navigate(next: DesktopPage) { setSettingsOpen(false); setMainHidden(false); onNavigate(next); }
-  const isElectron = typeof window !== "undefined" && Boolean((window as any).desktopApi?.isElectron);
+  const isElectron = typeof window !== "undefined" && Boolean(window.desktopApi?.isElectron);
   const filterParts: string[] = [];
   if (wallpaper === "midnight") filterParts.push("brightness(.58) saturate(.8)");
   if (wallpaper === "warm") filterParts.push("hue-rotate(155deg) saturate(.65)");
   if (wallpaperBlur > 0) filterParts.push(`blur(${wallpaperBlur}px)`);
   const computedWallpaperFilter = filterParts.length > 0 ? filterParts.join(" ") : undefined;
+  const presetSource = ["aurora", "midnight", "warm"].includes(wallpaper) ? undefined
+    : resolveSavedWallpaper(wallpaper.startsWith("/") || wallpaper.startsWith("http") ? wallpaper : `/wallpapers/${wallpaper}.jpg`);
+  const customSource = customWallpaper.data?.enabled ? customWallpaper.url : undefined;
+  const wallpaperSource = customSource || presetSource;
 
   return <div ref={shell} className="os-desktop" data-page={page} data-studio={page === "resume"} data-focused={page === "resume" && focused} data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} data-electron={isElectron} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented && settingsOpen && (event.target as HTMLElement).closest(".os-settings-window")) {
@@ -70,24 +75,26 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
     <div
       className="os-wallpaper no-print"
       aria-hidden="true"
-      data-custom={Boolean(customWallpaper.data?.enabled && customWallpaper.url)}
+      data-custom={Boolean(customSource)}
       style={{
         opacity: wallpaperOpacity,
         filter: computedWallpaperFilter,
         transform: wallpaperBlur > 0 ? "scale(1.04)" : undefined,
       }}
     >
-      {customWallpaper.data?.enabled && customWallpaper.url ? (
-        <img src={customWallpaper.url} alt="" draggable={false} decoding="async" style={{ objectFit: customWallpaper.data.fit }} />
-      ) : wallpaper && wallpaper !== "aurora" && wallpaper !== "midnight" && wallpaper !== "warm" ? (
+      {wallpaperSource && (
         <img
-          src={wallpaper.startsWith("/") || wallpaper.startsWith("http") ? wallpaper : `/wallpapers/${wallpaper}.jpg`}
+          key={wallpaperSource}
+          src={wallpaperSource}
           alt=""
           draggable={false}
           decoding="async"
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+          style={{ objectFit: customSource ? customWallpaper.data?.fit : "cover" }}
         />
-      ) : null}
+      )}
     </div>
     <DesktopMenuBar>
       <div className="os-menubar-glass os-menubar-apps">

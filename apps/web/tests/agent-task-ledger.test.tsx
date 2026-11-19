@@ -69,7 +69,7 @@ test("owner generation change clears old preview and aggregate totals without se
   await render(client);await act(async()=>button("读取可关联旧根账（不推理）").click());assert.equal(legacyReads,1);
   await act(async()=>activatePrincipal({id:"22222222-2222-4222-8222-222222222222",username:"other",displayName:"Other"}));
   pending.resolve({ownerId,rootScopeKey:"synthetic-ledger",candidates:[]});await act(async()=>{await pending.promise;});
-  assert.equal(button("读取可关联旧根账（不推理）").disabled,true);assert.equal(button("刷新根账（不推理）").disabled,true);assert.doesNotMatch(dom.document.querySelector("summary")!.textContent!,/模型 3\/3/);assert.match(dom.document.body.textContent!,/旧账预览已清除/);
+  assert.equal(button("读取可关联旧根账（不推理）").disabled,true);assert.equal(button("刷新根账（不推理）").disabled,true);assert.doesNotMatch(dom.document.querySelector("summary")!.textContent!,/模型 3\/3/);assert.match(dom.document.body.textContent!,/旧账预览已清除/);assert.match(dom.document.querySelector('[role="alert"]')!.textContent!,/账号状态已变化/);
 });
 
 test("a late ledger refresh cannot publish the former workspace after a scope change",async()=>{

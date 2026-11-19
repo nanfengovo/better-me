@@ -30,7 +30,7 @@ if (!process.versions.electron) {
   const dir = readArgument("--fixture-dir"), dist = readArgument("--fixture-dist");
   assert.ok(dir && dist && path.basename(dir).startsWith("betterme-electron-offline-") && fs.realpathSync(dir) === dir);
   assert.equal(app.commandLine.getSwitchValue("user-data-dir"),path.join(dir,"userData"),"an isolated initial profile is required");
-  const origin = "http://127.0.0.1:5173", url = origin + "/?workspace=autopilot";
+  const origin = "http://127.0.0.1:5173", url = origin + "/?workspace=resume";
   const forbidden = [], assets = new Set(), sleep = (ms) => new Promise((r) => setTimeout(r,ms));
   let syntheticApiReads = 0, blockedRequests = 0, windows = 0;
   app.setName("better-me-desktop");

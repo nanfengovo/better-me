@@ -1,12 +1,12 @@
 import { useUiPreferences } from "../lib/ui-preferences";
-import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId } from "react";
+import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId, useMemo } from "react";
 import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
 import { getResumePrintCss } from "../lib/resume-print";
+import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
 import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, ChevronDown, HelpCircle } from "lucide-react";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
-import { projectedResumeToDocx } from "../lib/docx-export";
 import "./resume-design.css";
 import { Hand } from "lucide-react";
 import { usePreviewPan } from "./usePreviewPan";
@@ -30,6 +30,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const [copyError, setCopyError] = useState("");
   const [exportNotes, setExportNotes] = useState<string[]>([]);
   const [docxExporting, setDocxExporting] = useState(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const exportTriggerRef = useRef<HTMLButtonElement>(null);
@@ -63,6 +64,8 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const templateId = resolveResumeTemplate(resume.templateId);
   const template = getTemplateUiMetadata(templateId, locale);
   const isAts = templateId === "en-ats";
+  const hasExportablePhoto = useMemo(() => !isAts && showAvatar && canExportDocxPhoto(resume.profile.avatarUrl),
+    [isAts, showAvatar, resume.profile.avatarUrl]);
   const updateFitWidth = useCallback(() => {
     const canvas = canvasRef.current;
     const stage = stageRef.current;
@@ -242,12 +245,12 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
     } catch (err) { setCopyError(err instanceof Error ? err.message : t("RenderCV 导出失败。", "RenderCV export failed.")); }
   }
 
-  async function handleDocxExport() {
+  async function handleDocxExport(includePhoto: boolean) {
     if (docxExporting) return;
     setDocxExporting(true);
     setCopyError("");
     try {
-      const result = await projectedResumeToDocx(resume);
+      const result = await projectedResumeToDocx(resume, { includePhoto: includePhoto && hasExportablePhoto });
       const url = URL.createObjectURL(result.blob);
       const link = document.createElement("a");
       link.href = url;
@@ -261,6 +264,31 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
       setCopyError(err instanceof Error ? t(`DOCX 导出失败：${err.message}`, `DOCX export failed: ${err.message}`) : t("DOCX 导出失败，请重试。", "DOCX export failed. Try again."));
     } finally {
       setDocxExporting(false);
+    }
+  }
+
+  async function handlePdfExport() {
+    const desktopPdf = window.desktopApi?.exportPdf;
+    if (!desktopPdf) {
+      window.print();
+      return;
+    }
+    if (pdfExporting) return;
+    setPdfExporting(true);
+    setCopyError("");
+    try {
+      const candidateName = resume.profile.displayName.trim() || "better-me";
+      const result = await desktopPdf(`${candidateName}-resume-${resume.locale}.pdf`);
+      if (result.cancelled) return;
+      if (result.ok && result.filePath) {
+        setExportNotes([t(`已将高保真 A4 PDF 保存至：${result.filePath}`, `Saved A4 PDF to: ${result.filePath}`)]);
+      } else {
+        setCopyError(result.error ?? t("PDF 导出失败，请重试。", "PDF export failed. Try again."));
+      }
+    } catch (err) {
+      setCopyError(err instanceof Error ? t(`PDF 导出失败：${err.message}`, `PDF export failed: ${err.message}`) : t("PDF 导出失败，请重试。", "PDF export failed. Try again."));
+    } finally {
+      setPdfExporting(false);
     }
   }
 
@@ -280,13 +308,13 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
               <button ref={helpTriggerRef} type="button" className="preview-icon-button" aria-label={t("预览与导出说明", "Preview and export information")} aria-expanded={isHelpOpen} aria-controls={helpId} onClick={() => { setIsHelpOpen((value) => !value); setIsExportMenuOpen(false); }}><HelpCircle size={16} /></button>
               {isHelpOpen && <div ref={helpPanelRef} id={helpId} className="preview-help-panel" role="region" aria-label={t("预览与导出说明", "Preview and export information")}>
                 <strong>{template.name}</strong><p>{template.description}</p>
-                <p>{t("缩放仅影响预览。DOCX 为可编辑单栏正文，不含照片；PDF 保留所选模板。", "Zoom affects preview only. DOCX is editable single-column content without photos; PDF keeps the selected template.")}</p>
+                <p>{t("缩放仅影响预览。DOCX 为可编辑单栏文档，默认省略照片；预览显示支持的本地照片时，可选择带照片的 DOCX。PDF 保留所选模板。", "Zoom affects preview only. The editable, single-column DOCX omits photos by default. If a supported local photo is visible, you can export a DOCX with it. PDF keeps the selected template.")}</p>
                 <p>{printHint}</p>
               </div>}
             </div>
             <div className="preview-export" ref={exportMenuRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsExportMenuOpen(false); }}>
               <div className="preview-export-split">
-                <button type="button" onClick={() => window.print()} className="preview-export-primary" title={printHint} aria-description={printHint} aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{t("导出", "Export")}</span></button>
+                <button type="button" onClick={() => { void handlePdfExport(); }} disabled={pdfExporting} aria-busy={pdfExporting} className="preview-export-primary" title={printHint} aria-description={printHint} aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{pdfExporting ? t("正在导出…", "Exporting…") : t("导出", "Export")}</span></button>
                 <button ref={exportTriggerRef} type="button" className="preview-export-toggle" aria-label={t("更多导出格式", "More export formats")} aria-haspopup="menu" aria-expanded={isExportMenuOpen} aria-controls={exportMenuId} onClick={() => { setIsExportMenuOpen((value) => !value); setIsHelpOpen(false); }} onKeyDown={(event) => {
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();
@@ -311,7 +339,8 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
                 items[next]?.focus();
               }}>
                 <div className="preview-menu-heading">{t("其他格式", "Other formats")}</div>
-                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(); }} disabled={docxExporting} aria-busy={docxExporting}><FileDown size={17} /><span>{docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX")}<small>{t("可编辑文档", "Editable document")}</small></span><span className="preview-format-extension">.docx</span></button>
+                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(false); }} disabled={docxExporting} aria-busy={docxExporting}><FileDown size={17} /><span>{docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX")}<small>{t("可编辑文档 · 无照片", "Editable document · no photo")}</small></span><span className="preview-format-extension">.docx</span></button>
+                {hasExportablePhoto && <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(true); }} disabled={docxExporting}><FileDown size={17} /><span>{t("下载带照片的 DOCX", "Download photo DOCX")}<small>{t("包含预览中的本地照片", "Includes the local photo shown in preview")}</small></span><span className="preview-format-extension">.docx</span></button>}
                 <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleCopyMarkdown(); }}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? t("已复制 MD", "MD copied") : t("复制 MD", "Copy MD")}<small>{t("复制为 Markdown", "Copy as Markdown")}</small></span></button>
                 <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); handleDownloadMarkdown(); }}><FileDown size={17} /><span>{t("下载 MD", "Download MD")}<small>{t("纯文本与基本格式", "Text and basic formatting")}</small></span><span className="preview-format-extension">.md</span></button>
                 <div className="preview-menu-divider" role="separator" />

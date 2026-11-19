@@ -51,7 +51,7 @@ import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-rec
 import { CompanionRecoverySchema } from "../lib/advisor-recovery";
 import { privateKey } from "../lib/private-storage";
 import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
-import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
+import { AgentAutoSpeechToggle, AgentSpeechControl, useAgentSpeech, useSessionAutoSpeech } from "./AgentSpeechControl";
 
 export interface AgentCompanionProps {
   workspaceKey?: string;
@@ -262,6 +262,7 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
   const [providerMessage, setProviderMessage] = useState("");
   const imageCapability = getModelImageCapability(llmConfig);
   const [chatMessages, setChatMessages] = useRecoveryField(recovery, "messages");
+  const autoSpeech = useSessionAutoSpeech(chatMessages, speech, open, workspaceKey);
   useEffect(() => {
     if (!agent || !agentSnapshot?.ready || agentSnapshot.error || hydratedScope.current === agent.workspaceKey) return;
     hydratedScope.current = agent.workspaceKey;
@@ -685,6 +686,7 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
               <div className="agent-companion-chat-heading">
                 <span><MessageSquare size={13} />{t("Agent 对话", "Agent chat")}</span>
                 <div className="agent-companion-chat-heading-actions">
+                  <AgentAutoSpeechToggle enabled={autoSpeech.enabled} onToggle={autoSpeech.toggle} />
                   {resume && <button
                     type="button"
                     className={`agent-companion-resume-share ${shareResumeContext ? "is-enabled" : ""}`}

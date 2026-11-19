@@ -27,6 +27,7 @@ import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent } from "./BetterMeAgentCenter";
 import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
+import { openSystemSettings } from "../lib/settings-navigation";
 import { OPEN_PROJECT_EVENT } from "../lib/agent-navigation";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
@@ -674,6 +675,7 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
           {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
           {!hostWriting && usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅术语和边界，不证明个人贡献）</label>}
           <small>{hostWriting?"下一步核对岗位任务授权；此处不会直接调用模型或保存简历。":<>发送至：{routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model || "未选择模型"}` : `${config.provider} · ${config.model || "未配置"}`}{shareAgentMemory ? " · 简历伴写记忆已授权" : " · 未共享记忆"}</>}</small>
+          {!hostWriting && sidebar && (routing?.enabled || agentKind==="chatgpt") && <small>{t("本条使用 Agent 来源，不会随 API 配置自动切换。","This note uses the Agent source, independently of your API settings.")} <button type="button" className="writing-source-link" onClick={()=>{sidebar.hide();openSystemSettings("tools");}}>{t("查看模型来源","View model source")}</button></small>}
           {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!hostWriting && !routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{hostWriting?"交给岗位任务取证与审阅":focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
         </div>
       </div>}

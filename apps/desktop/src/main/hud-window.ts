@@ -3,7 +3,7 @@ import path from "node:path";
 
 let hudWindow: BrowserWindow | null = null;
 
-export function toggleStarHud(preloadPath: string, initialTab: string = "S"): BrowserWindow {
+export function toggleStarHud(preloadPath: string): BrowserWindow {
   if (hudWindow && !hudWindow.isDestroyed()) {
     if (hudWindow.isVisible()) {
       hudWindow.hide();
@@ -29,6 +29,8 @@ export function toggleStarHud(preloadPath: string, initialTab: string = "S"): Br
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
     },
   });
 
@@ -74,32 +76,16 @@ export function toggleStarHud(preloadPath: string, initialTab: string = "S"): Br
         <button class="ctrl-btn" onclick="window.desktopApi?.toggleStarPrompterHud()">✕</button>
       </div>
     </div>
-    <div class="tabs">
-      <button class="tab-btn active" onclick="setTab('S')">S · 情境</button>
-      <button class="tab-btn" onclick="setTab('T')">T · 任务</button>
-      <button class="tab-btn" onclick="setTab('A')">A · 行动</button>
-      <button class="tab-btn" onclick="setTab('R')">R · 成果</button>
-    </div>
     <div id="body" class="content"></div>
   </div>
 <script>
-  let cur = 'S';
-  const data = {
-    S: { t: 'Situation 情境', c: '高并发仓储自动化中枢 (RCS) 在多机抢道时偶发死锁，吞吐骤降 32%。', q: '「如何避免高并发下的竞态条件？」', a: '采用无锁分段拓扑与动态死锁周期探测，FB-02 详载纳秒级延迟断言。' },
-    T: { t: 'Task 任务', c: '负责核心调度引擎重构，需在 0 停机与纳秒级锁粒度约束下消解死锁瓶颈。', q: '「重构周期内如何保障旧系统平稳过渡？」', a: '双写验证与回滚开关，通过影子流量进行 72 小时全真比对。' },
-    A: { t: 'Action 行动', c: '采用无锁分段通道设计，拆解为拓扑前向依赖图与环路动态探测，引入 SIMD 批量权重。', q: '「SIMD 矢量优化对硬件有何特定依赖？」', a: '自适应探测 AVX-512/Neon，缺失时无缝回退至标量批处理通道。' },
-    R: { t: 'Result 成果', c: '死锁率降至 0，单节点吞吐提升 4.2x，99.9 分位调度延迟压降至 1.8ms。', q: '「压测基准与生产真实指标差异多大？」', a: '全链路灰度实测与压测一致性达 98.4%，已全量稳定运行 6 个月。' }
-  };
-  function render() {
-    const item = data[cur];
-    document.getElementById('body').innerHTML = '<b>' + item.t + '</b><p style="margin:4px 0 8px">' + item.c + '</p>' +
-      '<div class="defense-box"><div class="defense-q">🛡 考官高频追问防线：' + item.q + '</div><div class="defense-a">✦ 预置防御话术：' + item.a + '</div></div>';
-    document.querySelectorAll('.tab-btn').forEach((b, idx) => {
-      b.classList.toggle('active', ['S','T','A','R'][idx] === cur);
-    });
-  }
-  function setTab(k) { cur = k; render(); }
-  render();
+  const bodyEl = document.getElementById('body');
+  const titleEl = document.createElement('b');
+  titleEl.textContent = '请先在工作台准备并核对面试材料';
+  const descEl = document.createElement('p');
+  descEl.style.margin = '6px 0 10px';
+  descEl.textContent = '此版本不展示预置的个人经历、指标或未经核对的防守话术，所有面试防御卡片仅来自本人已核对的 FactBase 记录。';
+  bodyEl.replaceChildren(titleEl, descEl);
 </script>
 </body>
 </html>`;

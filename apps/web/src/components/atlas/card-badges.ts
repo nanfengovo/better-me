@@ -4,7 +4,11 @@ import { createAtlasListingPresenter, formatAtlasPublication, type AtlasListingP
 /**
  * 1. 红框：表明来源的平台
  */
-export function formatCardPlatform(item: JobSearchItem): string {
+export type CardPlatformSourceHolder = {
+  sources?: ReadonlyArray<{ sourceId?: string; label?: string; listingId?: string }>;
+};
+
+export function formatCardPlatform(item: CardPlatformSourceHolder): string {
   const source = item.sources?.[0];
   if (!source) return "招聘平台";
   const raw = source.label || source.sourceId || "";
@@ -263,7 +267,7 @@ export function matchCardSalary(item: JobSearchItem, filter: string): boolean {
 /**
  * Filter match: 按平台
  */
-export function matchCardPlatform(item: JobSearchItem, filter: string): boolean {
+export function matchCardPlatform(item: CardPlatformSourceHolder, filter: string): boolean {
   if (!filter || filter === "ALL") return true;
   const platform = formatCardPlatform(item);
   switch (filter) {

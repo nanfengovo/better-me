@@ -89,7 +89,7 @@ const hooks = registerHooks({
     if (specifier.includes("MapLibrePrototype")) return { url: "data:text/javascript,export default globalThis.__atlasMapProbe", shortCircuit: true };
     if (specifier === "./harvest-journal") return { url: "data:text/javascript,export const openHarvestJournal=(...args)=>globalThis.__atlasRecoveryIO.openHarvestJournal(...args);export const acquireHarvestLease=(...args)=>globalThis.__atlasRecoveryIO.acquireHarvestLease(...args)", shortCircuit: true };
     if (specifier === "./atlas/AtlasSourcesPanel") return { url: "data:text/javascript,export const AtlasSourcesPanel = globalThis.__atlasSourcesProbe", shortCircuit: true };
-    if (specifier === "./atlas/AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
+    if (specifier === "./atlas/AtlasJobDetail" || specifier === "./AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasOfficeAddressConfirmation" || specifier === "./AtlasOfficeAddressConfirmation") return { url: "data:text/javascript,export const AtlasOfficeAddressConfirmation = globalThis.__atlasOfficeProbe", shortCircuit: true };
     if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const readAtlasSnapshot=globalThis.__atlasWorkspaceRead;export const readAtlasBrowseSnapshot=globalThis.__atlasWorkspaceRead;export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
     return nextResolve(specifier, context);

@@ -169,7 +169,12 @@ export async function bridgePlatformCookies(
       body: JSON.stringify(payload),
       signal,
     });
-    return (await res.json()) as { success: boolean; count: number; error?: string };
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; count?: number; error?: string; message?: string };
+    return {
+      success: Boolean(res.ok && data.success),
+      count: typeof data.count === "number" ? data.count : 0,
+      error: res.ok ? data.error : data.message || data.error || "Cookie 同步失败",
+    };
   } catch (error) {
     return {
       success: false,

@@ -168,7 +168,11 @@ function findAndHighlightTarget(target: AgentGuideTarget): boolean {
   beacon.className = "agent-guide-beacon";
   const beaconText =
     target.label || (target.actionType === "applied" ? "✨ 已由 Agent 自动同步更新" : "🤖 Agent 建议优化此处");
-  beacon.innerHTML = `<span>✨</span><span>${beaconText}</span>`;
+  const iconSpan = document.createElement("span");
+  iconSpan.textContent = "✨";
+  const labelSpan = document.createElement("span");
+  labelSpan.textContent = beaconText;
+  beacon.replaceChildren(iconSpan, labelSpan);
 
   // Position relative to target
   targetEl.style.position = "relative";

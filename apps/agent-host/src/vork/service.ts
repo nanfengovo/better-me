@@ -299,9 +299,19 @@ export const VORK_PRESETS = [
   },
 ];
 
+export class VorkRenderError extends Error {
+  constructor(readonly status: number, readonly code: string, message: string) {
+    super(message);
+    this.name = "VorkRenderError";
+  }
+}
+
+const VALID_PROFILES = new Set(["std/draft", "std/final", "std/path"]);
+
 export class VorkEngineService {
   private binaryPath: string | null = null;
   private isDarwinArm64 = process.platform === "darwin" && process.arch === "arm64";
+  private renderQueue: Promise<unknown> = Promise.resolve();
 
   constructor() {
     this.binaryPath = this.resolveBinary();
@@ -327,7 +337,7 @@ export class VorkEngineService {
     const available = Boolean(this.binaryPath && existsSync(this.binaryPath));
     return {
       available,
-      binaryPath: this.binaryPath,
+      binaryPath: available && this.binaryPath ? path.basename(this.binaryPath) : null,
       engine: "vork v0.2.0 (Rust + Slang Raytracing Engine)",
       device: this.isDarwinArm64 ? "Apple Silicon Metal GPU (Hardware-accelerated)" : `${process.platform}-${process.arch}`,
       hardwareAcceleration: this.isDarwinArm64 ? "Metal" : "Vulkan/CPU",
@@ -341,16 +351,37 @@ export class VorkEngineService {
     };
   }
 
-  public async render(request: VorkRenderRequest): Promise<VorkRenderResult> {
+  public render(request: VorkRenderRequest): Promise<VorkRenderResult> {
+    const run = this.renderQueue.then(() => this.executeRender(request));
+    this.renderQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async executeRender(request: VorkRenderRequest): Promise<VorkRenderResult> {
     const startTime = Date.now();
     if (!this.binaryPath || !existsSync(this.binaryPath)) {
-      throw new Error("vork 可执行文件未就绪，请先安装 vork (https://github.com/voyager-so/vork)");
+      throw new VorkRenderError(503, "vork_unavailable", "vork 可执行文件未就绪，请先安装 vork (https://github.com/voyager-so/vork)");
     }
 
-    const preset = VORK_PRESETS.find((p) => p.id === (request.presetId || "quantum_prism")) || VORK_PRESETS[0];
-    if (!preset) throw new Error("没有可用的渲染预设，未启动渲染。");
+    const requestedPresetId = request.presetId || "quantum_prism";
+    const preset = VORK_PRESETS.find((p) => p.id === requestedPresetId);
+    if (!preset) {
+      throw new VorkRenderError(400, "invalid_vork_preset", "请求的渲染预设不存在，未启动渲染。");
+    }
+
     const resolution = request.resolution || preset.defaultResolution;
+    if (
+      !Array.isArray(resolution) ||
+      resolution.length !== 2 ||
+      !resolution.every((n) => typeof n === "number" && Number.isInteger(n) && n >= 64 && n <= 4096)
+    ) {
+      throw new VorkRenderError(400, "invalid_vork_resolution", "渲染分辨率必须在 64×64 至 4096×4096 的整数范围内。");
+    }
+
     const profile = request.profile || "std/draft";
+    if (!VALID_PROFILES.has(profile)) {
+      throw new VorkRenderError(400, "invalid_vork_profile", "不支持的渲染质量档位。");
+    }
 
     // Prepare scene
     const scene = request.sceneJson ? JSON.parse(JSON.stringify(request.sceneJson)) : JSON.parse(JSON.stringify(preset.scene));
@@ -360,13 +391,13 @@ export class VorkEngineService {
       duration: 1,
     };
 
-    const tmpDir = path.join(os.tmpdir(), "betterme-vork");
-    await fs.mkdir(tmpDir, { recursive: true });
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-vork-"));
+    await fs.chmod(tmpDir, 0o700).catch(() => {});
 
-    const sceneFile = path.join(tmpDir, `scene-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.json`);
-    const outFile = path.join(tmpDir, `render-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.png`);
+    const sceneFile = path.join(tmpDir, "scene.json");
+    const outFile = path.join(tmpDir, "render.png");
 
-    await fs.writeFile(sceneFile, JSON.stringify(scene, null, 2), "utf8");
+    await fs.writeFile(sceneFile, JSON.stringify(scene, null, 2), { encoding: "utf8", mode: 0o600 });
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -388,23 +419,18 @@ export class VorkEngineService {
       const dataUrl = `data:image/png;base64,${imgBuffer.toString("base64")}`;
       const durationMs = Date.now() - startTime;
 
-      // Clean up sceneFile
-      void fs.unlink(sceneFile).catch(() => {});
-
       return {
         success: true,
         presetId: preset.id,
         durationMs,
-        imagePath: outFile,
+        imagePath: path.basename(outFile),
         dataUrl,
         resolution,
         engine: "vork v0.2.0 (Metal GPU Raytracer)",
-        gpuDevice: this.isDarwinArm64 ? "Apple Silicon Metal (M1 Pro)" : process.platform,
+        gpuDevice: this.isDarwinArm64 ? "Apple Silicon Metal GPU (Hardware-accelerated)" : `${process.platform}-${process.arch}`,
       };
-    } catch (err: any) {
-      void fs.unlink(sceneFile).catch(() => {});
-      void fs.unlink(outFile).catch(() => {});
-      throw err;
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 }

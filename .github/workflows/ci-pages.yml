@@ -80,6 +80,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build all workspace packages
         run: pnpm build
+      - name: Run Golden Flow E2E smoke test (fails in CI if Chromium missing)
+        run: pnpm test:golden
       - name: Validate optional unified-identity deployment overlays without secrets
         run: node --import tsx apps/agent-host/scripts/verify-identity-compose.ts
       - name: Build Pages assets with the correct base path

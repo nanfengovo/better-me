@@ -8,7 +8,7 @@ import { privateDirectory, readPrivateJson, writePrivateJson } from "../identity
 import { IdentityError } from "../identity/service.js";
 import { executeTransform } from "./sandbox.js";
 import { CONTRACT, ENVIRONMENT, VERIFIER, hash, qualify, verifyTaskOutput, compareJobs, receipt } from "./verification.js";
-import { ollamaBuilder, localModelAvailable, type ToolBuilder } from "./ollama.js";
+import { ollamaBuilder, localModelAvailable, type MeasureToolGeneration, type ToolBuilder } from "./ollama.js";
 import { EVIDENCE_RECIPE, EVIDENCE_VERIFIER, prepareEvidenceReview, verifyEvidenceReview } from "./evidence-review.js";
 import { emptyEvidenceWorkspace, recordPersonalReview, proposePersonalEvidence, evidenceProposalEligibility } from "../workspace/evidence-proposals.js";
 import { CreateSyntheticResumeCommand, ResumeChangeRequest, SaveResumeChangeCommand, RevokeResumePreviewCommand } from "@better-me/agent-contracts";
@@ -34,10 +34,11 @@ export class CareerCapabilities {
   private storageError: string | undefined;
   private builder: ToolBuilder;
   constructor(private options: { directory: string; ownerId: string; builder?: ToolBuilder; localModelAvailable?: () => Promise<boolean>;
+    measureGeneration?: MeasureToolGeneration;
     /** Trusted checkpoint observer; runs outside the acceptance lock, never exposed through HTTP. */
     onCheckpoint?: (event: { taskId: string; stage: CapabilityStage; detail: string }) => Promise<void> }) {
     this.filename = path.join(options.directory, "career-capabilities-v1.json");
-    this.builder = options.builder ?? ollamaBuilder();
+    this.builder = options.builder ?? ollamaBuilder(options.measureGeneration);
     this.ready = this.initialize();
   }
   private async initialize() {

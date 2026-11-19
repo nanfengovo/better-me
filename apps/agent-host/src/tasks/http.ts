@@ -26,6 +26,10 @@ export function createCareerTaskHandler(deps:Dependencies){
     const valid=async()=>{if(!await lease.valid())throw new CareerTaskError("interaction_lease_invalid",403);};
     try{
       await valid();
+      if(pathname===`${root}/workspace-binding`&&root==="/api/v1/agent/tasks"&&req.method==="GET"){
+        const scope=TaskRootScopeKeySchema.parse(new URL(req.url??"","http://localhost").searchParams.get("rootScopeKey"));
+        const result=await service.workspaceBinding(scope,lease);await valid();deps.sendJson(res,200,result);return true;
+      }
       if(pathname===`${root}/legacy-scopes`&&root==="/api/v1/agent/tasks"&&req.method==="GET"){
         const scope=TaskRootScopeKeySchema.parse(new URL(req.url??"","http://localhost").searchParams.get("rootScopeKey"));
         const preview=await service.previewLegacyScopes(scope,lease);await valid();deps.sendJson(res,200,preview);return true;
@@ -45,6 +49,12 @@ export function createCareerTaskHandler(deps:Dependencies){
       if(install&&req.method==="POST"){
         const c=CareerTaskMutationSchema.extend({sourceHash:z.string().regex(/^[a-f0-9]{64}$/),consent:z.literal(true)}).strict().parse(await deps.readBody(req));
         const task=await service.installTool(install[1]!,c.expectedRevision,install[2]!,c.sourceHash,lease);await valid();deps.sendJson(res,200,{task});return true;
+      }
+      if (pathname === "/api/v1/agent/tasks/summary" && req.method === "GET") {
+        const summary = await service.listTaskSummary();
+        await valid();
+        deps.sendJson(res, 200, summary);
+        return true;
       }
       if(pathname===root&&req.method==="GET"){const tasks=root.endsWith("career-tasks")?await service.list():await service.listTasks();await valid();deps.sendJson(res,200,{tasks});return true;}
       if(pathname===root&&req.method==="POST"){

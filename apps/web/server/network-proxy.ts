@@ -370,6 +370,7 @@ export function createNetworkRuntime(options: RuntimeOptions) {
 
 type NetworkRuntime = ReturnType<typeof createNetworkRuntime>;
 let defaultRuntime = createNetworkRuntime({ settingsFile: path.resolve(process.cwd(), "data/network-settings.json") });
+export function setDefaultNetworkRuntime(runtime: NetworkRuntime): void { defaultRuntime = runtime; }
 export function getNetworkFetch(settingsOverride?: NetworkSettings): Promise<typeof fetch> { return defaultRuntime.getFetch(settingsOverride); }
 export function getNetworkOperation(settingsOverride?: NetworkSettings): Promise<NetworkOperation> { return defaultRuntime.getOperation(settingsOverride); }
 

@@ -4,6 +4,12 @@ import { isTrustedLocalRequest } from "./network-proxy";
 
 const TTL = 10 * 60_000;
 const MAX_BYTES = 128 * 1024;
+const transferRoutes = new Set(["/api/jd/sync-extension", "/api/jd/cookie-bridge"]);
+
+export function isLocalBridgeTransfer(req: IncomingMessage): boolean {
+  return (req.method === "POST" || req.method === "OPTIONS") && transferRoutes.has(req.url?.split("?")[0] ?? "");
+}
+
 const platforms: Record<string, string> = { boss: "zhipin.com", liepin: "liepin.com", "51job": "51job.com", linkedin: "linkedin.com" };
 function platformDomain(value: string): string | undefined {
   return Object.values(platforms).find(domain => value === domain || value.endsWith(`.${domain}`));
@@ -79,7 +85,7 @@ export function createLocalBridge(options: {
   };
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     const route = req.url?.split("?")[0];
-    if (!["/api/jd/bridge-grant", "/api/jd/sync-extension", "/api/jd/cookie-bridge"].includes(route ?? "")) return false;
+    if (route !== "/api/jd/bridge-grant" && !transferRoutes.has(route ?? "")) return false;
     prune();
     const trusted = trustedBridgeWorkbench(req);
     const owner = `http://${req.headers.host}`;

@@ -1,5 +1,6 @@
 import type { PlatformSearchProvider } from "@better-me/source-adapters";
-import { connectNativeCdp, type NativeCdp, type NativeTargetList } from "./jd-native-cdp";
+import type { NativeCdp, NativeTargetList } from "./jd-native-cdp";
+import { connectRealChromeCdp } from "./jd-real-chrome-launcher";
 import { HarvestVisualRecovery } from "./jd-harvest-visual";
 
 type Entry = { targetId?: string; url: string; busy: boolean; discard: boolean };
@@ -118,7 +119,7 @@ export async function releaseLiveSearchTabs(id: string, owner: string): Promise<
   if (collection.tabs.empty) { collections.delete(id); return true; }
   let cdp: NativeCdp | undefined;
   try {
-    cdp = await connectNativeCdp(9222);
+    cdp = await connectRealChromeCdp();
     if (await collection.tabs.close(cdp)) { collections.delete(id); return true; }
   } catch { /* Keep ownership so a close failure can be retried safely. */ }
   finally { cdp?.close(); }

@@ -1,6 +1,6 @@
 export interface PresetWallpaperItem {
   id: string;
-  category: "vork" | "anime" | "nature" | "cosmic" | "abstract" | "cyber" | "classic";
+  category: "vork" | "nature" | "cosmic" | "abstract" | "cyber" | "classic";
   title: { zh: string; en: string };
   subtitle: { zh: string; en: string };
   url: string;
@@ -8,10 +8,13 @@ export interface PresetWallpaperItem {
   badge?: string;
 }
 
+export function resolveSavedWallpaper(wallpaper: string): string {
+  return wallpaper.replace(/^(\/wallpapers\/vork_(?:quantum_prism|cyber_neon|sunset_solitude))\.png$/, "$1.jpg");
+}
+
 export const WALLPAPER_CATEGORIES = [
   { id: "all", name: { zh: "全部精选", en: "All" } },
   { id: "vork", name: { zh: "⚡️ vork 物理光追", en: "vork 3D Raytracing" } },
-  { id: "anime", name: { zh: "动漫二次元", en: "Anime & ACG" } },
   { id: "nature", name: { zh: "自然雪山", en: "Nature & Alps" } },
   { id: "cosmic", name: { zh: "宇宙深空", en: "Cosmic Space" } },
   { id: "abstract", name: { zh: "极简流体", en: "3D & Minimal" } },
@@ -28,7 +31,7 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     category: "vork",
     title: { zh: "vork · 量子光学棱镜与金环", en: "vork · Quantum Prism & Gold" },
     subtitle: { zh: "Metal GPU 硬件加速光线追踪 · OpenPBR 光学色散与反射", en: "Metal Raytraced · OpenPBR Dispersion Glass" },
-    url: "/wallpapers/vork_quantum_prism.png",
+    url: "/wallpapers/vork_quantum_prism.jpg",
     thumb: "/wallpapers/thumbs/vork_quantum_prism.jpg",
     badge: "vork Metal 光追",
   },
@@ -37,7 +40,7 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     category: "vork",
     title: { zh: "vork · 赛博黑曜石巨碑", en: "vork · Cyber Obsidian Monolith" },
     subtitle: { zh: "Apple Silicon Metal 实时渲染 · 宝石红透光与矩阵青光", en: "Metal Raytraced · Cyberpunk Monolith" },
-    url: "/wallpapers/vork_cyber_neon.png",
+    url: "/wallpapers/vork_cyber_neon.jpg",
     thumb: "/wallpapers/thumbs/vork_cyber_neon.jpg",
     badge: "vork Metal 光追",
   },
@@ -46,103 +49,12 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     category: "vork",
     title: { zh: "vork · 暮光深渊浮岛", en: "vork · Sunset Solitude" },
     subtitle: { zh: "Slang 着色器几何微表面 · 暖金与深蓝微光漫射", en: "Metal Raytraced · Sunset Abyss" },
-    url: "/wallpapers/vork_sunset_solitude.png",
+    url: "/wallpapers/vork_sunset_solitude.jpg",
     thumb: "/wallpapers/thumbs/vork_sunset_solitude.jpg",
     badge: "vork Metal 光追",
   },
-  // ================= 1. 动漫二次元 (Anime & ACG) =================
-  {
-    id: "anime-lucy-moon",
-    category: "anime",
-    title: { zh: "边缘行者 · 露西月球之梦", en: "Edgerunners · Lucy on the Moon" },
-    subtitle: { zh: "4K 超清 · 霓虹荒坂塔与静谧月色", en: "4K Ultra HD · Arasaka & Moon Dreams" },
-    url: "/wallpapers/anime-lucy-moon.jpg",
-    thumb: "/wallpapers/thumbs/anime-lucy-moon.jpg",
-    badge: "4K 赛博动漫",
-  },
-  {
-    id: "anime-edgerunners",
-    category: "anime",
-    title: { zh: "边缘行者 · 城市黎明", en: "Edgerunners · Dawn of Night City" },
-    subtitle: { zh: "4K 超清 · 夜之城天际线与飞驰追忆", en: "4K Ultra HD · Cyberpunk Edgerunners" },
-    url: "/wallpapers/anime-edgerunners.jpg",
-    thumb: "/wallpapers/thumbs/anime-edgerunners.jpg",
-    badge: "4K 赛博动漫",
-  },
-  {
-    id: "anime-door-clouds",
-    category: "anime",
-    title: { zh: "新海诚式 · 苍穹之门与积雨云海", en: "Suzume Door · Sky & Clouds" },
-    subtitle: { zh: "4K 超清 · 阳光倾泻与梦幻夏日厚积云", en: "4K Ultra HD · Anime Cloudscape & Portal" },
-    url: "/wallpapers/anime-door-clouds.jpg",
-    thumb: "/wallpapers/thumbs/anime-door-clouds.jpg",
-    badge: "4K 新海诚风",
-  },
-  {
-    id: "anime-shinkai-sky",
-    category: "anime",
-    title: { zh: "天气之子 · 澄澈晴空云海", en: "Weathering With You · Azure Sky" },
-    subtitle: { zh: "8K 超清 · 漫天光柱与无垠纯净蓝天", en: "8K Ultra HD · Sky Clearing Clouds" },
-    url: "/wallpapers/anime-shinkai-sky.jpg",
-    thumb: "/wallpapers/thumbs/anime-shinkai-sky.jpg",
-    badge: "8K 治愈晴空",
-  },
-  {
-    id: "anime-ghibli-meadow",
-    category: "anime",
-    title: { zh: "吉卜力风 · 盛夏风之草原", en: "Ghibli Wind Meadow" },
-    subtitle: { zh: "8K 超清 · 治愈系绿草与微风海岸线", en: "8K Ultra HD · Peaceful Breeze Shore" },
-    url: "/wallpapers/anime-ghibli-meadow.jpg",
-    thumb: "/wallpapers/thumbs/anime-ghibli-meadow.jpg",
-    badge: "8K 吉卜力风",
-  },
-  {
-    id: "anime-torii-twilight",
-    category: "anime",
-    title: { zh: "和风物语 · 千本鸟居孤影武士", en: "Torii Samurai Twilight" },
-    subtitle: { zh: "4K 超清 · 赤红神社鸟居与苍茫残阳", en: "4K Ultra HD · Crimson Shrine Twilight" },
-    url: "/wallpapers/anime-torii-twilight.jpg",
-    thumb: "/wallpapers/thumbs/anime-torii-twilight.jpg",
-    badge: "4K 和风美学",
-  },
-  {
-    id: "anime-temple-water",
-    category: "anime",
-    title: { zh: "仙境水阁 · 夕阳暮色浮岛", en: "Water Temple Sunset" },
-    subtitle: { zh: "4K 超清 · 倒映金光的古刹水榭与晚霞", en: "4K Ultra HD · Floating Pavilion Reflection" },
-    url: "/wallpapers/anime-temple-water.jpg",
-    thumb: "/wallpapers/thumbs/anime-temple-water.jpg",
-    badge: "4K 东方仙境",
-  },
-  {
-    id: "anime-underwater-bamboo",
-    category: "anime",
-    title: { zh: "梦幻深渊 · 水下竹林与青空光斑", en: "Underwater Bamboo Forest" },
-    subtitle: { zh: "4K 超清 · 灵动游鱼与深蓝梦境奇观", en: "4K Ultra HD · Aquatic Bamboo Sanctuary" },
-    url: "/wallpapers/anime-underwater-bamboo.jpg",
-    thumb: "/wallpapers/thumbs/anime-underwater-bamboo.jpg",
-    badge: "4K 梦幻奇境",
-  },
-  {
-    id: "anime-katana-warrior",
-    category: "anime",
-    title: { zh: "赛博机能 · 霓虹武士机械战刃", en: "Cyber Blade Katana Warrior" },
-    subtitle: { zh: "4K 超清 · 暗夜雨幕与幽蓝光刃锋芒", en: "4K Ultra HD · Neon Katana Techwear" },
-    url: "/wallpapers/anime-katana-warrior.jpg",
-    thumb: "/wallpapers/thumbs/anime-katana-warrior.jpg",
-    badge: "4K 赛博机能",
-  },
-  {
-    id: "anime-morrigan",
-    category: "anime",
-    title: { zh: "魅夜之翼 · 莫莉卡月夜", en: "Morrigan Moonlit Wings" },
-    subtitle: { zh: "4K 超清 · 经典恶魔城魅影与紫调夜色", en: "4K Ultra HD · Darkstalkers Nocturne" },
-    url: "/wallpapers/anime-morrigan.jpg",
-    thumb: "/wallpapers/thumbs/anime-morrigan.jpg",
-    badge: "4K 经典ACG",
-  },
 
-  // ================= 2. 自然雪山 (Nature & Alps) =================
+  // ================= 1. 自然雪山 (Nature & Alps) =================
   {
     id: "aurora-iceland",
     category: "nature",

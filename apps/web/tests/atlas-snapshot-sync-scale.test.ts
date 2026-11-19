@@ -27,7 +27,7 @@ test("5000/15000 jobs: three real ingest/enrichment batches use revision deltas 
           assert.ok(original.executeSerialized, "the normal isolated read lane must remain active");
           return createJobHttpServer({ ...options, registry: { ...original, async executeSerialized(tool, input, context) {
             const result = await original.executeSerialized!(tool, input, context);
-            if (tool === "jobs.sync-public") syncReads.push({ bytes: result.json.byteLength, since: (input as { cursor?: { revision: number } }).cursor?.revision });
+            if (tool === "jobs.sync-public" || tool === "jobs.sync-pages" || tool === "jobs.baseline-page") syncReads.push({ bytes: result.json.byteLength, since: (input as { cursor?: { revision: number } }).cursor?.revision });
             return result;
           } } });
         },
@@ -38,7 +38,9 @@ test("5000/15000 jobs: three real ingest/enrichment batches use revision deltas 
       let data = await client.readSnapshot(endpoint, token);
       const initialSyncMs = Math.round(performance.now() - firstAt);
       assert.equal(data.jobs.length, size);
-      const initialBytes = syncReads[0]!.bytes;
+      const baselineReadCount = syncReads.length;
+      const initialBytes = syncReads.slice(0, baselineReadCount).reduce((total, read) => total + read.bytes, 0);
+      assert.ok(initialBytes > 0);
       const deltaStart = responses.length;
       const delays: number[] = [], syncMs: number[] = [], batchMs: number[] = [], ingestResponseMs: number[] = [];
       let previous = performance.now();
@@ -88,9 +90,10 @@ test("5000/15000 jobs: three real ingest/enrichment batches use revision deltas 
       const changedJobIds = new Set(responses.slice(deltaStart).flatMap(message => message.type === "chunk" && message.target === "jobs" ? message.values.map(row => (row as { id: string }).id) : []));
       assert.equal(changedJobIds.size, 48, "only the 48 newly ingested jobs, including their later enrichment revisions, are relayed");
       assert.ok(jobRowsRelayed >= 48 && jobRowsRelayed <= 96);
-      const deltaBytes = syncReads.slice(1).reduce((total, read) => total + read.bytes, 0);
+      const deltaSyncReads = syncReads.slice(baselineReadCount);
+      const deltaBytes = deltaSyncReads.reduce((total, read) => total + read.bytes, 0);
       assert.ok(deltaBytes < initialBytes / 20, "incremental traffic should be independent of library size");
-      assert.ok(syncReads.slice(1).every(read => read.since !== undefined));
+      assert.ok(deltaSyncReads.length > 0 && deltaSyncReads.every(read => read.since !== undefined));
       assert.ok(Math.max(...delays) < 150, `caller blocked for ${Math.round(Math.max(...delays))}ms`);
       // Full-export/reference comparison is outside the responsiveness timing and
       // only for verification, not part of the production refresh path.
@@ -101,7 +104,7 @@ test("5000/15000 jobs: three real ingest/enrichment batches use revision deltas 
       const expected = await queryAtlasPageDirect(full, query, options), actual = await client.queryPage(data, query, options);
       assert.deepEqual(actual.summary, expected.summary); assert.deepEqual(actual.page, expected.page);
       t.diagnostic(JSON.stringify({ syntheticJobs: size, initialSyncMs, initialSnapshotBytes: initialBytes, incrementalBytesForThreeBatches: deltaBytes,
-        syncRequestCountAfterBaseline: syncReads.length - 1, lastUnchangedBytes: syncReads.at(-1)!.bytes, ingestResponseMs, batchSyncMs: syncMs, endToEndBatchMs: batchMs,
+        syncRequestCountAfterBaseline: deltaSyncReads.length, lastUnchangedBytes: deltaSyncReads.at(-1)!.bytes, ingestResponseMs, batchSyncMs: syncMs, endToEndBatchMs: batchMs,
         threeBatchTotalMs: totalMs, wholeLibraryTransfersAfterBaseline: snapshotTransfers, incrementalJobRowsRelayed: jobRowsRelayed,
         callerMaxTimerDelayMs: Math.round(Math.max(...delays)), finalJobs: data.jobs.length, matchedJobs: actual.summary.totalJobs, mappedJobs: actual.summary.mappedJobs }));
     } finally { client.dispose(); await service?.close(); await rm(directory, { recursive: true, force: true }); }

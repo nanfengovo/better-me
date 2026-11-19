@@ -6,6 +6,11 @@ import { createServer, request as httpRequest, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { containerModelBody, createRuntimeGateway } from "../server/runtime-gateway.ts";
+import { jdExtractionMiddleware } from "../server/jd-extractor.ts";
+import { getNetworkOperation } from "../server/network-proxy.ts";
+import { configureDesktopJdBridge } from "../server/jd-desktop-bridge.ts";
+import { createNativeLiepinBrowser } from "../server/jd-native-liepin-browser.ts";
+import { checkCdpRunning, killRealChromeCdp } from "../server/jd-real-chrome-launcher.ts";
 import { readRuntimeConnection } from "../src/lib/runtime-connection.ts";
 import { parseDevJobIndexBootstrap } from "../src/components/atlas/dev-index-bootstrap.ts";
 
@@ -112,13 +117,33 @@ test("browser runtime and index autoconnection only accept the exact local gatew
 test("desktop injection preserves the gateway origin and token guards", async () => {
   const root = await mkdtemp(join(tmpdir(), "betterme-desktop-gateway-"));
   const origins: string[] = [];
-  const gateway = createRuntimeGateway({ mode: "desktop", root, origins, agentEndpoint: "http://127.0.0.1:1", jobEndpoint: "http://127.0.0.1:1", agentToken: "a".repeat(43), jobToken: "j".repeat(43), health: async () => true });
+  const gateway = createRuntimeGateway({
+    mode: "desktop",
+    root,
+    origins,
+    agentEndpoint: "http://127.0.0.1:1",
+    jobEndpoint: "http://127.0.0.1:1",
+    agentToken: "a".repeat(43),
+    jobToken: "j".repeat(43),
+    networkSettingsFile: join(root, "network-settings.json"),
+    jdMiddleware: jdExtractionMiddleware,
+    health: async () => true,
+  });
   const url = await listen(gateway); origins.push(url);
   const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
   const config = { mode: "desktop", origin: url, agentToken: "a".repeat(43), jobToken: "j".repeat(43) };
   const win = { location: { origin: url }, __BETTER_ME_RUNTIME__: config };
   try {
     assert.match(await (await fetch(url + "/__better-me/runtime.js")).text(), /"mode":"desktop"/);
+    assert.equal((await fetch(url + "/api/network/settings")).status, 200, "desktop exposes network proxy settings");
+    const settings = { mode: "manual", proxyUrl: "http://127.0.0.1:18901", bypass: "" };
+    assert.equal((await fetch(url + "/api/network/settings", { method: "PUT",
+      headers: { Origin: url, "Content-Type": "application/json" }, body: JSON.stringify({ settings }),
+    })).status, 200);
+    assert.equal((await getNetworkOperation()).routeFor(new URL("https://fixture.invalid")).proxyUrl, settings.proxyUrl);
+    assert.equal((await fetch(url + "/api/opportunities/source")).status, 405, "desktop exposes ATS opportunity sources instead of 501");
+    assert.equal((await fetch(url + "/api/jd/browser-session")).status, 403, "desktop routes /api/jd/* to extraction middleware origin guard instead of 501");
+    assert.equal((await fetch(url + "/api/jd/extract", { method: "GET", headers: { Origin: url } })).status, 405, "desktop routes /api/jd/extract to method validation instead of 501");
     Object.defineProperty(globalThis, "window", { configurable: true, value: win });
     assert.deepEqual(readRuntimeConnection(), config);
     for (const invalid of [{ origin: url + "/subpath" }, { origin: "http://localhost:1" }, { agentToken: "short" }, { jobToken: "bad token" }, { mode: "arbitrary" }]) {
@@ -128,5 +153,84 @@ test("desktop injection preserves the gateway origin and token guards", async ()
   } finally {
     if (previous) Object.defineProperty(globalThis, "window", previous); else Reflect.deleteProperty(globalThis, "window");
     await close(gateway); await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("desktop Windows-style dedicated profiles resolve below the private runtime directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "betterme-desktop-profile-"));
+  try {
+    configureDesktopJdBridge(root);
+    const inspected: string[] = [];
+    for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) {
+      const browser = createNativeLiepinBrowser({ platform, inspectProfileOccupancy: async profile => {
+        inspected.push(profile);
+        return "clear";
+      } });
+      await browser.stop();
+    }
+    assert.equal(new Set(inspected).size, 3);
+    assert.ok(inspected.every(profile => profile.startsWith(join(root, "recruitment-browser"))));
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("packaged desktop never attaches to or stops a pre-existing debug listener", async () => {
+  const root = await mkdtemp(join(tmpdir(), "betterme-desktop-debug-ownership-"));
+  let requests = 0;
+  const foreign = createServer((_req, res) => { requests++; res.end("{}"); });
+  const port = Number(new URL(await listen(foreign)).port);
+  try {
+    configureDesktopJdBridge(root);
+    assert.equal(await checkCdpRunning(port), false);
+    assert.equal(await killRealChromeCdp(port), true);
+    assert.equal(foreign.listening, true);
+    assert.equal(requests, 0);
+  } finally { await close(foreign); await rm(root, { recursive: true, force: true }); }
+});
+
+test("desktop routes paired bridge transfers without opening unrelated APIs and awaits final cleanup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "betterme-desktop-bridge-"));
+  const origins: string[] = [];
+  const cleanupStarted = Promise.withResolvers<void>();
+  const cleanupFinished = Promise.withResolvers<void>();
+  const gateway = createRuntimeGateway({
+    mode: "desktop", root, origins, agentEndpoint: "http://127.0.0.1:1", jobEndpoint: "http://127.0.0.1:1",
+    agentToken: "fixture-agent", jobToken: "fixture-jobs", networkSettingsFile: join(root, "network-settings.json"),
+    jdMiddleware: jdExtractionMiddleware, health: async () => true,
+    onClose: async () => { cleanupStarted.resolve(); await cleanupFinished.promise; },
+  });
+  const url = await listen(gateway); origins.push(url);
+  const sender = "chrome-extension://syntheticfixture";
+  const submit = (route: string, origin: string, body: unknown, headers = {}) => fetch(url + "/api/jd/" + route, {
+    method: "POST", headers: { Origin: origin, "Content-Type": "application/json", ...headers }, body: JSON.stringify(body),
+  });
+  let closing: Promise<void> | undefined;
+  try {
+    const grant = await submit("bridge-grant", url, { purpose: "job", origin: sender }, { "X-BetterMe-Bridge": "1" });
+    assert.equal(grant.status, 200);
+    const { token } = await grant.json();
+    const preflight = (origin: string) => fetch(url + "/api/jd/sync-extension", {
+      method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type", "Sec-Fetch-Site": "cross-site" },
+    });
+    const permitted = await preflight(sender);
+    assert.equal(permitted.status, 204);
+    assert.equal(permitted.headers.get("access-control-allow-origin"), sender);
+    assert.equal((await preflight("https://other.invalid")).status, 403);
+    const job = { title: "Fixture role", company: "Fixture employer", description: "Synthetic job description for bridge verification." };
+    const headers = { Authorization: "Bearer " + token, "Sec-Fetch-Site": "cross-site" };
+    assert.equal((await submit("sync-extension", sender, job, headers)).status, 200);
+    assert.equal((await submit("sync-extension", sender, job, headers)).status, 403);
+    assert.equal((await submit("extract", sender, {}, headers)).status, 403);
+    assert.equal((await fetch(url + "/api/jd/sync-extension", { headers: { Origin: sender } })).status, 403);
+
+    let closed = false;
+    closing = close(gateway).then(() => { closed = true; });
+    await cleanupStarted.promise;
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(closed, false, "close callback waits for the browser cleanup");
+  } finally {
+    cleanupFinished.resolve();
+    await (closing ?? close(gateway));
+    await rm(root, { recursive: true, force: true });
   }
 });

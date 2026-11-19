@@ -49,4 +49,50 @@ export default defineConfig({
       allow: [path.resolve(appDir, "../..")],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.split(path.sep).join("/");
+          if (normalized.includes("/node_modules/react/") || normalized.includes("/node_modules/react-dom/") || normalized.includes("/node_modules/scheduler/")) {
+            return "vendor-react";
+          }
+          if (normalized.includes("/node_modules/lucide-react/")) {
+            return "vendor-lucide";
+          }
+          if (normalized.includes("/node_modules/zod/")) {
+            return "vendor-zod";
+          }
+          if (normalized.includes("/node_modules/yaml/")) {
+            return "vendor-yaml";
+          }
+          if (normalized.includes("/apps/web/src/components/FactEditor")) {
+            return "fact-editor";
+          }
+          if (normalized.includes("/apps/web/src/components/templates/")) {
+            return "template-catalogs";
+          }
+          if (normalized.includes("/packages/core/") || normalized.includes("/packages/storage/") || normalized.includes("/packages/agent-contracts/")) {
+            return "better-me-core";
+          }
+          if (normalized.includes("/packages/opportunities/") || normalized.includes("/packages/source-adapters/")) {
+            return "better-me-opportunities";
+          }
+          if (normalized.includes("/apps/web/src/components/desktop/")) {
+            return "desktop-shell";
+          }
+          if (
+            normalized.includes("/apps/web/src/components/AgentSidebar") ||
+            normalized.includes("/apps/web/src/components/AgentWorkflowGuide") ||
+            normalized.includes("/apps/web/src/components/AgentGuideCoach") ||
+            normalized.includes("/apps/web/src/components/AgentHelpHome") ||
+            normalized.includes("/apps/web/src/components/AgentReaderTools")
+          ) {
+            return "agent-sidebar-shell";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
 });

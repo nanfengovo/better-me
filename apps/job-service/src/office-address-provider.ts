@@ -501,7 +501,7 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
       const data = JSON.parse(content);
       if (data && typeof data === "object") {
         for (const [k, v] of Object.entries(data)) {
-          if (v && typeof v === "object" && (v as any).candidate) {
+          if (v && typeof v === "object" && "candidate" in v && v.candidate) {
             const entry = v as GeoAddressCacheEntry;
             if (!entry.embedding && entry.candidate?.proposal?.formattedAddress) {
               entry.embedding = Array.from(createAddressEmbedding(entry.candidate.proposal.formattedAddress));

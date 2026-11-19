@@ -247,6 +247,18 @@
 /* AI configuration follows the desktop surface language without bright card seams. */
 html[data-theme="dark"] .ai-config-modal { background: color-mix(in srgb, var(--ui-surface) 92%, transparent); border-color: var(--ui-border); box-shadow: 0 24px 70px #0009, inset 0 1px 0 #ffffff12; }
 .ai-config-modal.ai-config-modal { display:flex; flex-direction:column; gap:0; padding:0; overflow:hidden; max-height:calc(100dvh - 32px); background:var(--ui-surface); color:var(--ui-text); border-color:var(--ui-border); }
+dialog.ai-config-modal { position:fixed; inset:0; width:min(42rem,calc(100% - 32px)); margin:auto; }
+dialog.ai-config-modal::backdrop { background:rgb(15 23 42 / 40%); backdrop-filter:blur(3px); }
+body:has(dialog:modal) .agent-guide-spotlight { visibility:hidden; }
+.ai-config-modal .ai-config-receipt { padding:8px 24px 24px; display:flex; gap:12px; overflow:auto; overflow-wrap:anywhere; }
+.ai-config-receipt svg { color:var(--color-accent); flex:none; }
+.ai-config-receipt p { margin-top:6px; line-height:1.6; color:var(--ui-text-secondary); }
+.ai-config-modal .model-probe-guidance { padding:10px 12px; margin-block:8px; border-inline-start:3px solid var(--color-accent); background:var(--ui-surface); overflow-wrap:anywhere; }
+.ai-config-modal .model-probe-guidance[role=alert] { border-color:var(--ui-warning); }
+.ai-config-modal .model-probe-guidance button { text-decoration:underline; }
+.ai-config-modal .ai-config-footer { flex-wrap:wrap; }
+.ai-config-modal .ai-config-save-error { flex-basis:100%; color:var(--ui-danger); font-size:12px; }
+.writing-review .writing-source-link { color:var(--color-accent); text-decoration:underline; text-underline-offset:2px; }
 .ai-config-modal.ai-config-modal > * { margin:0; }
 .ai-config-modal > div:first-child { flex-shrink:0; padding:24px; gap:16px; border:0; }
 .ai-config-modal > div:first-child > div { min-width:0; gap:12px; }
@@ -384,7 +396,8 @@ html[data-theme] .opportunity-workspace .is-compact .opportunity-card-flip:hover
 html[data-theme] .opportunity-workspace .opportunity-3d-card:focus-within .opportunity-card-face { outline-color:var(--ui-focus); }
 @media(max-width:940px) { .opportunity-workspace.opportunity-workspace { padding:22px 18px 36px; }.opportunity-workspace .opportunity-heading { align-items:flex-start; }.opportunity-workspace .opportunity-actions { justify-content:flex-start; } }
 @media(max-width:620px) { .opportunity-workspace.opportunity-workspace { padding:18px 12px 30px; }.opportunity-workspace .opportunity-heading { padding:20px 17px; }.opportunity-workspace .opportunity-heading::before { left:17px; width:44px; box-shadow:48px 0 0 var(--op-red),96px 0 0 var(--op-yellow),144px 0 0 var(--op-green); }.opportunity-workspace .opportunity-heading h1 { font-size:25px; }.opportunity-workspace .opportunity-heading>div:first-child { min-width:0; }.opportunity-workspace .opportunity-actions { width:100%; }.opportunity-workspace .opportunity-actions .studio-button { flex:1 1 42%; }.opportunity-workspace .opportunity-stats>div { min-height:118px; padding:16px; } }
-.ai-config-modal button:disabled { cursor:wait; }
+.ai-config-modal button:disabled { cursor:not-allowed; }
+.ai-config-modal button[aria-busy=true] { cursor:wait; }
 @media(max-width:600px) { .ai-config-modal > div:first-child { padding:18px; }.ai-config-modal .ai-config-scroll { padding:0 8px 28px; }.ai-config-modal .ai-config-body { gap:20px; }.ai-config-modal .ai-config-footer { padding:14px 18px max(16px,env(safe-area-inset-bottom)); }.ai-config-modal .ai-config-footer button { flex:1; min-height:44px; }.ai-config-modal button { min-height:44px; } }
 html[data-theme="dark"] .ai-config-modal > .flex.items-center.justify-end { border-top: 0; }
 

@@ -168,6 +168,30 @@ export const InventoryTaskSchema:z.ZodType<InventoryTask,unknown>=conversationTa
 export type AgentTask=CareerTask|ConversationTask|ProjectUnderstandingTask|JdMatchTask|MockInterviewTask|CoachGuidanceTask|JdIntakeTask|JdOcrTask|StudioAnalysisTask|StudioCommitteeTask|GrowthPracticeTask|InventoryTask;
 export type AgentTaskCreate=import("./career-task.js").CareerTaskCreate|FreeChatTaskCreate|ExperienceRefineTaskCreate|ProjectUnderstandingTaskCreate|JdMatchTaskCreate|MockInterviewTaskCreate|CoachGuidanceTaskCreate|JdIntakeTaskCreate|JdOcrTaskCreate|StudioAnalysisTaskCreate|StudioCommitteeTaskCreate|GrowthPracticeTaskCreate|InventoryTaskCreate;
 export const AgentTaskSchema=z.union([CareerTaskSchema,FreeChatTaskSchema,ExperienceRefineTaskSchema,ProjectUnderstandingTaskSchema,JdMatchTaskSchema,MockInterviewTaskSchema,CoachGuidanceTaskSchema,JdIntakeTaskSchema,JdOcrTaskSchema,StudioAnalysisTaskSchema,StudioCommitteeTaskSchema,GrowthPracticeTaskSchema,InventoryTaskSchema]);
+
+export const AGENT_TASK_SUMMARY_LIMIT = 6;
+const AgentTaskSummarySchema = z.object({
+  id,
+  kind: z.enum(["resume_tailor", "free_chat", "experience_refine", "project_understanding", "jd_match",
+    "mock_interview", "career_coach", "jd_intake", "jd_ocr", "studio_analysis", "studio_committee",
+    "growth_practice", "career_inventory"] satisfies NonNullable<AgentTask["kind"]>[]),
+  status: CareerTaskStatusSchema,
+  title: z.string().max(160),
+  updatedAt: z.string(),
+}).strict();
+export type AgentTaskSummary = z.infer<typeof AgentTaskSummarySchema>;
+export const AgentTaskListSummarySchema = z.object({
+  ownerId: id,
+  totalTasks: z.number().int().nonnegative(),
+  runningCount: z.number().int().nonnegative(),
+  awaitingCount: z.number().int().nonnegative(),
+  completedCount: z.number().int().nonnegative(),
+  pausedCount: z.number().int().nonnegative(),
+  failedCount: z.number().int().nonnegative(),
+  tasks: z.array(AgentTaskSummarySchema).max(AGENT_TASK_SUMMARY_LIMIT),
+}).strict();
+export type AgentTaskListSummary = z.infer<typeof AgentTaskListSummarySchema>;
+
 export const AgentTaskCreateSchema=z.union([CareerTaskCreateSchema,FreeChatTaskCreateSchema,ExperienceRefineTaskCreateSchema,ProjectUnderstandingTaskCreateSchema,JdMatchTaskCreateSchema,MockInterviewTaskCreateSchema,CoachGuidanceTaskCreateSchema,JdIntakeTaskCreateSchema,JdOcrTaskCreateSchema,StudioAnalysisTaskCreateSchema,StudioCommitteeTaskCreateSchema,GrowthPracticeTaskCreateSchema,InventoryTaskCreateSchema]);
 export const AgentTaskRunSchema=CareerTaskRunSchema.extend({message:ChatMessageSchema.optional(),supplementConfirmed:z.literal(true).optional(),projectTurn:UnderstandingTurnSchema.optional(),interviewAction:z.enum(["answer","finish"]).optional()}).strict();
 export function isCareerTask(task:AgentTask):task is CareerTask{return !task.kind || task.kind==="resume_tailor";}

@@ -2,7 +2,8 @@ import { spawn, execSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { connectNativeCdp, type NativeTargetList } from "./jd-native-cdp";
+import { connectNativeCdp, nativeUnavailable, type NativeTargetList } from "./jd-native-cdp";
+import { createDesktopChrome } from "./jd-desktop-chrome";
 
 export type RealChromeStatus = {
   running: boolean;
@@ -16,6 +17,23 @@ export type RealChromeLaunchOptions = {
   /** Bring a newly launched browser to the foreground only after an explicit user action. */
   focusOnLaunch?: boolean;
 };
+
+let desktopChrome: ReturnType<typeof createDesktopChrome> | undefined;
+export function configureDesktopChrome(profile: string) { desktopChrome = createDesktopChrome(profile); }
+export async function stopDesktopChrome() { await desktopChrome?.stop(); }
+
+function debugPort(port: number): number | undefined {
+  return desktopChrome ? desktopChrome.endpoint() : port;
+}
+export function realChromeCdpAddress(port = 9222): string | undefined {
+  const activePort = debugPort(port);
+  return activePort ? `http://127.0.0.1:${activePort}` : undefined;
+}
+export async function connectRealChromeCdp(port = 9222) {
+  const activePort = debugPort(port);
+  if (!activePort) throw nativeUnavailable("请先启动 BetterMe 的招聘专用浏览器。");
+  return connectNativeCdp(activePort);
+}
 
 export function realChromeLaunchCommand(
   binary: string,
@@ -91,8 +109,10 @@ export function findRealBrowserBinary(): string | undefined {
 }
 
 export async function checkCdpRunning(port = 9222): Promise<boolean> {
+  const address = realChromeCdpAddress(port);
+  if (!address) return false;
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+    const res = await fetch(address + "/json/version", {
       signal: AbortSignal.timeout(800),
     });
     return res.ok;
@@ -106,13 +126,13 @@ export async function getRealChromeStatus(port = 9222): Promise<RealChromeStatus
   const binary = findRealBrowserBinary();
   return {
     running,
-    port,
+    port: debugPort(port) ?? port,
     binaryFound: Boolean(binary),
     binaryPath: binary,
     message: running
-      ? `真实 Chrome 已就绪（正在监听调试端口 ${port}）`
+      ? "招聘专用浏览器已就绪。"
       : binary
-        ? `未启动独立调试浏览器，点击可一键启动接管（将开启端口 ${port}）`
+        ? "点击启动招聘专用浏览器，可在打开的窗口中登录。"
         : "未在系统默认路径找到 Google Chrome 或 Edge 浏览器",
   };
 }
@@ -129,7 +149,7 @@ export async function launchRealChromeCdp(
     // If already running, do NOT steal focus; keep it running in background
     return {
       running: true,
-      port,
+      port: debugPort(port) ?? port,
       binaryFound: Boolean(binary),
       binaryPath: binary,
       message: `真实 Chrome 已在后台就绪（调试端口 ${port}）。`,
@@ -143,6 +163,13 @@ export async function launchRealChromeCdp(
       binaryFound: false,
       message: "未在系统默认路径检测到 Google Chrome 或 Microsoft Edge 浏览器，请先安装 Chrome。",
     };
+  }
+
+  if (desktopChrome) {
+    const started = await desktopChrome.launch(binary, targetUrl).catch(() => undefined);
+    if (started && options.focusOnLaunch) await focusRealChromeWindow();
+    return { running: Boolean(started), port: started ?? port, binaryFound: true, binaryPath: binary,
+      message: started ? "招聘专用浏览器已启动，可在该窗口登录。" : "招聘专用浏览器未能启动，请关闭遗留的 BetterMe 招聘窗口后重试。" };
   }
 
   const profileDir = path.join(os.homedir(), ".betterme-chrome-profile");
@@ -212,6 +239,10 @@ export async function launchRealChromeCdp(
 
 export async function killRealChromeCdp(port = 9222): Promise<boolean> {
   try {
+    if (desktopChrome) {
+      await desktopChrome.stop();
+      return true;
+    }
     if (process.platform === "darwin" || process.platform === "linux") {
       try {
         const output = execSync(`lsof -ti :${port}`, { encoding: "utf8" }).trim();
@@ -241,13 +272,13 @@ export async function killRealChromeCdp(port = 9222): Promise<boolean> {
 
 export async function focusRealChromeWindow(port = 9222): Promise<boolean> {
   try {
-    if (process.platform === "darwin") {
+    if (!desktopChrome && process.platform === "darwin") {
       // Instant macOS focus
       const script = 'tell application "Google Chrome" to activate';
       const child = spawn("osascript", ["-e", script], { stdio: "ignore" });
       child.unref();
     }
-    const cdp = await connectNativeCdp(port);
+    const cdp = await connectRealChromeCdp(port);
     try {
       const targets = await cdp.send<NativeTargetList>("Target.getTargets", {}, undefined, 2500);
       const page = targets.targetInfos.find((t) => t.type === "page");
@@ -274,7 +305,7 @@ export async function openRealChromeTab(url: string, port = 9222): Promise<boole
       const script = 'tell application "Google Chrome" to activate';
       spawn("osascript", ["-e", script], { stdio: "ignore" }).unref();
     }
-    const cdp = await connectNativeCdp(port);
+    const cdp = await connectRealChromeCdp(port);
     try {
       const created = await cdp.send<{ targetId?: string }>("Target.createTarget", { url }, undefined, 4000);
       if (created.targetId) {
@@ -305,7 +336,7 @@ export async function openRealChromeTabs(urls: string[], port = 9222): Promise<b
       spawn("osascript", ["-e", script], { stdio: "ignore" }).unref();
     }
     if (!targetUrls.length) return true;
-    const cdp = await connectNativeCdp(port);
+    const cdp = await connectRealChromeCdp(port);
     try {
       let lastTargetId: string | undefined;
       for (const u of targetUrls) {
@@ -344,7 +375,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
   const running = await checkCdpRunning(port);
   const defaultOverview: PlatformAuthOverview = {
     running,
-    port,
+    port: debugPort(port) ?? port,
     platforms: {
       boss: {
         platformId: "boss",
@@ -380,7 +411,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
   if (!running) return defaultOverview;
 
   try {
-    const cdp = await connectNativeCdp(port);
+    const cdp = await connectRealChromeCdp(port);
     try {
       const targets = await cdp.send<NativeTargetList>("Target.getTargets", {}, undefined, 3000);
       const pageTargets = (targets.targetInfos || []).filter((t) => t.type === "page" && Boolean(t.url));
@@ -547,7 +578,7 @@ export async function injectPlatformCookies(
   }
 
   try {
-    const cdp = await connectNativeCdp(port);
+    const cdp = await connectRealChromeCdp(port);
     try {
       const targets = await cdp.send<NativeTargetList>("Target.getTargets", {}, undefined, 3000);
       let page = targets.targetInfos?.find((t) => t.type === "page");

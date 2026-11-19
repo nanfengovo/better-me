@@ -40,13 +40,18 @@ async function fixture(reasoner:CareerTaskReasoner,modelProbe=false){
   const server=createAgentServer({host:"127.0.0.1",port:0,authToken:"synthetic-one-off-token",allowedOrigins:[],identityDirectory:path.join(directory,"identity"),runtimeDefinitions:[],checkpointer:new MemorySaver() as never,careerTaskReasoner:reasoner});
   await once(server,"listening");const address=server.address();assert.ok(address&&typeof address!=="string");const base=`http://127.0.0.1:${address.port}`;
   const identity=await registerTestIdentity(base,"synthetic-one-off-token","synthetic-one-off-owner");activatePrincipal(identity.principal);
-  let loseCreate=false;
+  let loseCreate=false,previewMode:"live"|"older-host"|"offline"="live";
   globalThis.fetch=async(url,init)=>{
     const pathname=new URL(String(url)).pathname,method=init?.method??"GET";
     if(pathname.startsWith("/api/v1/agent/")){
       wire.push({path:pathname,method});assert.ok(!pathname.startsWith("/api/v1/agent/runs"),"no legacy execution or read path");
+      if(pathname.endsWith("/workspace-binding")){
+        assert.equal(method,"GET");assert.equal(init?.body,undefined);
+        if(previewMode==="older-host")return Response.json({error:"task_route_not_found"},{status:404});
+        if(previewMode==="offline")throw new TypeError("synthetic host unavailable");
+      }
       const headers=new Headers(init?.headers);for(const [key,value] of Object.entries(identity.headers))headers.set(key,value);headers.set("Authorization","Bearer synthetic-one-off-token");
-      const response=await originalFetch(base+pathname,{...init,headers});
+      const response=await originalFetch(base+pathname+new URL(String(url)).search,{...init,headers});
       if(loseCreate&&pathname==="/api/v1/agent/tasks"&&method==="POST"){loseCreate=false;throw Error("synthetic lost create receipt after commit");}
       return response;
     }
@@ -58,12 +63,12 @@ async function fixture(reasoner:CareerTaskReasoner,modelProbe=false){
   let root=createRoot(dom.document.getElementById("fixture")!);
   const render=()=>root.render(h(UiPreferencesProvider,null,modelProbe?h(AiConfigModal,{isOpen:true,rootScopeKey:scope,config:probeConfig,onClose(){},onSave(){}}):h(AgentCompanion,{workspaceKey:scope,llmConfig:config,onOpenAiConfig(){},onOpenWorkspace(){}})));
   const open=async()=>{
-    if(modelProbe){await flush(()=>button("测试文本生成（计入总额度）")!.click());return;}
+    if(modelProbe){await flush(()=>button("测试文本生成（计入总额度）")!.click());await until(()=>Boolean(dom.document.querySelector('#model-probe-guidance:not([data-state="checking"])')));return;}
     await flush(()=>dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')!.click());
     await flush(()=>dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-tools-toggle"]')!.click());
     await flush(()=>dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-quick-run-toggle"]')!.click());
   };
-  return {wire,base,directory,ownerId:identity.principal.id,ledger:createTaskLedgerClient({baseUrl:base}),client:createFreeChatTaskClient({baseUrl:base,pollMs:5}),render:async()=>flush(render),open,loseCreate:()=>{loseCreate=true;},
+  return {wire,base,directory,ownerId:identity.principal.id,ledger:createTaskLedgerClient({baseUrl:base}),client:createFreeChatTaskClient({baseUrl:base,pollMs:5}),render:async()=>flush(render),open,loseCreate:()=>{loseCreate=true;},setPreview:(mode:typeof previewMode)=>{previewMode=mode;},
     remount:async()=>{await flush(()=>root.unmount());dom.document.body.innerHTML='<main id="fixture"></main>';root=createRoot(dom.document.getElementById("fixture")!);await flush(render);await open();},
     tasks:async()=>{const response=await fetch(base+"/api/v1/agent/tasks");return (await response.json()).tasks as FreeChatTask[];},
     close:async()=>{await flush(()=>root.unmount());activatePrincipal(undefined);globalThis.fetch=originalFetch;await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await rm(directory,{recursive:true,force:true});dom.localStorage.clear();},
@@ -180,9 +185,41 @@ test("configuration probe refuses a conflicting root model without fallback, new
   let calls=0;const f=await fixture(async()=>async()=>{calls++;return JSON.stringify({kind:"reply",content:"原底座完整记录"});},true);
   try{
     await f.client.send({workspaceKey:"advisor:other-model",rootScopeKey:scope,runtime:{...runtime,modelSettings:{...runtime.modelSettings,model:"different-fixed-model"}},messages:[{id:"other-model-prior",role:"user",content:"原对话保留。"}]});
-    const before=JSON.stringify(await f.tasks());await f.render();await f.open();await flush(()=>consent().click());await flush(()=>button("开始运行")!.click());
+    const before=JSON.stringify(await f.tasks());await f.render();const start=f.wire.length;await f.open();
     await until(()=>Boolean(dom.document.querySelector('.agent-companion-run [role="alert"]')));
-    assert.match(dom.document.querySelector('.agent-companion-run [role="alert"]')!.textContent!,/另一运行时/);assert.equal(calls,1);assert.equal(JSON.stringify(await f.tasks()),before);
+    const warning=dom.document.querySelector('.agent-companion-run [role="alert"]')!.textContent!;
+    assert.equal(dom.document.activeElement?.id,"model-probe-guidance","opening the check must bring its explanation into view");
+    assert.match(warning,/different-fixed-model/);assert.match(warning,/synthetic-one-off/);assert.match(warning,/仍可保存配置/);
+    assert.equal(consent().disabled,true);assert.equal(button("开始运行")!.disabled,true);
+    assert.ok(f.wire.slice(start).every(row=>row.method==="GET"));assert.ok(f.wire.slice(start).some(row=>row.path.endsWith("/workspace-binding")));
+    assert.equal(calls,1);assert.equal(JSON.stringify(await f.tasks()),before);
+    const payload=await (await fetch(f.base+"/api/v1/agent/tasks/workspace-binding?rootScopeKey="+encodeURIComponent(scope))).json();
+    assert.deepEqual(Object.keys(payload).sort(),["binding","ownerId","rootScopeKey"]);assert.deepEqual(Object.keys(payload.binding).sort(),["id","label","location"]);
+    assert.ok(!JSON.stringify(payload).includes("原对话保留"));assert.ok(!JSON.stringify(payload).includes(probeConfig.apiKey));
+  }finally{await f.close();}
+});
+
+test("older Host without preview still refuses a different model after explicit consent, with a usable path to its record",async()=>{
+  let calls=0;const f=await fixture(async()=>async()=>{calls++;return JSON.stringify({kind:"reply",content:"合成回执"});},true);
+  try{
+    await f.client.send({workspaceKey:"prior",rootScopeKey:scope,runtime:{...runtime,modelSettings:{...runtime.modelSettings,model:"other"}},messages:[{id:"older-host",role:"user",content:"synthetic"}]});
+    const before=JSON.stringify(await f.tasks());f.setPreview("older-host");await f.render();await f.open();
+    assert.match(dom.document.querySelector("#model-probe-guidance")!.textContent!,/不支持提前/);assert.equal(calls,1);
+    await flush(()=>consent().click());await flush(()=>button("开始运行")!.click());
+    await until(()=>Boolean(dom.document.querySelector(".agent-companion-run-error")));
+    assert.match(dom.document.querySelector(".agent-companion-run-error")!.textContent!,/共识与进度 → 任务 → 工作区共享额度/);
+    assert.equal(calls,1);assert.equal(JSON.stringify(await f.tasks()),before);
+  }finally{await f.close();}
+});
+
+test("an unreachable preview is not an unbound workspace; retrying it only reads, then explains the first-test binding",async()=>{
+  let calls=0;const f=await fixture(async()=>async()=>{calls++;return "never";},true);
+  try{
+    f.setPreview("offline");await f.render();await f.open();
+    assert.match(dom.document.querySelector("#model-probe-guidance")!.textContent!,/无法读取/);assert.equal(consent().disabled,true);
+    f.setPreview("live");await flush(()=>button("重新检查工作区模型")!.click());await until(()=>!consent().disabled);
+    assert.match(dom.document.querySelector("#model-probe-guidance")!.textContent!,/运行首次测试会把/);
+    assert.equal(consent().checked,false);assert.equal(calls,0);assert.ok(f.wire.every(row=>row.method==="GET"));
   }finally{await f.close();}
 });
 
@@ -194,5 +231,22 @@ test("configuration probe reconciles an unknown create on reopen and requires fr
     await f.remount();await until(()=>Boolean(button("读取现有任务")));assert.equal(consent().checked,false);assert.equal(calls,0);
     await flush(()=>button("读取现有任务")!.click());await until(()=>!button("读取现有任务")!.disabled&&!consent().disabled);await flush(()=>consent().click());await until(()=>!button("开始运行")!.disabled);await flush(()=>button("开始运行")!.click());await until(()=>Boolean(dom.document.querySelector(".agent-output-text")));
     const tasks=await f.tasks();assert.equal(tasks.length,1);assert.equal(tasks[0]!.id,before.id);assert.equal(calls,1);assert.equal(f.wire.filter(row=>row.method==="POST"&&row.path==="/api/v1/agent/tasks").length,1);
+  }finally{await f.close();}
+});
+
+test("first configuration probe refreshes guidance from first-bind to match before starting a second check",async()=>{
+  let calls=0;
+  const f=await fixture(async()=>async()=>{calls++;return JSON.stringify({kind:"reply",content:"BETTERME_OK"});},true);
+  try{
+    await f.render();await f.open();
+    assert.equal(dom.document.querySelector("#model-probe-guidance")?.getAttribute("data-state"),"first");
+    assert.match(dom.document.querySelector("#model-probe-guidance")!.textContent!,/还没有绑定模型/);
+    await flush(()=>consent().click());await flush(()=>button("开始运行")!.click());
+    await until(()=>Boolean(dom.document.querySelector(".agent-output-text")));
+    await until(()=>dom.document.querySelector("#model-probe-guidance")?.getAttribute("data-state")==="match");
+    await flush(()=>button("新任务 · 沿用总额度")!.click());
+    assert.equal(calls,1);
+    assert.equal(dom.document.querySelector("#model-probe-guidance")?.getAttribute("data-state"),"match");
+    assert.match(dom.document.querySelector("#model-probe-guidance")!.textContent!,/模型与工作区记录一致/);
   }finally{await f.close();}
 });

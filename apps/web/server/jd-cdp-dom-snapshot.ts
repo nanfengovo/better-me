@@ -70,6 +70,11 @@ const EXCLUDED_TAGS = new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT", "IFRAM
 const EXCLUDED_CLASSES = new Set(["recommend", "recommendation", "recommendations", "job-recommend", "job-recommend-list", "related-jobs"]);
 const VOID_TAGS = new Set(["BR", "HR", "IMG", "META", "LINK", "INPUT", "WBR", "AREA", "BASE", "COL", "EMBED", "PARAM", "SOURCE", "TRACK"]);
 const fail = (code: NativeDomSnapshotCode, detail?: SnapshotFailureDetail): never => { throw new NativeDomSnapshotError(code, detail); };
+const entry = <T>(items: readonly T[], index: number, code: NativeDomSnapshotCode = "snapshot_shape", detail?: SnapshotFailureDetail): T => {
+  const value = items[index];
+  return value === undefined ? fail(code, detail) : value;
+};
+const styleAt = (styles: readonly string[], index: number): string => styles[index] ?? "";
 const record = (value: unknown, code: NativeDomSnapshotCode): RecordValue => value && typeof value === "object" && !Array.isArray(value) ? value as RecordValue : fail(code);
 const array = (value: unknown, code: NativeDomSnapshotCode): unknown[] => Array.isArray(value) ? value : fail(code);
 const integer = (value: unknown, min: number, max: number, code: NativeDomSnapshotCode): number => typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max ? value : fail(code);
@@ -106,11 +111,11 @@ export function projectNativeDomSnapshot(
     stringUnits += (item as string).length;
     if (stringUnits > MAX_CODE_UNITS) fail("snapshot_limit_exceeded");
   }
-  const stringAt = (index: unknown): string => strings[integer(index, 0, strings.length - 1, "snapshot_string")] as string;
+  const stringAt = (index: unknown): string => entry(strings, integer(index, 0, strings.length - 1, "snapshot_string"), "snapshot_string") as string;
   const optionalString = (index: unknown): string => index === -1 ? "" : stringAt(index);
   const matching = documents.map(item => record(item, "snapshot_shape")).filter(doc => stringAt(doc.frameId) === frame.id);
   if (matching.length !== 1) fail("main_document_count");
-  const doc = matching[0];
+  const doc = entry(matching, 0, "main_document_count");
   if (stringAt(doc.documentURL) !== frame.url) fail("document_url");
   const title = optionalString(doc.title);
   const rawNodes = record(doc.nodes, "node_arrays");
@@ -135,6 +140,7 @@ export function projectNativeDomSnapshot(
     for (let i = 0; i < indices.length; i++) { special.add(integer(indices[i], 0, count - 1, "node_arrays")); stringAt(entries[i]); }
   }
   const nodes: Node[] = [];
+  const nodeAt = (index: number, code: NativeDomSnapshotCode = "node_arrays"): Node => entry(nodes, index, code);
   let attributeUnits = 0;
   let nodeUnits = 0;
   const seenBackendIds = new Set<number>();
@@ -146,7 +152,7 @@ export function projectNativeDomSnapshot(
     const backendId = integer(backendIds[i], 1, Number.MAX_SAFE_INTEGER, "node_arrays");
     if (seenBackendIds.has(backendId)) fail("node_arrays");
     seenBackendIds.add(backendId);
-    const depth = parent < 0 ? 0 : nodes[parent].depth + 1;
+    const depth = parent < 0 ? 0 : nodeAt(parent, "node_parent").depth + 1;
     if (depth > MAX_DEPTH) fail("projection_depth_limit");
     const pairs = array(rawAttributes[i], "attributes");
     if (pairs.length % 2 || pairs.length > 2048) fail("attributes");
@@ -164,7 +170,7 @@ export function projectNativeDomSnapshot(
     nodeUnits += node.name.length + node.value.length;
     if (nodeUnits > MAX_CODE_UNITS) fail("snapshot_limit_exceeded");
     nodes.push(node);
-    if (parent >= 0) nodes[parent].children.push(i);
+    if (parent >= 0) nodeAt(parent, "node_parent").children.push(i);
   }
 
   const rawLayout = record(doc.layout, "layout_arrays");
@@ -184,18 +190,18 @@ export function projectNativeDomSnapshot(
   for (let i = 0; i < layouts; i++) {
     const rawIndex = layoutIndices[i];
     const index = typeof rawIndex === "number" && Number.isSafeInteger(rawIndex) && rawIndex >= 0 && rawIndex < count ? rawIndex : fail("layout_entry", "node_index");
-    const node = nodes[index];
+    const node = nodeAt(index, "layout_entry");
     const styles = Array.isArray(layoutStyles[i]) ? layoutStyles[i] as unknown[] : fail("layout_entry", "style_count");
     if (styles.length !== NATIVE_SNAPSHOT_STYLES.length && !((rootScrollMode || options.purpose === "search") && hasRootStyleColumns(styles.length)) && !(styles.length === 0 && node.type !== 1)) fail("layout_entry", "style_count");
     const alpha = opacity?.[i];
     if (alpha !== undefined && (typeof alpha !== "number" || !Number.isFinite(alpha) || alpha < 0 || alpha > 1)) fail("layout_entry", "text_opacity");
     const computed = styles.map(optionalString);
-    if (node.type === 1 && (!computed[0] || !["visible", "hidden", "collapse"].includes(computed[1]) || !computed[2]
+    if (node.type === 1 && (!computed[0] || !["visible", "hidden", "collapse"].includes(styleAt(computed, 1)) || !computed[2]
         || !Number.isFinite(Number(computed[2])) || Number(computed[2]) < 0 || Number(computed[2]) > 1)) fail("layout_entry", "computed_style");
     const layout: Layout = { bounds: rectangle(layoutBounds[i], "layout_entry", "bounds"), styles: computed, text: optionalString(layoutTexts[i]), boxes: [], ...(typeof alpha === "number" ? { opacity: alpha } : {}) };
-    for (const [at, key] of ["offsetRect", "clientRect", "scrollRect"].entries()) {
+    for (const [at, key] of (["offsetRect", "clientRect", "scrollRect"] as const).entries()) {
       const value = geometry[at]?.[i];
-      if (value !== undefined && !(Array.isArray(value) && value.length === 0)) layout[key as "offsetRect" | "clientRect" | "scrollRect"] = rectangle(value, "layout_entry", "bounds");
+      if (value !== undefined && !(Array.isArray(value) && value.length === 0)) layout[key] = rectangle(value, "layout_entry", "bounds");
     }
     layoutUnits += layout.text.length + layout.styles.reduce((sum, text) => sum + text.length, 0);
     if (layoutUnits > MAX_CODE_UNITS) fail("snapshot_limit_exceeded");
@@ -209,7 +215,7 @@ export function projectNativeDomSnapshot(
   for (const key of ["bounds", "start", "length"] as const) if (array(boxes[key], "text_box_arrays").length !== boxIndices.length) fail("text_box_arrays");
   const boxBounds = boxes.bounds as unknown[]; const starts = boxes.start as unknown[]; const lengths = boxes.length as unknown[];
   for (let i = 0; i < boxIndices.length; i++) {
-    const layout = byLayout[integer(boxIndices[i], 0, layouts - 1, "text_box_entry")];
+    const layout = entry(byLayout, integer(boxIndices[i], 0, layouts - 1, "text_box_entry"), "text_box_entry");
     const start = integer(starts[i], 0, layout.text.length, "text_box_range");
     const amount = integer(lengths[i], 0, layout.text.length - start, "text_box_range");
     const bounds = rectangle(boxBounds[i], "text_box_entry");
@@ -227,30 +233,32 @@ export function projectNativeDomSnapshot(
     } catch { /* Unrecognized sources receive the ordinary projection. */ }
   }
   if (official51Job && nodes.some(node => {
-    const head = nodes[node.parent]; const html = head && nodes[head.parent];
+    const head = node.parent >= 0 ? nodes[node.parent] : undefined;
+    const html = head && head.parent >= 0 ? nodes[head.parent] : undefined;
+    const docNode = html && html.parent >= 0 ? nodes[html.parent] : undefined;
     return node.type === 1 && node.name === "META" && !node.special && /^aliyun_waf(?:_|$)/i.test(node.attrs.get("name") ?? "")
-      && head?.name === "HEAD" && !head.special && html?.name === "HTML" && nodes[html.parent]?.type === 9;
+      && head?.name === "HEAD" && !head.special && html?.name === "HTML" && docNode?.type === 9;
   })) return { html: '<html><head><meta name="aliyun_waf"></head><body></body></html>', url: frame.url, title,
     gate: "verification_required", pageLoad: { readyState: load.readyState, content: "unknown", visibleFrames: 0 } };
 
   const hidden = (index: number): boolean => {
-    for (let i = index; i >= 0; i = nodes[i].parent) {
-      const { attrs, layouts } = nodes[i];
+    for (let i = index; i >= 0; i = nodeAt(i).parent) {
+      const { attrs, layouts } = nodeAt(i);
       if (attrs.has("hidden") || attrs.get("aria-hidden")?.toLowerCase() === "true" || layouts.some(({ styles }) => styles[0] === "none" || styles[3] === "hidden"
           || ["hidden", "collapse"].includes(styles[1] ?? "") || (styles[2] !== undefined && styles[2] !== "" && Number(styles[2]) === 0))) return true;
     }
     return false;
   };
   const excluded = (index: number): boolean => {
-    for (let i = index; i >= 0; i = nodes[i].parent) {
-      const node = nodes[i];
+    for (let i = index; i >= 0; i = nodeAt(i).parent) {
+      const node = nodeAt(i);
       if (EXCLUDED_TAGS.has(node.name) || (node.attrs.get("class") ?? "").split(/\s+/).some(name => EXCLUDED_CLASSES.has(name))) return true;
     }
     return false;
   };
   const transparent = (index: number): boolean => {
-    for (let i = index; i >= 0; i = nodes[i].parent) {
-      const color = nodes[i].layouts.find(layout => layout.styles[14])?.styles[14];
+    for (let i = index; i >= 0; i = nodeAt(i).parent) {
+      const color = nodeAt(i).layouts.find(layout => layout.styles[14])?.styles[14];
       if (!color) continue;
       return color === "transparent" || /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(color) || /\/\s*0(?:\.0+)?%?\s*\)$/.test(color);
     }
@@ -265,13 +273,13 @@ export function projectNativeDomSnapshot(
     && (rootDocument.frameId === undefined || rootDocument.frameId === frame.id)
     && rootDocument.documentURL === frame.url && rootDocument.compatibilityMode === "NoQuirksMode";
   const ordinaryElementChain = (index: number): boolean => {
-    for (let at = index; at >= 0; at = nodes[at].parent) {
-      const node = nodes[at];
+    for (let at = index; at >= 0; at = nodeAt(at).parent) {
+      const node = nodeAt(at);
       if (node.type !== 1) continue;
       if (node.layouts.length !== 1) return false;
-      const row = node.layouts[0];
+      const row = entry(node.layouts, 0, "layout_entry");
       if (!hasRootStyleColumns(row.styles.length) || row.styles[15] !== "1" || row.styles[16] !== "ltr" || row.styles[17] !== "horizontal-tb"
-        || !["static", "relative", "absolute"].includes(row.styles[18]) || row.styles[3] !== "visible" || row.styles[19] !== "none") return false;
+        || !["static", "relative", "absolute"].includes(styleAt(row.styles, 18)) || row.styles[3] !== "visible" || row.styles[19] !== "none") return false;
     }
     return true;
   };
@@ -283,14 +291,18 @@ export function projectNativeDomSnapshot(
       const htmls = nodes.flatMap((node, at) => node.type === 1 && node.name === "HTML" && node.parent === 0 ? [at] : []);
       const bodies = nodes.flatMap((node, at) => node.type === 1 && node.name === "BODY" ? [at] : []);
       const finite = (value: unknown, minimum = 0): value is number => typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= 10_000_000;
-      if (htmls.length !== 1 || bodies.length !== 1 || nodes[bodies[0]].parent !== htmls[0]) return false;
-      const root = nodes[htmls[0]], body = nodes[bodies[0]];
+      const htmlIndex = htmls[0], bodyIdx = bodies[0];
+      if (htmls.length !== 1 || bodies.length !== 1 || htmlIndex === undefined || bodyIdx === undefined || nodeAt(bodyIdx).parent !== htmlIndex) return false;
+      const root = nodeAt(htmlIndex), body = nodeAt(bodyIdx);
       if (root.layouts.length !== 1 || body.layouts.length !== 1) return false;
-      const row = root.layouts[0], bodyRow = body.layouts[0];
+      const row = entry(root.layouts, 0, "layout_entry"), bodyRow = entry(body.layouts, 0, "layout_entry");
       const offset = row.offsetRect, client = row.clientRect, scroll = row.scrollRect;
       if (!offset || !client || !scroll || !bodyRow.offsetRect || !bodyRow.clientRect || !bodyRow.scrollRect) return false;
-      if (!["visible", "auto", "scroll"].includes(row.styles[4]) || !["visible", "auto", "scroll"].includes(row.styles[5]) || bodyRow.styles[4] !== "visible" || bodyRow.styles[5] !== "visible") return false;
-      if (![root, body].every(node => hasRootStyleColumns(node.layouts[0].styles.length) && node.layouts[0].styles[15] === "1" && node.layouts[0].styles[16] === "ltr" && node.layouts[0].styles[17] === "horizontal-tb" && node.layouts[0].styles[18] === "static")) return false;
+      if (!["visible", "auto", "scroll"].includes(styleAt(row.styles, 4)) || !["visible", "auto", "scroll"].includes(styleAt(row.styles, 5)) || bodyRow.styles[4] !== "visible" || bodyRow.styles[5] !== "visible") return false;
+      if (![root, body].every(node => {
+        const s = entry(node.layouts, 0, "layout_entry").styles;
+        return hasRootStyleColumns(s.length) && s[15] === "1" && s[16] === "ltr" && s[17] === "horizontal-tb" && s[18] === "static";
+      })) return false;
       if (row.bounds[0] !== 0 || row.bounds[1] !== 0 || offset[0] !== 0 || offset[1] !== 0 || client[0] !== 0 || client[1] !== 0 || offset[2] < 64 || offset[3] < 64 || client[2] < 64 || client[3] < 64) return false;
       const scale = row.bounds[2] / offset[2];
       if (!Number.isFinite(scale) || scale < .25 || scale > 8) return false;
@@ -305,51 +317,52 @@ export function projectNativeDomSnapshot(
       if (!near(doc.contentWidth, scroll[2] * scale) || !near(doc.contentHeight, scroll[3] * scale) || !near(doc.scrollOffsetX, scroll[0] * scale) || !near(doc.scrollOffsetY, scroll[1] * scale)) return false;
       if (scroll[0] < 0 || scroll[1] < 0 || scroll[2] < client[2] || scroll[3] < client[3] || scroll[0] > scroll[2] - client[2] + 1 || scroll[1] > scroll[3] - client[3] + 1) return false;
       if (!near(bodyRow.bounds[2], bodyRow.offsetRect[2] * scale) || !near(bodyRow.bounds[3], bodyRow.offsetRect[3] * scale) || bodyRow.offsetRect[2] < 64 || bodyRow.offsetRect[3] < 64) return false;
-      rootProof = { width: doc.contentWidth, height: doc.contentHeight, root: htmls[0] };
+      rootProof = { width: doc.contentWidth, height: doc.contentHeight, root: htmlIndex };
     }
     if (!rootProof) return false;
     const proof = rootProof;
     if (!ordinaryElementChain(index)) return false;
     let reachedRoot = false;
-    for (let at = index; at >= 0; at = nodes[at].parent) {
+    for (let at = index; at >= 0; at = nodeAt(at).parent) {
       if (at === proof.root) reachedRoot = true;
     }
     if (!reachedRoot) return false;
     // Root boxes remain document coordinates during ordinary root scrolling.
     // Do not subtract the current root scroll offset as for a child scroller.
-    return nodes[index].layouts.filter(row => row.opacity !== 0).flatMap(row => row.boxes).every(({ bounds: [x, y, width, height] }) => x >= 0 && y >= 0 && x + width <= proof.width + 1e-6 && y + height <= proof.height + 1e-6);
+    return nodeAt(index).layouts.filter(row => row.opacity !== 0).flatMap(row => row.boxes).every(({ bounds: [x, y, width, height] }) => x >= 0 && y >= 0 && x + width <= proof.width + 1e-6 && y + height <= proof.height + 1e-6);
   };
   const unsupported = (index: number, foldedCandidate?: number): SnapshotVisibilityDetail | undefined => {
-    for (let i = index; i >= 0; i = nodes[i].parent) {
-      const node = nodes[i];
+    for (let i = index; i >= 0; i = nodeAt(i).parent) {
+      const node = nodeAt(i);
       if (node.special) return "shadow_or_pseudo";
       for (const { styles } of node.layouts) {
         if (node.type === 1 && styles.slice(0, NATIVE_ROOT_SCROLL_STYLES.length).some(value => !value)) return "computed_style_incomplete";
         // CDP can repeat an element's exact computed box styles on its direct
         // text LayoutObject. They identify the same fold, never a child box.
-        const foldedStyles = foldedCandidate === undefined ? undefined : nodes[foldedCandidate].layouts[0]?.styles;
+        const foldedStyles = foldedCandidate === undefined ? undefined : nodeAt(foldedCandidate).layouts[0]?.styles;
         const sameFoldBox = i === foldedCandidate || (node.type === 3 && node.parent === foldedCandidate
           && foldedStyles?.length === styles.length && styles.every((value, key) => value === foldedStyles[key]));
         // Geometry for padding clips, ellipsis and scroll containers cannot be proved by textBoxes.
         // Reject these effects instead of returning hidden suffixes as complete visible text.
-        if ([styles[4], styles[5]].some(value => value && !["visible", "unset", "initial"].includes(value))
-          && !(sameFoldBox && [styles[4], styles[5]].every(value => ["visible", "hidden"].includes(value)))
-          && !(node.name === "HTML" && [styles[4], styles[5]].every(value => ["visible", "auto", "scroll"].includes(value)) && ordinaryRootText(index))) return "overflow_clip_or_scroll";
+        const sx = styleAt(styles, 4), sy = styleAt(styles, 5);
+        if ([sx, sy].some(value => value && !["visible", "unset", "initial"].includes(value))
+          && !(sameFoldBox && [sx, sy].every(value => ["visible", "hidden"].includes(value)))
+          && !(node.name === "HTML" && [sx, sy].every(value => ["visible", "auto", "scroll"].includes(value)) && ordinaryRootText(index))) return "overflow_clip_or_scroll";
         if (styles[6] && styles[6] !== "clip") return "text_ellipsis";
         if (styles[7] && !["none", "0"].includes(styles[7]) && !(sameFoldBox && styles[7] === "4")) return "line_clamp";
         if (styles[8] && styles[8] !== "auto") return "legacy_clip";
         if (styles[9] && styles[9] !== "none") return "clip_path";
         if (styles[10] && styles[10] !== "none") return "transform";
         if (styles[11] && styles[11] !== "none") return "filter";
-        if ([12, 13].some(key => styles[key] && styles[key] !== "none")) return "mask";
+        if ([12, 13].some(key => { const val = styles[key]; return !!val && val !== "none"; })) return "mask";
       }
     }
     return undefined;
   };
   const visibleLayouts = (index: number, forGate = false): Layout[] => {
-    const node = nodes[index];
-    if (forGate) for (let i = index; i >= 0; i = nodes[i].parent) {
-      if (["INPUT", "TEXTAREA", "SELECT", "OPTION", "SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT", "IFRAME", "FRAME"].includes(nodes[i].name)) return [];
+    const node = nodeAt(index);
+    if (forGate) for (let i = index; i >= 0; i = nodeAt(i).parent) {
+      if (["INPUT", "TEXTAREA", "SELECT", "OPTION", "SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT", "IFRAME", "FRAME"].includes(nodeAt(i).name)) return [];
     }
     if (transparent(index) || hidden(index) || (!forGate && excluded(index))) return [];
     return node.layouts.filter(layout => !!layout.bounds[2] && !!layout.bounds[3] && !!layout.boxes.length && layout.opacity !== 0 && layout.text.length > 0);
@@ -358,19 +371,21 @@ export function projectNativeDomSnapshot(
   const preservesParagraphBreaks = (index: number, layouts: Layout[]): boolean => {
     // Text inherits this property from its nearest element. Never skip an
     // element with missing evidence to borrow a permissive ancestor's value.
-    let parent = nodes[index].parent;
-    while (parent >= 0 && nodes[parent].type !== 1) parent = nodes[parent].parent;
+    let parent = nodeAt(index).parent;
+    while (parent >= 0 && nodeAt(parent).type !== 1) parent = nodeAt(parent).parent;
     if (parent < 0) return false;
-    const rows = nodes[parent].layouts;
-    if (rows.length !== 1 || rows[0].styles.length !== NATIVE_LIEPIN_PARAGRAPH_STYLES.length) return false;
-    const whiteSpace = rows[0].styles[NATIVE_ROOT_SCROLL_STYLES.length];
+    const rows = nodeAt(parent).layouts;
+    const firstRow = rows[0];
+    if (rows.length !== 1 || !firstRow || firstRow.styles.length !== NATIVE_LIEPIN_PARAGRAPH_STYLES.length) return false;
+    const whiteSpace = styleAt(firstRow.styles, NATIVE_ROOT_SCROLL_STYLES.length);
     return ["pre-line", "pre", "pre-wrap", "break-spaces"].includes(whiteSpace)
       && layouts.every(layout => layout.styles.length !== NATIVE_LIEPIN_PARAGRAPH_STYLES.length || layout.styles[NATIVE_ROOT_SCROLL_STYLES.length] === whiteSpace);
   };
   const renderedText = (index: number, forGate = false, preserveParagraphs = false): string => {
     const layouts = visibleLayouts(index, forGate);
-    if (!layouts.length) return "";
-    const text = layouts[0].text;
+    const firstLayout = layouts[0];
+    if (!firstLayout) return "";
+    const text = firstLayout.text;
     if (layouts.some(layout => layout.text !== text)) {
       if (forGate) return layouts.map(layout => layout.boxes.map(box => layout.text.slice(box.start, box.end)).join(" ")).join(" ");
       // CDP provides offsets within each LayoutObject, not offsets into a shared
@@ -395,7 +410,8 @@ export function projectNativeDomSnapshot(
     // layout gap. Visual wrapping, raw DOM values and gate text never add LF.
     if (!forGate && preserveParagraphs && preservesParagraphBreaks(index, layouts)) {
       return merged.map((range, at) => {
-        const gap = at ? text.slice(merged[at - 1].end, range.start) : "";
+        const previousRange = at ? merged[at - 1] : undefined;
+        const gap = previousRange ? text.slice(previousRange.end, range.start) : "";
         const separator = at ? (gap.includes("\n") ? gap.replace(/[^\n]/g, "") : " ") : "";
         return separator + text.slice(range.start, range.end);
       }).join("");
@@ -403,10 +419,10 @@ export function projectNativeDomSnapshot(
     // A gap is rendered as a separator; never join two nonadjacent words into a new fact.
     return merged.map(range => text.slice(range.start, range.end)).join(" ");
   };
-  const descendants = (index: number): string => renderedText(index, true) + nodes[index].children.map(descendants).join("");
+  const descendants = (index: number): string => renderedText(index, true) + nodeAt(index).children.map(descendants).join("");
   let gate: BrowserSnapshot["gate"];
   for (let i = 0; i < count; i++) {
-    const node = nodes[i];
+    const node = nodeAt(i);
     if (node.type !== 1 || hidden(i) || !(node.attrs.get("role") === "dialog" || node.attrs.get("aria-modal") === "true" || (node.name === "DIALOG" && node.attrs.has("open")))) continue;
     const text = descendants(i);
     if (/安全验证|人机验证|访问验证|验证码/.test(text)) { gate = "verification_required"; break; }
@@ -414,10 +430,10 @@ export function projectNativeDomSnapshot(
   }
   const bodyIndices = nodes.flatMap((node, index) => node.type === 1 && node.name === "BODY" ? [index] : []);
   if (bodyIndices.length !== 1) fail("document_body_missing");
-  const bodyIndex = bodyIndices[0];
+  const bodyIndex = entry(bodyIndices, 0, "document_body_missing");
   let visibleFrames = 0;
   for (let i = 0; i < count; i++) {
-    const node = nodes[i];
+    const node = nodeAt(i);
     if (["IFRAME", "FRAME"].includes(node.name) && node.layouts.some(layout => layout.bounds[2] && layout.bounds[3]) && !hidden(i)) visibleFrames++;
   }
   if (visibleFrames > 1000) fail("snapshot_limit_exceeded");
@@ -428,13 +444,17 @@ export function projectNativeDomSnapshot(
     // Do not let a hidden row conceal contradictory visible gate evidence.
     for (const node of nodes) {
       const styled = node.layouts;
-      if (styled.some(row => row.styles.length !== styled[0].styles.length || row.styles.some((value, at) => value !== styled[0].styles[at]))) fail("snapshot_visibility_unsupported", "layout_style_conflict");
+      const firstRow = styled[0];
+      if (firstRow && styled.some(row => row.styles.length !== firstRow.styles.length || row.styles.some((value, at) => value !== firstRow.styles[at]))) fail("snapshot_visibility_unsupported", "layout_style_conflict");
     }
     // A list is a partial excerpt. Check the entire rendered page for gates
     // before omitting any unsafe field, including text inside navigation/forms.
     const gateText = descendants(bodyIndex).replace(/\s+/g, " ").trim();
-    const rawTitle = (index: number): string => nodes[index].type === 3 ? nodes[index].value : nodes[index].children.map(rawTitle).join("");
-    const titles = [title.trim(), ...nodes.flatMap((node, index) => node.name === "TITLE" && node.parent >= 0 && nodes[node.parent].name === "HEAD" ? [rawTitle(index).trim()] : [])];
+    const rawTitle = (index: number): string => {
+      const node = nodeAt(index);
+      return node.type === 3 ? node.value : node.children.map(rawTitle).join("");
+    };
+    const titles = [title.trim(), ...nodes.flatMap((node, index) => node.name === "TITLE" && node.parent >= 0 && nodeAt(node.parent).name === "HEAD" ? [rawTitle(index).trim()] : [])];
     if (/安全验证|人机验证|访问验证|请.{0,12}验证码|拖动.{0,12}滑块|verify.{0,25}(?:human|identity)|checking your browser|猎聘安全中心发现您的(?:帐号|账号)或IP可能存在异常/i.test(gateText)
       || titles.some(value => /^(?:安全验证|访问验证|人机验证|验证码|security verification|just a moment|access denied|robot check)(?:\s|[|·:：_—-]|$)/i.test(value))) gate = "verification_required";
     else if (/请先登录|请登录后|登录后(?:查看|浏览|继续)|sign in to (?:view|continue|see)|join to (?:view|see)/i.test(gateText)
@@ -442,14 +462,17 @@ export function projectNativeDomSnapshot(
     if (gate) return { html: "<html><head></head><body></body></html>", url: frame.url, title, gate, pageLoad: { readyState: load.readyState, content: "unknown", visibleFrames } };
 
     const ordinary = (row: Layout) => hasRootStyleColumns(row.styles.length) && row.styles[15] === "1" && row.styles[16] === "ltr"
-      && row.styles[17] === "horizontal-tb" && ["static", "relative", "absolute"].includes(row.styles[18]) && row.styles[19] === "none";
-    const sameStyles = (node: Node) => node.layouts.every(row => row.styles.length === node.layouts[0].styles.length && row.styles.every((value, at) => value === node.layouts[0].styles[at]));
+      && row.styles[17] === "horizontal-tb" && ["static", "relative", "absolute"].includes(styleAt(row.styles, 18)) && row.styles[19] === "none";
+    const sameStyles = (node: Node) => {
+      const firstRow = node.layouts[0];
+      return !firstRow || node.layouts.every(row => row.styles.length === firstRow.styles.length && row.styles.every((value, at) => value === firstRow.styles[at]));
+    };
     const finite = (number: unknown): number is number => typeof number === "number" && Number.isFinite(number) && number >= 0 && number <= 10_000_000;
-    const rootIndex = nodes[bodyIndex].parent, root = nodes[rootIndex];
+    const rootIndex = nodeAt(bodyIndex).parent, root = rootIndex >= 0 ? nodes[rootIndex] : undefined;
     let rootArea: Rect | undefined;
-    if (identifiedHtmlRoot && root?.name === "HTML" && root.parent === 0 && root.layouts.length === 1 && ordinary(root.layouts[0])) {
-      const row = root.layouts[0], offset = row.offsetRect, client = row.clientRect, scroll = row.scrollRect;
-      if (offset && client && scroll && offset[2] > 0 && offset[3] > 0 && client[2] > 0 && client[3] > 0) {
+    if (identifiedHtmlRoot && root?.name === "HTML" && root.parent === 0 && root.layouts.length === 1) {
+      const row = entry(root.layouts, 0, "layout_entry"), offset = row.offsetRect, client = row.clientRect, scroll = row.scrollRect;
+      if (ordinary(row) && offset && client && scroll && offset[2] > 0 && offset[3] > 0 && client[2] > 0 && client[3] > 0) {
         const scale = row.bounds[2] / offset[2], near = (actual: number, expected: number) => Math.abs(actual - expected) <= scale + 1e-6;
         if (scale >= .25 && scale <= 8 && row.bounds[0] === 0 && row.bounds[1] === 0 && offset[0] === 0 && offset[1] === 0
           && client[0] === 0 && client[1] === 0 && scroll[0] >= 0 && scroll[1] >= 0 && scroll[2] >= client[2] && scroll[3] >= client[3]
@@ -471,26 +494,32 @@ export function projectNativeDomSnapshot(
       // reflect local scrolling, so never subtract scrollLeft/Top a second time.
       return [row.bounds[0] + client[0] * scale, row.bounds[1] + client[1] * scale, client[2] * scale, client[3] * scale];
     };
-    const contained = (box: Rect, area: Rect, axis: 0 | 1) => box[axis] >= area[axis] && box[axis] + box[axis + 2] <= area[axis] + area[axis + 2];
+    const axisValue = (rect: Rect, index: 0 | 1 | 2 | 3) => rect[index];
+    const contained = (box: Rect, area: Rect, axis: 0 | 1) => {
+      const extent = axis === 0 ? 2 : 3;
+      return box[axis] >= area[axis] && box[axis] + axisValue(box, extent) <= area[axis] + axisValue(area, extent);
+    };
     const snippets = new Map<number, string>();
     for (let index = 0; index < count; index++) {
-      if (nodes[index].type !== 3 || !visible(index)) continue;
-      const layouts = visibleLayouts(index), text = layouts[0].text;
+      if (nodeAt(index).type !== 3 || !visible(index)) continue;
+      const layouts = visibleLayouts(index), firstLayout = layouts[0];
+      if (!firstLayout) continue;
+      const text = firstLayout.text;
       if (layouts.some(row => row.text !== text)) continue;
       const ranges = layouts.flatMap(row => row.boxes).sort((first, second) => first.start - second.start);
       let safe = true;
-      for (let at = index; at >= 0 && safe; at = nodes[at].parent) {
-        const node = nodes[at];
+      for (let at = index; at >= 0 && safe; at = nodeAt(at).parent) {
+        const node = nodeAt(at);
         if (node.special || !sameStyles(node)) { safe = false; break; }
         if (node.type !== 1) continue;
         if (node.layouts.length !== 1) { safe = false; break; }
-        const row = node.layouts[0], styles = row.styles;
+        const row = entry(node.layouts, 0, "layout_entry"), styles = row.styles;
         if (styles.some(value => !value) || styles[3] !== "visible" || (styles[8] && styles[8] !== "auto") || styles.slice(9, 14).some(value => value !== "none")
           || (styles.length > NATIVE_SNAPSHOT_STYLES.length && !ordinary(row))) { safe = false; break; }
-        const clipX = !["visible", "unset", "initial"].includes(styles[4]), clipY = !["visible", "unset", "initial"].includes(styles[5]);
-        const decorated = styles[6] !== "clip" || !["none", "0"].includes(styles[7]);
+        const sx = styleAt(styles, 4), sy = styleAt(styles, 5), clipX = !["visible", "unset", "initial"].includes(sx), clipY = !["visible", "unset", "initial"].includes(sy);
+        const decorated = styles[6] !== "clip" || !["none", "0"].includes(styleAt(styles, 7));
         if (clipX || clipY || decorated) {
-          if (!["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(styles[4]) || !["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(styles[5])) { safe = false; break; }
+          if (!["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(sx) || !["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(sy)) { safe = false; break; }
           const area = at === rootIndex ? rootArea : clientArea(row);
           if (!area) { safe = false; break; }
           // An ellipsis or line fold can cover otherwise intersecting glyphs.
@@ -523,35 +552,36 @@ export function projectNativeDomSnapshot(
       "job-search-card__salary-info", "job-card-container__salary-info",
     ]);
     const classes = nodes.map(node => (node.attrs.get("class") ?? "").split(/\s+/));
+    const classAt = (index: number): string[] => entry(classes, index, "node_arrays");
     // The current Liepin card places the title and location in distinct
     // ellipsis wrappers. Keep each scalar atomic when only a prefix renders.
     const currentLiepinTitleField = (index: number): boolean => {
-      const node = nodes[index], parent = node.parent;
-      if (!classes[index].includes("ellipsis-1") || parent < 0) return false;
-      if (classes[parent].includes("jobTitleBox")) return true;
-      const grandparent = nodes[parent].parent;
-      return node.name === "SPAN" && nodes[parent].name === "DIV" && grandparent >= 0 && classes[grandparent].includes("jobTitleBox");
+      const node = nodeAt(index), parent = node.parent;
+      if (!classAt(index).includes("ellipsis-1") || parent < 0) return false;
+      if (classAt(parent).includes("jobTitleBox")) return true;
+      const grandparent = nodeAt(parent).parent;
+      return node.name === "SPAN" && nodeAt(parent).name === "DIV" && grandparent >= 0 && classAt(grandparent).includes("jobTitleBox");
     };
-    const fields = nodes.map((node, index) => node.type === 1 && (/^(?:H[1-6]|TIME)$/.test(node.name) || classes[index].some(name => fieldClasses.has(name))
+    const fields = nodes.map((node, index) => node.type === 1 && (/^(?:H[1-6]|TIME)$/.test(node.name) || classAt(index).some(name => fieldClasses.has(name))
       || currentLiepinTitleField(index)
-      || classes[index].includes("name") && (() => { for (let at = node.parent; at >= 0; at = nodes[at].parent) if (classes[at].some(name => name === "company-info" || name === "company-text")) return true; return false; })()));
+      || classAt(index).includes("name") && (() => { for (let at = node.parent; at >= 0; at = nodeAt(at).parent) if (classAt(at).some(name => name === "company-info" || name === "company-text")) return true; return false; })()));
     const nestedFields = new Set<number>();
-    for (let index = count - 1; index >= 0; index--) if (fields[index] || nestedFields.has(index)) { const parent = nodes[index].parent; if (parent >= 0) nestedFields.add(parent); }
+    for (let index = count - 1; index >= 0; index--) if (fields[index] || nestedFields.has(index)) { const parent = nodeAt(index).parent; if (parent >= 0) nestedFields.add(parent); }
     // A bare title link is atomic. A link surrounding independently identified
     // card fields keeps the complete fields when another scalar field is omitted.
-    for (let index = 0; index < count; index++) if (nodes[index].name === "A" && !nestedFields.has(index)) fields[index] = true;
+    for (let index = 0; index < count; index++) if (nodeAt(index).name === "A" && !nestedFields.has(index)) fields[index] = true;
     const incomplete = new Set<number>();
     for (let index = 0; index < count; index++) {
-      const node = nodes[index];
+      const node = nodeAt(index);
       if (node.type !== 3 || snippets.has(index) || hidden(index) || excluded(index) || transparent(index)) continue;
       const uncertain = node.layouts.length ? node.layouts.some(row => row.opacity !== 0 && !!row.text.trim()) : !!node.value.trim();
       if (!uncertain) continue;
-      for (let at = node.parent; at >= 0; at = nodes[at].parent) if (fields[at]) incomplete.add(at);
+      for (let at = node.parent; at >= 0; at = nodeAt(at).parent) if (fields[at]) incomplete.add(at);
     }
     const contentCache = new Map<number, boolean>();
     const hasContent = (index: number): boolean => {
       if (contentCache.has(index)) return contentCache.get(index)!;
-      const node = nodes[index], result = !incomplete.has(index) && (node.type === 3 ? !!snippets.get(index)?.trim() : node.children.some(hasContent));
+      const node = nodeAt(index), result = !incomplete.has(index) && (node.type === 3 ? !!snippets.get(index)?.trim() : node.children.some(hasContent));
       contentCache.set(index, result); return result;
     };
     let units = 0;
@@ -563,17 +593,18 @@ export function projectNativeDomSnapshot(
     const simpleMatch = (index: number, selector: string): boolean => {
       const node = nodes[index];
       if (!node || node.type !== 1) return false;
-      if (/^\.[\w-]+$/.test(selector)) return classes[index].includes(selector.slice(1));
+      if (/^\.[\w-]+$/.test(selector)) return classAt(index).includes(selector.slice(1));
       return /^[a-z][a-z0-9-]*$/i.test(selector) && node.name.toLowerCase() === selector.toLowerCase();
     };
     const diagnosticRoots = new Set<number>();
-    for (let index = 0; index < count; index++) if (nodes[index].type === 1 && diagnosticSelectors.some(selector => {
+    for (let index = 0; index < count; index++) if (nodeAt(index).type === 1 && diagnosticSelectors.some(selector => {
       const parts = selector.split(/\s*>\s*/);
-      return parts.length === 1 ? simpleMatch(index, parts[0]) : parts.length === 2 && simpleMatch(index, parts[1]) && simpleMatch(nodes[index].parent, parts[0]);
+      const first = parts[0], second = parts[1];
+      return parts.length === 1 && first !== undefined ? simpleMatch(index, first) : parts.length === 2 && first !== undefined && second !== undefined && simpleMatch(index, second) && simpleMatch(nodeAt(index).parent, first);
     })) diagnosticRoots.add(index);
     const projectedRoots = new Set<number>();
     const renderSearch = (index: number): string => {
-      const node = nodes[index];
+      const node = nodeAt(index);
       if (incomplete.has(index)) return "";
       if (node.type === 3) { const text = escapeText(snippets.get(index) ?? ""); units += text.length; if (units > MAX_HTML_BYTES) fail("snapshot_limit_exceeded"); return text; }
       if (node.type !== 1) return node.children.map(renderSearch).join("");
@@ -583,7 +614,7 @@ export function projectNativeDomSnapshot(
       const keys = ["class", "id", "role", "aria-modal", "open", ...(hasContent(index) && node.name === "A" ? ["href"] : []), ...(hasContent(index) && node.name === "TIME" ? ["datetime"] : [])];
       const attrs = keys.filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
       let job51Link = "";
-      if (searchPlatform === "51JOB" && hasContent(index) && classes[index].includes("joblist-item-job") && node.attrs.has("sensorsdata")) {
+      if (searchPlatform === "51JOB" && hasContent(index) && classAt(index).includes("joblist-item-job") && node.attrs.has("sensorsdata")) {
         try {
           const parsed = JSON.parse(node.attrs.get("sensorsdata")!) as { jobId?: unknown };
           if (typeof parsed?.jobId === "string" && /^\d+$/.test(parsed.jobId)) {
@@ -608,7 +639,7 @@ export function projectNativeDomSnapshot(
         else if (excluded(index)) searchDiagnostics.excludedRoots++;
         else {
           let incompleteAncestor = false;
-          for (let at = index; at >= 0; at = nodes[at].parent) if (incomplete.has(at)) { incompleteAncestor = true; break; }
+          for (let at = index; at >= 0; at = nodeAt(at).parent) if (incomplete.has(at)) { incompleteAncestor = true; break; }
           if (incompleteAncestor) searchDiagnostics.incompleteRoots++;
           else searchDiagnostics.otherRemovedRoots++;
         }
@@ -627,17 +658,17 @@ export function projectNativeDomSnapshot(
   const bossScoped = options.scope === "boss-share" && isOriginalBossShare(frame.url, options.sourceUrl);
   const liepinScoped = options.scope === "liepin-job" && rootScrollMode && identifiedHtmlRoot;
   if (bossScoped || liepinScoped) {
-    const hasClass = (index: number, name: string) => (nodes[index].attrs.get("class") ?? "").split(/\s+/).includes(name);
+    const hasClass = (index: number, name: string) => (nodeAt(index).attrs.get("class") ?? "").split(/\s+/).includes(name);
     const withinBody = (index: number) => {
-      for (let i = index; i >= 0; i = nodes[i].parent) if (i === bodyIndex) return true;
+      for (let i = index; i >= 0; i = nodeAt(i).parent) if (i === bodyIndex) return true;
       return false;
     };
     const hasShareAncestor = (index: number) => {
-      for (let i = nodes[index].parent; i >= 0; i = nodes[i].parent) if (nodes[i].type === 1 && hasClass(i, "share-position")) return true;
+      for (let i = nodeAt(index).parent; i >= 0; i = nodeAt(i).parent) if (nodeAt(i).type === 1 && hasClass(i, "share-position")) return true;
       return false;
     };
     const publicText = (index: number): string => {
-      const node = nodes[index];
+      const node = nodeAt(index);
       if (node.type === 3) return renderedText(index, true);
       if (node.type === 1 && (hidden(index) || excluded(index) || ["HEAD", "TITLE"].includes(node.name))) return "";
       const text = node.children.map(publicText).join("");
@@ -646,13 +677,13 @@ export function projectNativeDomSnapshot(
     };
     const candidates = nodes.flatMap((node, index) => {
       if (node.type !== 1 || !withinBody(index)) return [];
+      const parent = node.parent >= 0 ? nodes[node.parent] : undefined;
       if (bossScoped) return node.name === "DIV" && hasClass(index, "detail-text")
-        && node.parent >= 0 && nodes[node.parent].type === 1 && nodes[node.parent].name === "DIV" && hasClass(node.parent, "rec-detail")
+        && parent?.type === 1 && parent.name === "DIV" && hasClass(node.parent, "rec-detail")
         && hasShareAncestor(index) ? [index] : [];
       if (["job-intro-content", "job-description", "job-desc-content"].some(name => hasClass(index, name))) return [index];
-      const parent = nodes[node.parent];
       return node.name === "DL" && hasClass(index, "paragraph") && parent?.type === 1 && parent.name === "SECTION" && hasClass(node.parent, "job-intro-container")
-        && node.children.some(child => nodes[child].type === 1 && nodes[child].name === "DT" && isLiepinDescriptionHeading(publicText(child))) ? [index] : [];
+        && node.children.some(child => nodeAt(child).type === 1 && nodeAt(child).name === "DT" && isLiepinDescriptionHeading(publicText(child))) ? [index] : [];
     });
     if (liepinScoped) {
       // Retain explicit requirements beside identified duties in their own
@@ -660,17 +691,17 @@ export function projectNativeDomSnapshot(
       // ambiguous owner; never infer a hidden label or merge separate sections.
       const dutiesBySection = new Map<number, number[]>();
       for (const index of candidates) {
-        const node = nodes[index], parent = nodes[node.parent];
+        const node = nodeAt(index), parent = node.parent >= 0 ? nodes[node.parent] : undefined;
         if (node.name !== "DL" || !hasClass(index, "paragraph") || parent?.name !== "SECTION" || !hasClass(node.parent, "job-intro-container")
-            || !node.children.some(child => nodes[child].name === "DT" && isLiepinDescriptionHeading(publicText(child)))) continue;
+            || !node.children.some(child => nodeAt(child).name === "DT" && isLiepinDescriptionHeading(publicText(child)))) continue;
         const duties = dutiesBySection.get(node.parent) ?? [];
         duties.push(index); dutiesBySection.set(node.parent, duties);
       }
       for (const [section, duties] of dutiesBySection) {
-        for (const index of nodes[section].children) {
-          const node = nodes[index];
+        for (const index of nodeAt(section).children) {
+          const node = nodeAt(index);
           if (node.type !== 1 || node.name !== "DL" || !hasClass(index, "paragraph") || duties.includes(index)
-              || !node.children.some(child => nodes[child].name === "DT" && isLiepinRequirementsHeading(publicText(child)))) continue;
+              || !node.children.some(child => nodeAt(child).name === "DT" && isLiepinRequirementsHeading(publicText(child)))) continue;
           liepinRequirements.push(index);
           if (!candidates.includes(index)) candidates.push(index);
         }
@@ -678,15 +709,17 @@ export function projectNativeDomSnapshot(
       // Address evidence belongs only to the single adopted duties section.
       // Keep these nodes outside `adopted`: address failures must not add a new
       // JD failure, and the JD HTML must continue to omit address paragraphs.
-      if (dutiesBySection.size === 1) {
-        const [section, duties] = [...dutiesBySection][0];
-        if (duties.length === 1 && candidates.every(index => nodes[index].name === "DL" && nodes[index].parent === section)) {
-          for (const index of nodes[section].children) {
-            const node = nodes[index];
+      const [firstDutySection] = dutiesBySection;
+      if (dutiesBySection.size === 1 && firstDutySection) {
+        const [section, duties] = firstDutySection;
+        if (duties.length === 1 && candidates.every(index => nodeAt(index).name === "DL" && nodeAt(index).parent === section)) {
+          for (const index of nodeAt(section).children) {
+            const node = nodeAt(index);
             if (node.type !== 1 || node.name !== "DL" || !hasClass(index, "paragraph") || duties.includes(index)) continue;
-            const headings = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DT");
-            if (headings.length !== 1) continue;
-            const label = publicText(headings[0]).replace(/\s+/gu, "").replace(/[:：]$/u, "");
+            const headings = node.children.filter(child => nodeAt(child).type === 1 && nodeAt(child).name === "DT");
+            const firstHeading = headings[0];
+            if (headings.length !== 1 || firstHeading === undefined) continue;
+            const label = publicText(firstHeading).replace(/\s+/gu, "").replace(/[:：]$/u, "");
             if (label === "工作地址" || label === "工作地点") liepinOfficeCandidates.push(index);
           }
         }
@@ -701,17 +734,20 @@ export function projectNativeDomSnapshot(
       // that full-page rejection evidence before unrelated siblings are omitted.
       const normalize = (text: string) => text.replace(/\u00a0/g, " ").replace(/\r/g, "").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
       const bodyText = normalize(publicText(bodyIndex));
-      const hasVisibleText = (index: number): boolean => visible(index) || nodes[index].children.some(hasVisibleText);
+      const hasVisibleText = (index: number): boolean => visible(index) || nodeAt(index).children.some(hasVisibleText);
       const heading = nodes.findIndex((node, index) => node.name === "H1" && node.type === 1 && withinBody(index) && !hidden(index) && !excluded(index) && hasVisibleText(index));
       const headingText = heading >= 0 ? normalize(publicText(heading)) : "";
       const loginTitle = /^(?:(?:用户|账号|帐号|会员)?登录|sign[ -]?in|log[ -]?in)(?:\s*(?:[|·:：_—-]|$))/i;
       const verificationTitle = /^(?:安全验证|访问验证|人机验证|验证码|security verification|just a moment|access denied|robot check)(?:\s|[|·:：_—-]|$)/i;
       const loginPrefix = /^(?:请先登录|请登录后查看|登录后查看|sign in to continue)/i;
       const verificationPrefix = /^(?:请完成(?:安全|访问|人机)验证|请(?:输入|填写)验证码|verify (?:that )?you are human|checking your browser)/i;
-      const rawContent = (index: number): string => nodes[index].type === 3 ? nodes[index].value : nodes[index].children.map(rawContent).join("");
+      const rawContent = (index: number): string => {
+        const node = nodeAt(index);
+        return node.type === 3 ? node.value : node.children.map(rawContent).join("");
+      };
       const firstTitle = nodes.findIndex((node) => {
         if (node.name !== "TITLE") return false;
-        for (let i = node.parent; i >= 0; i = nodes[i].parent) if (nodes[i].name === "HEAD") return true;
+        for (let i = node.parent; i >= 0; i = nodeAt(i).parent) if (nodeAt(i).name === "HEAD") return true;
         return false;
       });
       const pageTitles = [title.trim(), ...(firstTitle >= 0 ? [rawContent(firstTitle).trim()] : [])];
@@ -727,16 +763,16 @@ export function projectNativeDomSnapshot(
       if (!gate && liepinScoped && /猎聘安全中心发现您的(?:帐号|账号)或IP可能存在异常[，,。；;：:]*为了保障您的(?:帐号|账号)及资源安全[，,。；;：:]*请进行安全验证/i.test(compactBody)) gate = "verification_required";
       if (gate) return { html: "<html><head></head><body></body></html>", url: frame.url, title, gate, pageLoad: { readyState: load.readyState, content: "unknown", visibleFrames } };
       adopted = new Set<number>();
-      const includeSubtree = (index: number) => { adopted!.add(index); for (const child of nodes[index].children) includeSubtree(child); };
-      const includeAncestors = (index: number) => { for (let i = index; i >= 0; i = nodes[i].parent) adopted!.add(i); };
+      const includeSubtree = (index: number) => { adopted!.add(index); for (const child of nodeAt(index).children) includeSubtree(child); };
+      const includeAncestors = (index: number) => { for (let i = index; i >= 0; i = nodeAt(i).parent) adopted!.add(i); };
       for (const index of [...candidates, ...existingCandidates, ...(heading >= 0 ? [heading] : [])]) { includeSubtree(index); includeAncestors(index); }
       if (liepinScoped) {
         liepinParagraphNodes = new Set<number>();
-        const includeParagraph = (index: number) => { liepinParagraphNodes!.add(index); for (const child of nodes[index].children) includeParagraph(child); };
+        const includeParagraph = (index: number) => { liepinParagraphNodes!.add(index); for (const child of nodeAt(index).children) includeParagraph(child); };
         for (const index of candidates) {
           const legacyDescription = ["job-intro-content", "job-description", "job-desc-content"].some(name => hasClass(index, name));
-          if (nodes[index].name === "DL" && !legacyDescription) {
-            for (const child of nodes[index].children) if (nodes[child].name === "DD") includeParagraph(child);
+          if (nodeAt(index).name === "DL" && !legacyDescription) {
+            for (const child of nodeAt(index).children) if (nodeAt(child).name === "DD") includeParagraph(child);
           } else includeParagraph(index);
         }
       }
@@ -747,33 +783,36 @@ export function projectNativeDomSnapshot(
   // subtree. Otherwise a transparent first row could conceal a visible second row.
   for (const node of nodes) {
     const styled = node.layouts;
-    if (styled.some(layout => layout.styles.length !== styled[0].styles.length || layout.styles.some((value, key) => value !== styled[0].styles[key]))) fail("snapshot_visibility_unsupported", "layout_style_conflict");
+    const firstRow = styled[0];
+    if (firstRow && styled.some(layout => layout.styles.length !== firstRow.styles.length || layout.styles.some((value, key) => value !== firstRow.styles[key]))) fail("snapshot_visibility_unsupported", "layout_style_conflict");
   }
   // Recognize only the observed mobile description fold. This never permits
   // output: defer its diagnostic until every other text/CSS check has passed.
   // Missing, conflicting or unrelated evidence keeps the ordinary failure.
   let foldedBossCandidate: number | undefined;
-  if (bossScoped && bossDescriptionCandidates.length === 1) {
-    const index = bossDescriptionCandidates[0], node = nodes[index];
+  const firstBossCandidate = bossDescriptionCandidates[0];
+  if (bossScoped && bossDescriptionCandidates.length === 1 && firstBossCandidate !== undefined) {
+    const index = firstBossCandidate, node = nodeAt(index);
     const classes = (node.attrs.get("class") ?? "").split(/\s+/);
     const row = node.layouts.length === 1 ? node.layouts[0] : undefined;
     const client = row?.clientRect, scroll = row?.scrollRect, offset = row?.offsetRect;
-    const hasPublicText = (at: number): boolean => nodes[at].type === 3
-      ? visibleLayouts(at).some(layout => !!layout.text.trim()) : nodes[at].children.some(hasPublicText);
+    const hasPublicText = (at: number): boolean => nodeAt(at).type === 3
+      ? visibleLayouts(at).some(layout => !!layout.text.trim()) : nodeAt(at).children.some(hasPublicText);
     if (node.name === "DIV" && ["detail-text", "show-switch", "four-lines"].every(name => classes.includes(name))
       && !hidden(index) && !excluded(index) && !transparent(index) && hasPublicText(index)
-      && row && ["-webkit-box", "flow-root"].includes(row.styles[0]) && row.styles[7] === "4" && row.styles[5] === "hidden"
-      && ["visible", "hidden"].includes(row.styles[4]) && row.bounds[2] > 0 && row.bounds[3] > 0
+      && row && ["-webkit-box", "flow-root"].includes(styleAt(row.styles, 0)) && row.styles[7] === "4" && row.styles[5] === "hidden"
+      && ["visible", "hidden"].includes(styleAt(row.styles, 4)) && row.bounds[2] > 0 && row.bounds[3] > 0
       && client && scroll && offset && client[0] === 0 && client[1] === 0 && scroll[0] === 0 && scroll[1] === 0
       && client[2] > 0 && client[3] > 0 && offset[2] > 0 && offset[3] > 0
       && client[2] <= offset[2] + 1 && client[3] <= offset[3] + 1
       && scroll[2] >= client[2] && scroll[3] > client[3] + 1) foldedBossCandidate = index;
   }
   const foldedDirectSuffixGap = (index: number): boolean => {
-    if (foldedBossCandidate === undefined || nodes[index].type !== 3 || nodes[index].parent !== foldedBossCandidate || nodes[index].layouts.length !== 1) return false;
+    if (foldedBossCandidate === undefined || nodeAt(index).type !== 3 || nodeAt(index).parent !== foldedBossCandidate || nodeAt(index).layouts.length !== 1) return false;
     const layouts = visibleLayouts(index);
-    if (layouts.length !== 1) return false;
-    const row = layouts[0], ranges = [...row.boxes].sort((a, b) => a.start - b.start);
+    const row = layouts[0];
+    if (layouts.length !== 1 || !row) return false;
+    const ranges = [...row.boxes].sort((a, b) => a.start - b.start);
     let previous = 0, renderedMeaningful = false;
     for (const range of ranges) {
       // Only an omitted suffix of the observed single text LayoutObject can
@@ -787,7 +826,7 @@ export function projectNativeDomSnapshot(
   for (let i = 0; i < count; i++) if (visible(i)) {
     // Gate evidence anywhere on the page must retain complete, ordered text.
     // Scope only relaxes unrelated CSS geometry effects, never text semantics.
-    for (let ancestor = i; ancestor >= 0; ancestor = nodes[ancestor].parent) if (nodes[ancestor].special) fail("snapshot_visibility_unsupported", "shadow_or_pseudo");
+    for (let ancestor = i; ancestor >= 0; ancestor = nodeAt(ancestor).parent) if (nodeAt(ancestor).special) fail("snapshot_visibility_unsupported", "shadow_or_pseudo");
     if (!adopted || adopted.has(i)) {
       if (liepinScoped && adopted && !ordinaryRootText(i)) fail("snapshot_visibility_unsupported", "overflow_clip_or_scroll");
       const detail = unsupported(i, foldedBossCandidate);
@@ -795,7 +834,7 @@ export function projectNativeDomSnapshot(
     }
     // Non-text LayoutObjects can carry generated text of their own. They must
     // never silently disappear because their pseudo tag is not serialized.
-    if (nodes[i].type !== 3) fail("snapshot_visibility_unsupported", "text_fragment_mapping");
+    if (nodeAt(i).type !== 3) fail("snapshot_visibility_unsupported", "text_fragment_mapping");
     try { renderedText(i); }
     catch (error) {
       if (!(error instanceof NativeDomSnapshotError) || error.code !== "snapshot_visibility_unsupported" || error.detail !== "text_range_gap" || !foldedDirectSuffixGap(i)) throw error;
@@ -808,7 +847,7 @@ export function projectNativeDomSnapshot(
   // text is used only to reject missing non-whitespace evidence, never as a
   // heading classifier, output, or replacement for rendered text ranges.
   const completeRequirements = (index: number): string => {
-    const node = nodes[index];
+    const node = nodeAt(index);
     if (excluded(index)) return "";
     if (hidden(index) || transparent(index)) fail("snapshot_visibility_unsupported", "text_range_gap");
     if (node.type === 3) {
@@ -818,7 +857,7 @@ export function projectNativeDomSnapshot(
     return node.children.map(completeRequirements).join("");
   };
   for (const index of liepinRequirements) {
-    const paragraphs = nodes[index].children.filter(child => nodes[child].name === "DD" && !excluded(child));
+    const paragraphs = nodeAt(index).children.filter(child => nodeAt(child).name === "DD" && !excluded(child));
     if (!paragraphs.length) fail("snapshot_visibility_unsupported", "text_range_gap");
     for (const paragraph of paragraphs) if (!completeRequirements(paragraph).trim()) fail("snapshot_visibility_unsupported", "text_range_gap");
   }
@@ -830,7 +869,7 @@ export function projectNativeDomSnapshot(
     // full-page gate/text semantics above; unsupported address CSS omits only
     // this sidecar, while an existing global JD rejection remains a rejection.
     const completeOfficeText = (index: number): string | undefined => {
-      const node = nodes[index];
+      const node = nodeAt(index);
       if (node.special || hidden(index) || excluded(index) || transparent(index)) return;
       if (node.type === 3) {
         const meaningful = node.value.trim() || node.layouts.some(layout => layout.text.trim());
@@ -851,12 +890,13 @@ export function projectNativeDomSnapshot(
     };
     for (const index of liepinOfficeCandidates) {
       try {
-        const node = nodes[index];
-        const headings = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DT");
-        const contents = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DD");
-        if (headings.length !== 1 || contents.length !== 1 || node.children.some(child => nodes[child].type === 1
-          ? !headings.includes(child) && !contents.includes(child) : nodes[child].type === 3 && !!nodes[child].value.trim())) continue;
-        const headingText = completeOfficeText(headings[0]), contentText = completeOfficeText(contents[0]);
+        const node = nodeAt(index);
+        const headings = node.children.filter(child => nodeAt(child).type === 1 && nodeAt(child).name === "DT");
+        const contents = node.children.filter(child => nodeAt(child).type === 1 && nodeAt(child).name === "DD");
+        const headingNode = headings[0], contentNode = contents[0];
+        if (headings.length !== 1 || contents.length !== 1 || headingNode === undefined || contentNode === undefined || node.children.some(child => nodeAt(child).type === 1
+          ? !headings.includes(child) && !contents.includes(child) : nodeAt(child).type === 3 && !!nodeAt(child).value.trim())) continue;
+        const headingText = completeOfficeText(headingNode), contentText = completeOfficeText(contentNode);
         if (headingText === undefined || contentText === undefined) continue;
         const label = headingText.replace(/\s+/gu, "").replace(/[:：]$/u, "");
         const text = contentText.replace(/\s+/gu, " ").trim();
@@ -869,13 +909,16 @@ export function projectNativeDomSnapshot(
     }
   }
   const metadata: string[] = [];
-  const content = (index: number): string => nodes[index].type === 3 ? nodes[index].value : nodes[index].children.map(content).join("");
+  const content = (index: number): string => {
+    const node = nodeAt(index);
+    return node.type === 3 ? node.value : node.children.map(content).join("");
+  };
   const hasAncestor = (index: number, name: string): boolean => {
-    for (let i = nodes[index].parent; i >= 0; i = nodes[i].parent) if (nodes[i].name === name) return true;
+    for (let i = nodeAt(index).parent; i >= 0; i = nodeAt(i).parent) if (nodeAt(i).name === name) return true;
     return false;
   };
   for (let i = 0; i < count; i++) {
-    const node = nodes[i];
+    const node = nodeAt(i);
     if (node.name === "TITLE" && hasAncestor(i, "HEAD")) metadata.push(`<title>${escapeText(content(i))}</title>`);
     if (node.name === "LINK" && hasAncestor(i, "HEAD") && (node.attrs.get("rel") ?? "").toLowerCase().split(/\s+/).includes("canonical")) metadata.push(`<link rel="canonical" href="${escapeAttribute(node.attrs.get("href") ?? "")}">`);
     if (node.name === "SCRIPT" && node.attrs.get("type")?.trim().toLowerCase() === "application/ld+json" && !hasAncestor(i, "FORM")) metadata.push(`<script type="application/ld+json">${content(i).replace(/<\/script/gi, "<\\/script")}</script>`);
@@ -883,7 +926,7 @@ export function projectNativeDomSnapshot(
   let outputUnits = metadata.join("").length;
   let hasText = false;
   const visibleSearchContent = (index: number): boolean => {
-    const node = nodes[index];
+    const node = nodeAt(index);
     if (adopted && !adopted.has(index)) return false;
     if (node.type === 3) return visible(index);
     if (node.type === 1 && (hidden(index) || excluded(index))) return false;
@@ -891,7 +934,7 @@ export function projectNativeDomSnapshot(
   };
   const render = (index: number): string => {
     if (adopted && !adopted.has(index)) return "";
-    const node = nodes[index];
+    const node = nodeAt(index);
     if (node.type === 3) {
       const text = renderedText(index, false, liepinScoped && liepinParagraphNodes?.has(index) === true && ordinaryRootText(index)); if (text.trim()) hasText = true;
       const escaped = escapeText(text); outputUnits += escaped.length;

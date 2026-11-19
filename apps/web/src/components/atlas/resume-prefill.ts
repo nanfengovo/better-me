@@ -23,8 +23,8 @@ export function extractResumePrefill(
   factBase?: FactBase | null,
 ): ResumePrefillSuggestion {
   // 1. Target Role
-  const resumeAny = resume as any;
-  const roleFromResume = resume?.profile?.targetRoles?.[0]?.trim() || resumeAny?.header?.targetRole?.trim();
+  const legacyHeader = (resume as { header?: { targetRole?: string; location?: string } } | null | undefined)?.header;
+  const roleFromResume = resume?.profile?.targetRoles?.[0]?.trim() || legacyHeader?.targetRole?.trim();
   const roleFromFactBase = factBase?.profile?.targetRoles?.[0];
   const roleFromFactZh = typeof roleFromFactBase === "object"
     ? (roleFromFactBase.zh || roleFromFactBase.en)?.trim()
@@ -43,7 +43,7 @@ export function extractResumePrefill(
   const targetRole = roleFromResume || roleFromFactZh || expTitleStr || "";
 
   // 2. Location
-  const locFromResume = resume?.profile?.location?.trim() || resumeAny?.header?.location?.trim();
+  const locFromResume = resume?.profile?.location?.trim() || legacyHeader?.location?.trim();
   const locFromFact = factBase?.profile?.location;
   const locFromFactStr = typeof locFromFact === "object"
     ? (locFromFact.zh || locFromFact.en)?.trim()

@@ -118,7 +118,7 @@ test("before-quit stops owned services without restarting tasks or terminating a
 
 test("the packaged renderer loads its known loopback web origin even if a remote dev URL is configured", async () => {
   const d = await desktop({ packaged: true });
-  assert.equal(d.created[0].url, "http://127.0.0.1:5173/?workspace=autopilot");
+  assert.equal(d.created[0].url, "http://127.0.0.1:5173/?workspace=resume");
   assert.equal(d.created[0].file, undefined, "file:// would resolve Vite's /assets outside of the bundle");
   let blocked = false;
   d.created[0].webContents.emit("will-redirect", { preventDefault: () => { blocked = true; } }, "https://untrusted.fixture.invalid/");

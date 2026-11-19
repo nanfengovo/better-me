@@ -25,6 +25,7 @@
     "evals:resume-quality": "node --import tsx evals/resume-quality/run.mjs",
     "test:resume-quality": "tsx --tsconfig apps/web/tsconfig.json --test --test-reporter=tap --test-concurrency=1 evals/resume-quality/*.test.ts",
     "test:runtime": "tsx --test apps/web/tests/runtime-*.test.ts",
+    "test:golden": "node scripts/verify-golden-flow.mjs",
     "test:recommendations": "tsx --test apps/web/tests/resume-job-recommendations.test.ts apps/web/tests/resume-job-source.test.ts apps/web/tests/resume-job-recommendations-ui.test.tsx",
     "test:docker": "node scripts/check-docker-runtime.mjs",
     "test:visual": "node scripts/visual-baseline.mjs",

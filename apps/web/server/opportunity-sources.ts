@@ -54,7 +54,7 @@ function endpoint(input: OpportunitySourceRequest): string {
 function decodeEntities(value: string): string {
   return value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (original, entity: string) => {
     const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—", bull: "•" };
-    if (!entity.startsWith("#")) return Object.hasOwn(entities, entity.toLowerCase()) ? entities[entity.toLowerCase()] : original;
+    if (!entity.startsWith("#")) return (Object.hasOwn(entities, entity.toLowerCase()) ? entities[entity.toLowerCase()] : undefined) ?? original;
     const point = entity[1]?.toLowerCase() === "x" ? Number.parseInt(entity.slice(2), 16) : Number.parseInt(entity.slice(1), 10);
     return Number.isFinite(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : original;
   });

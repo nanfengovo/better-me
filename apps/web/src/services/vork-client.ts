@@ -1,3 +1,6 @@
+import { agentOrigin, ownedFetch } from "../lib/identity";
+import { readRuntimeConnection } from "../lib/runtime-connection";
+
 export const AGENT_HOST_DEV_TOKEN = "better-me-agent-token";
 
 export interface VorkStatus {
@@ -27,19 +30,18 @@ export interface VorkRenderResponse {
   error?: string;
 }
 
-function agentHostUrl(): string {
-  // If in browser, use current origin (Vite proxies /api/v1/agent to 5179)
-  return "";
+function authHeader(): Record<string, string> {
+  return { Authorization: `Bearer ${readRuntimeConnection()?.agentToken ?? AGENT_HOST_DEV_TOKEN}` };
 }
 
-export async function fetchVorkStatus(): Promise<VorkStatus> {
-  const res = await fetch(`${agentHostUrl()}/api/v1/agent/vork/status`, {
-    headers: {
-      Authorization: `Bearer ${AGENT_HOST_DEV_TOKEN}`,
-    },
+export async function fetchVorkStatus(signal?: AbortSignal): Promise<VorkStatus> {
+  const res = await ownedFetch(`${agentOrigin()}/api/v1/agent/vork/status`, {
+    headers: authHeader(),
+    signal,
   });
   if (!res.ok) {
-    throw new Error(`Failed to fetch vork status: HTTP ${res.status}`);
+    const errorBody = await res.json().catch(() => ({})) as { message?: string; error?: string };
+    throw new Error(errorBody.message || errorBody.error || `Failed to fetch vork status: HTTP ${res.status}`);
   }
   return res.json();
 }
@@ -49,18 +51,18 @@ export async function triggerVorkRender(options: {
   resolution?: [number, number];
   profile?: "std/draft" | "std/final" | "std/path";
 }): Promise<{ response: VorkRenderResponse; blob: Blob }> {
-  const res = await fetch(`${agentHostUrl()}/api/v1/agent/vork/render`, {
+  const res = await ownedFetch(`${agentOrigin()}/api/v1/agent/vork/render`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${AGENT_HOST_DEV_TOKEN}`,
+      ...authHeader(),
     },
     body: JSON.stringify(options),
   });
 
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || `vork render failed: HTTP ${res.status}`);
+    const errorBody = await res.json().catch(() => ({})) as { message?: string; error?: string };
+    throw new Error(errorBody.message || errorBody.error || `vork render failed: HTTP ${res.status}`);
   }
 
   const data: VorkRenderResponse = await res.json();
