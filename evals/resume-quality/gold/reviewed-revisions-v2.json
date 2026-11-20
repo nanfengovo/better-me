@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "cases": [
+    {
+      "id": "redis-sqlite-known-regression",
+      "job": {"id":"synthetic-data-test","title":"数据组件测试","company":"合成实验室","description":"记录缓存失效和数据库事务回滚的可复现步骤。"},
+      "original": {"redis":"记录 Redis 缓存失效的复现步骤。","sqlite":"记录 SQLite 事务回滚的复现步骤。"},
+      "rounds": [
+        {"target":"redis","objective":"只补充 Redis 的实际动作，SQLite 原句不动。","detail":"我用回放脚本复现 Redis 键过期并记录失效步骤。","material":"合成回放记录：执行 Redis 键过期的回放脚本，记录缓存失效的复现步骤。"},
+        {"target":"sqlite","objective":"只改 SQLite 这句，补上实际动作，已确认的 Redis 原句不动。","detail":"我比对了 SQLite 回滚前后的行数，并记录事务回滚的复现步骤。","material":"合成核对记录：比对 SQLite 事务回滚前后的行数，记录回滚的复现步骤。"}
+      ]
+    },
+    {
+      "id": "dispatch-and-inventory-holdout",
+      "job": {"id":"synthetic-support-test","title":"联调测试","company":"合成实验室","description":"核对接口回执和盘点数据，记录异常复核过程。"},
+      "original": {"dispatch":"参与配送单回执的联调测试。","inventory":"整理盘点差异的复测记录。"},
+      "rounds": [
+        {"target":"dispatch","objective":"只补充配送回执的本人复测动作，盘点原文保留。","detail":"我在联调环境回放了重复配送回执，字段设计由同事负责。","material":"联调记录：分别回放正常和重复配送回执，支持组负责设计字段，投产状态未知。"},
+        {"target":"inventory","objective":"只补充盘点差异这条，配送回执的确认版不动。","detail":"我用测试盘点表核对了两处编号差异并交给同事复查，尚未记录生产结果。","material":"盘点测试记录：测试表出现两处编号差异，未记录生产结果。"}
+      ]
+    },
+    {
+      "id": "two-scopes-same-label-holdout",
+      "job": {"id":"synthetic-integration","title":"接口验证","company":"合成实验室","description":"分别验证设备模拟接口与历史工单接口，保留验证环境和职责。"},
+      "original": {"device":"记录设备模拟回执的验证过程。","tickets":"核对历史工单的状态映射。"},
+      "rounds": [
+        {"target":"device","objective":"只在设备模拟回执这项加本人验证动作，工单原句不动。","detail":"我用本地模拟器检查了回执顺序，仅在测试环境验证。","material":"项目名称：接口联调。文件 review.md：设备模拟器回放检查回执顺序，团队没有生产部署记录。"},
+        {"target":"tickets","objective":"只在历史工单状态映射这项加本人动作，设备项目保留已确认版本。","detail":"我在历史工单样本上比对状态枚举，主管负责系统设计。","material":"项目名称：接口联调。文件 review.md：历史工单样本状态枚举比对，系统设计由主管负责。"}
+      ]
+    }
+  ]
+}

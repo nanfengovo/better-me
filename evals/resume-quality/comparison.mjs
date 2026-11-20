@@ -66,7 +66,7 @@ export function campaignComparisonEligibility(campaigns) {
     bestModel: null, overallQualityPassed: null };
 }
 
-const evaluatorFiles = ["evals/resume-quality/comparison.mjs", "evals/resume-quality/collection-report.mjs", "evals/resume-quality/report.mjs",
+const evaluatorFiles = ["evals/resume-quality/comparison.mjs", "evals/resume-quality/collection-report.mjs", "evals/resume-quality/runtime-quality.mjs", "evals/resume-quality/report.mjs",
   "evals/resume-quality/render.mjs", "evals/resume-quality/freeze.mjs", "evals/resume-quality/editorial.mjs",
   "packages/core/src/career-intelligence/resume-quality.ts", "packages/agent-contracts/src/resume-candidate.ts",
   "apps/agent-host/src/kernel/free-chat.ts", "apps/web/src/components/ResumeTemplate.tsx",

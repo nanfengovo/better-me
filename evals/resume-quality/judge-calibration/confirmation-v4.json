@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"V01","sources":[{"id":"material","text":"我在本地模拟器核对了工单的重试状态，尚未开展上线验证。"}],"claim":"我在本地模拟器核对了工单的重试状态，尚未开展上线验证。","citedIds":["material"],"expected":"supported","rationale":"完整陈述一致，保留未上线边界。"},
+    {"id":"V02","sources":[{"id":"review","text":"测试手册由另一名实习生编写；本人仅运行了手册中的旧测试用例。"}],"claim":"编写测试手册，并运行旧测试用例。","citedIds":["review"],"expected":"unsupported","rationale":"明确由另一人编写，本人运行用例。"},
+    {"id":"V03","sources":[{"id":"mapping-a","text":"材料迁移任务甲：我核对了日期字段格式。"},{"id":"mapping-b","text":"材料迁移任务乙：我核对了金额字段格式。"}],"claim":"在材料迁移任务甲核对日期字段格式。","citedIds":["mapping-b"],"expected":"wrong_citation","rationale":"同名任务不同字段，甲的原文完整支持。"},
+    {"id":"V04","sources":[{"id":"review","text":"我在联调环境检查了退货回执。试用记录未说明处理耗时。"}],"claim":"在联调环境检查退货回执，并将处理耗时降低 20%。","citedIds":["review"],"expected":"uncertain","rationale":"联调动作有据，耗时和因果结果缺少记录。"},
+    {"id":"V05","sources":[{"id":"table","text":"我核对了三组入库测试数据。"},{"id":"table-note","text":"同一次测试中，我将有差异的一组样本交给工程师核实。"}],"claim":"核对三组入库测试数据，将存在差异的一组交工程师复核。","citedIds":["table","table-note"],"expected":"supported","rationale":"动作、数量及交接对象均有据。"},
+    {"id":"V06","sources":[{"id":"demo","text":"跳转页面只完成本地演示，没有部署到生产。"}],"claim":"将跳转页面部署到生产。","citedIds":["demo"],"expected":"unsupported","rationale":"直接与原文的未部署矛盾。"},
+    {"id":"V07","sources":[{"id":"layout","text":"工单项目：我整理工单分类表。"},{"id":"container","text":"仓储项目：我列出空周转箱的编号。"}],"claim":"在仓储项目列出空周转箱编号。","citedIds":["layout"],"expected":"wrong_citation","rationale":"另一项目的材料支持。"},
+    {"id":"V08","sources":[{"id":"meeting","text":"我与同事一起复核了错误提示记录，文档没有区分负责安排工作的人。"}],"claim":"主导错误提示记录的复核安排。","citedIds":["meeting"],"expected":"uncertain","rationale":"协作有据，主导未知。"}
+  ]
+}

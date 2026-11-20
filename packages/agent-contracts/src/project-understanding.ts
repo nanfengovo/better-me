@@ -43,7 +43,23 @@ export type ProjectUnderstanding = z.infer<typeof ProjectUnderstandingSchema>;
 export type UnderstandingGrant = { id: string; path: string; label: string; createdAt: string; revokedAt?: string };
 export type UnderstandingEvidence = { id: string; grantId: string; path: string; hash: string; startLine: number; endLine: number; excerpt: string; collectedAt: string; startOffset?: number; endOffset?: number; sourceLength?: number };
 export type UnderstandingEvent = { sequence: number; at: string; label: string; kind: "reading" | "thinking" | "waiting" | "completed" | "error" | "cancelled" };
-export type UnderstandingMessage = { id: string; role: "user" | "agent" | "system"; text: string; at: string; question?: UnderstandingQuestion; selectedOptionIds?: string[] };
+export type UnderstandingMessage = { id: string; role: "user" | "agent" | "system"; text: string; at: string; question?: UnderstandingQuestion; selectedOptionIds?: string[]; supersedesSourceId?: string };
+export const projectSourceUpdatePrefix = "用户更新了项目原文：\n";
+
+/** The initial field and explicit replacements form one history. Older hosts wrote
+ * replacements with a reserved prefix; ordinary turns always store their option array. */
+export function projectSourceHistory(messages: readonly UnderstandingMessage[]) {
+  let currentId: string | undefined;
+  const supersededIds = new Set<string>();
+  for (const [index, message] of messages.entries()) {
+    if (message.role !== "user") continue;
+    const legacyReplacement = message.selectedOptionIds === undefined && message.text.startsWith(projectSourceUpdatePrefix);
+    if (index !== 0 && message.supersedesSourceId === undefined && !legacyReplacement) continue;
+    if (currentId !== undefined) supersededIds.add(currentId);
+    currentId = message.id;
+  }
+  return { currentId, supersededIds };
+}
 export type UnderstandingSession = {
   version: 1;
   id: string;
@@ -81,7 +97,7 @@ export const UnderstandingSessionSchema = z.object({
   turnCount: z.number().int().nonnegative(), createdAt: z.string(), updatedAt: z.string(),
   grants: z.array(z.object({ id: z.string(), path: z.string(), label: z.string(), createdAt: z.string(), revokedAt: z.string().optional() })),
   evidence: z.array(z.object({ id: z.string(), grantId: z.string(), path: z.string(), hash: z.string(), startLine: z.number().int(), endLine: z.number().int(), excerpt: z.string(), collectedAt: z.string(), startOffset: z.number().int().nonnegative().optional(), endOffset: z.number().int().nonnegative().optional(), sourceLength: z.number().int().nonnegative().optional() })),
-  messages: z.array(z.object({ id: z.string(), role: z.enum(["user", "agent", "system"]), text: z.string(), at: z.string(), question: UnderstandingQuestionSchema.optional(), selectedOptionIds: z.array(z.string()).optional() })),
+  messages: z.array(z.object({ id: z.string(), role: z.enum(["user", "agent", "system"]), text: z.string(), at: z.string(), question: UnderstandingQuestionSchema.optional(), selectedOptionIds: z.array(z.string()).optional(), supersedesSourceId: z.string().min(1).optional() })),
   events: z.array(z.object({ sequence: z.number().int(), at: z.string(), label: z.string(), kind: z.enum(["reading", "thinking", "waiting", "completed", "error", "cancelled"]) })),
   understanding: ProjectUnderstandingSchema.optional(), summaryHash: z.string().optional(), question: UnderstandingQuestionSchema.optional(),
   checkpoint: UnderstandingCheckpointSchema.optional(),

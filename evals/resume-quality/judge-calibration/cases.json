@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "J01",
+      "sources": [
+        {
+          "id": "warehouse-check",
+          "text": "仓储轮岗时，我逐项核对了 12 张入库单的物料编号，并把 2 处不一致交给值班员复查。"
+        }
+      ],
+      "claim": "仓储轮岗时，我逐项核对了 12 张入库单的物料编号，并把 2 处不一致交给值班员复查。",
+      "citedIds": [
+        "warehouse-check"
+      ],
+      "expected": "supported",
+      "rationale": "引文逐字对应，数量、本人动作和复查人均一致。"
+    },
+    {
+      "id": "J02",
+      "sources": [
+        {
+          "id": "desk-team",
+          "text": "支持组给故障单新增了分类字段。我的分工仅是用旧单复测；字段由另一位组员设计。"
+        }
+      ],
+      "claim": "设计故障单分类字段，并用历史工单完成回归测试。",
+      "citedIds": [
+        "desk-team"
+      ],
+      "expected": "unsupported",
+      "rationale": "本人负责复测属实，但来源明确说设计由另一位组员完成；整条陈述包含归属矛盾。"
+    },
+    {
+      "id": "J03",
+      "sources": [
+        {
+          "id": "catalog-event",
+          "text": "春季展会的资料岗：我为摊位指南核对了 9 处展位号。"
+        },
+        {
+          "id": "catalog-library",
+          "text": "社区图书角的资料岗：我按适读年龄为新书分架，数量没有记录。"
+        }
+      ],
+      "claim": "在春季展会为摊位指南核对了 9 处展位号。",
+      "citedIds": [
+        "catalog-library"
+      ],
+      "expected": "wrong_citation",
+      "rationale": "另一个来源完整支持该句，所引用的是图书角资料岗，不能证明展会的动作与数量。"
+    },
+    {
+      "id": "J04",
+      "sources": [
+        {
+          "id": "dispatch-note",
+          "text": "周报写明我整理了调度异常的复现步骤，交给当班工程师。周报未记后续处理。"
+        }
+      ],
+      "claim": "整理调度异常的复现步骤后，继续参与了修复验证。",
+      "citedIds": [
+        "dispatch-note"
+      ],
+      "expected": "uncertain",
+      "rationale": "前半句有据；周报既未记录之后的验证，也未排除本人参与，无法判断完整陈述。"
+    },
+    {
+      "id": "J05",
+      "sources": [
+        {
+          "id": "queue-log",
+          "text": "我抽查了 8 条排队日志，其中 3 条在同一分钟重试。我的记录写的是“可能与重复入队有关，原因待查”。"
+        }
+      ],
+      "claim": "抽查 8 条日志时发现 3 条在同一分钟重试，提出重复入队可能有关，仍待核实。",
+      "citedIds": [
+        "queue-log"
+      ],
+      "expected": "supported",
+      "rationale": "改写保留了抽查范围、数量和推测语气，没有把现象升级为已确认的原因。"
+    },
+    {
+      "id": "J06",
+      "sources": [
+        {
+          "id": "scheduling-playbook",
+          "text": "我整理了排班交接模板。本轮只做了纸面演示，模板没有投入使用，也没有测量耗时。"
+        }
+      ],
+      "claim": "上线排班交接模板，使轮班交接耗时下降 35%。",
+      "citedIds": [
+        "scheduling-playbook"
+      ],
+      "expected": "unsupported",
+      "rationale": "已上线与明确未投入使用相矛盾；下降 35% 也不符合本轮未测量的记录。"
+    },
+    {
+      "id": "J07",
+      "sources": [
+        {
+          "id": "market-audit",
+          "text": "我和另一位同学一起检查了 6 处价签，复核表只记了两人的名字。"
+        }
+      ],
+      "claim": "我负责分派价签复核任务，并与同学检查了 6 处价签。",
+      "citedIds": [
+        "market-audit"
+      ],
+      "expected": "uncertain",
+      "rationale": "参与检查和范围有据。共同署名没有说明谁分派任务，也没有明示由他人分派。"
+    },
+    {
+      "id": "J08",
+      "sources": [
+        {
+          "id": "intern-import",
+          "text": "数据实习：我把无效日期样例整理成一份供同事复测的清单。"
+        },
+        {
+          "id": "course-import",
+          "text": "课程作业：我写了检查日期格式的函数，并用 4 个样例测试。"
+        }
+      ],
+      "claim": "在数据实习中，把无效日期样例整理成清单，供同事复测。",
+      "citedIds": [
+        "course-import"
+      ],
+      "expected": "wrong_citation",
+      "rationale": "数据实习记录支持全文；引用的课程材料只涉及函数和测试样例，不能替代实习证据。"
+    },
+    {
+      "id": "J09",
+      "sources": [
+        {
+          "id": "mapping-before",
+          "text": "在校内活动筹备中，我先把报名字段与签到表逐列比对，列出两处名称不一致。"
+        },
+        {
+          "id": "mapping-after",
+          "text": "同一场活动的交接记录写明，我将这两处字段名差异发给负责签到的同学确认。"
+        }
+      ],
+      "claim": "为校内活动比对报名表和签到表，找出两处字段名差异并交由签到同学确认。",
+      "citedIds": [
+        "mapping-before",
+        "mapping-after"
+      ],
+      "expected": "supported",
+      "rationale": "两条引文来自同一活动，共同支持比对、差异数和交接对象；没有声称已修复。"
+    },
+    {
+      "id": "J10",
+      "sources": [
+        {
+          "id": "lab-index",
+          "text": "课程数据库实验只使用本地生成的测试数据；我在本地比较了两种索引的查询计划，没有接触企业线上数据库。"
+        }
+      ],
+      "claim": "在企业生产数据库中比较两种索引的查询计划。",
+      "citedIds": [
+        "lab-index"
+      ],
+      "expected": "unsupported",
+      "rationale": "比较索引的动作存在，但生产环境与明确限定的本地测试环境冲突。"
+    },
+    {
+      "id": "J11",
+      "sources": [
+        {
+          "id": "depot-call",
+          "text": "配送站协作记录：我向夜班同事演示了退件清单的填写方法。"
+        },
+        {
+          "id": "shop-call",
+          "text": "门店盘点记录：我向新同事演示了用扫码枪盘点货架库存的方法。"
+        }
+      ],
+      "claim": "在门店向新同事演示用扫码枪盘点货架库存。",
+      "citedIds": [
+        "depot-call"
+      ],
+      "expected": "wrong_citation",
+      "rationale": "动作概括相似但工作地点、对象和内容不同；支持门店扫码操作的是未引用的门店记录。"
+    },
+    {
+      "id": "J12",
+      "sources": [
+        {
+          "id": "ticket-count",
+          "text": "交班时，我整理了本周全部售后工单，按问题类型归档。现存交班摘要没有附工单数量。"
+        }
+      ],
+      "claim": "将本周全部 40 张售后工单按问题类型归档。",
+      "citedIds": [
+        "ticket-count"
+      ],
+      "expected": "uncertain",
+      "rationale": "归档工作可以核对，数量没有记录。摘要未说 40 张不可能，也没有给出冲突数字。"
+    }
+  ]
+}

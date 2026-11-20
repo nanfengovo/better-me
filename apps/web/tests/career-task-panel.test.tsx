@@ -71,8 +71,43 @@ test("opening a task never starts a model: only the individually selected fields
   await check(/合成标题/); assert.equal(button(/授权并启动/).disabled,true);
   await check(/允许本任务/); await click(/授权并启动/);
   assert.equal(ran,1); assert.equal(input!.resume.fields.length,1); assert.equal(input!.resume.fields[0]!.originalText,"合成标题");
+  assert.equal(input!.workflow,"text_v1");
   assert.deepEqual(input!.toolPolicy,{allowBuild:false,installedVersionIds:[]},"building and installed versions are not implicitly granted");
   assert.equal(JSON.stringify(input).includes("不勾选的保密合成文本"),false); assert.equal(JSON.stringify(input).includes("apiKey"),false);
+});
+
+test("text workflow reviews the full inventory and sends only confirmed field-specific supplements", async()=>{
+  let input:CareerTaskInput|undefined,server:CareerTask,submitted:unknown;
+  const client:Partial<CareerTaskClient>={list:async()=>[],create:async body=>{
+    input=body as CareerTaskInput;
+    server={...input,id:"ct_grounded_review",ownerId:owner,revision:1,status:"ready",createdAt:"now",updatedAt:"now",directories:[],
+      usage:{modelCalls:0,toolCalls:0,activeMs:0},events:[],evidence:[],facts:[]};return server;
+  },run:async(_id,action,body)=>{
+    if(action==="start"){
+      server={...server,revision:2,status:"awaiting_answer",question:"核对选材",writingPlan:{kind:"material_plan",hash:"plan-v2",
+        selections:input!.resume.fields.map((f,i)=>({fieldId:f.id,include:i===0,reason:"核对本字段",evidenceIds:[`ev-${i}`]})),
+        questions:input!.resume.fields.map((f,i)=>({id:`q${i}`,fieldId:f.id,question:i===0?"本人实际测试动作？":"另一项目补充？",evidenceIds:[`ev-${i}`]}))}};
+      return server;
+    }
+    assert.equal(action,"answer");submitted=JSON.parse(body.answer!);return {...server,revision:3,status:"awaiting_review"};
+  }};
+  await mount(client);
+  await check(/合成标题/);
+  await check(/不勾选的保密合成文本/);
+  await check(/允许本任务/);
+  await click(/授权并启动/);
+  assert.equal(input?.workflow,"text_v1");
+  assert.ok(win.document.querySelector(".ct-writing-plan"));
+  assert.equal(win.document.querySelector("[data-writing-answer='q1']"),null);
+  assert.equal(button(/确认回答并继续/).disabled,true);
+  await fill(/本人实际测试动作/,"我在本机执行了合成回放，未上线。");
+  await click(/核对本次选材与补充/);
+  assert.equal(button(/确认回答并继续/).disabled,true);
+  await check(/我确认本次选材与回答/);
+  await check(/允许本任务/);
+  await click(/确认回答并继续/);
+  assert.deepEqual(submitted,{planHash:"plan-v2",selectedFieldIds:[input!.resume.fields[0]!.id],confirmed:true,
+    answers:[{questionId:"q0",text:"我在本机执行了合成回放，未上线。"},{questionId:"q1",text:"保留原文"}]});
 });
 
 test("writing handoff prepares exactly one anchored field and attributed statement, never carrying old grants",async()=>{

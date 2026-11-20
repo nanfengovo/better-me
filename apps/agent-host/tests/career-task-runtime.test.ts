@@ -12,6 +12,7 @@ import type { UnderstandingRuntime } from "../src/understanding/http.js";
 import type { NativeAccountTools } from "../src/native-tools/service.js";
 import type { AgentRouting } from "../src/routing/service.js";
 import { setTimeout as delay } from "node:timers/promises";
+import { ModelUsageMeter } from "../src/tasks/usage-meter.js";
 import { RejectedTaskModelOutput } from "../src/kernel/model-protocol.js";
 
 const lease={session:"test-session",valid:async()=>true};
@@ -318,4 +319,46 @@ test("native backend receives explicit Host phase contracts on one authorization
     await assert.rejects(Reflect.apply(runtime.reasoner,undefined,["source",signal]),/invalid_model_phase/);
     await assert.rejects(Reflect.apply(runtime.reasoner,undefined,["source",signal,"constructor"]),/invalid_model_phase/);assert.equal(prompts.length,8);
   }finally{runtime.release?.();}
+});
+
+test("a length-limited local project response preserves the original bytes and provider usage in one authorized call", async t => {
+  const selected: UnderstandingRuntime = {kind:"model",modelSettings:{provider:"ollama",baseUrl:"http://127.0.0.1:11434/v1",model:"synthetic-gemma",apiKey:"fixture"}};
+  const fragment = '{"kind":"reply","message":"仓储联调😀 未完成';
+  let sends = 0;
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    sends++;
+    assert.equal(String(url), "http://127.0.0.1:11434/v1/chat/completions");
+    const sent = JSON.parse(String(init?.body));
+    assert.equal(sent.response_format.json_schema.name, "agent_project_understanding_reply");
+    assert.equal(sent.response_format.json_schema.strict, true);
+    return Response.json({id:"synthetic-length",object:"chat.completion",created:1,model:"synthetic-gemma",
+      choices:[{index:0,message:{role:"assistant",content:fragment},finish_reason:"length"}],
+      usage:{prompt_tokens:2051,completion_tokens:2045,total_tokens:4096}});
+  });
+  const meter = new ModelUsageMeter();
+  const resolve = createCareerTaskRuntimeResolver({nativeTools:{} as NativeAccountTools,routing:{} as AgentRouting,scan:none,usage:meter});
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "betterme-local-project-length-"));
+  const service = new CareerTaskService({ownerId:"synthetic",directory:temporary});
+  try {
+    const task = await service.createTask({kind:"project_understanding",workspaceKey:"synthetic",objective:"核对仓储记录",
+      project:{projectKey:"synthetic",label:"仓储",sourceText:"核对联调记录。"},runtimeBinding:careerRuntimeBinding(selected),
+      budget:{maxModelCalls:1,maxToolCalls:2,maxActiveMs:60000},consent:true,idempotencyKey:"local-project-length"},lease);
+    const runtime = await resolve(selected,lease,task,none);
+    await service.run(task.id,"start",{expectedRevision:task.revision,sourceFingerprint:task.sourceFingerprint,runtimeBinding:task.runtimeBinding,consent:true,
+      projectTurn:{expectedRevision:task.revision,idempotencyKey:"read-small-project",answer:"",selectedOptionIds:[],consentToSend:true}},runtime,lease);
+    let current = await service.readTask(task.id);
+    for (let count=0;count<150&&current.status==="running";count++) {
+      await delay(10); current = await service.readTask(task.id);
+    }
+    assert.equal(current.kind, "project_understanding");
+    assert.equal(current.status,"paused",current.error);
+    assert.equal(current.error,"model_output_incomplete");
+    assert.deepEqual(current.partialOutput,{text:fragment,finishReason:"length"});
+    assert.equal(current.usage.modelCalls,1);
+    assert.equal(sends,1);
+    const [usage] = meter.snapshot().models;
+    assert.equal(usage?.inputTokens,2051);
+    assert.equal(usage?.outputTokens,2045);
+    assert.equal(current.kind==="project_understanding" && current.project.understanding,undefined);
+  } finally { await service.close(); resolve.close(); await rm(temporary,{recursive:true,force:true}); }
 });

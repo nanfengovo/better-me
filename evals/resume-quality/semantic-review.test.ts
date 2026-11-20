@@ -10,6 +10,7 @@ import { createAgentServer } from "../../apps/agent-host/src/server.js";
 import { careerRuntimeBinding } from "../../packages/agent-contracts/src/career-task.js";
 import { registerTestIdentity } from "../../apps/agent-host/tests/fixtures/identity.js";
 import { collectBenchmark } from "./collect.mjs";
+import { reviewCollection } from "./collection-report.mjs";
 import { loadSemanticReviewMaterial, reviewSemanticCampaign } from "./semantic-review.mjs";
 import { digest } from "./gold/extract.mjs";
 
@@ -47,11 +48,19 @@ test("source-review overlay exhaustively binds accepted, rejected and full overf
     assert.equal(summary.frozen, 1); assert.equal(summary.failed, 2); assert.equal(calls, 3);
     const options = { datasetDirectory, campaignDirectory };
     const material = await loadSemanticReviewMaterial(options);
+    const enriched = await reviewCollection({ ...options, verifyOnly: true });
+    assert.equal(enriched.runtimeQuality.taskDelivery.denominator, 3);
+    const v1Keys = ["schemaVersion", "protocolVersion", "campaignId", "metadata", "planned", "frozen", "failed", "unresolved",
+      "verifiedArchives", "observedModelCalls", "comparable", "capacityGuardVerified", "candidateAcceptancePercent", "results", "files", "limitations"];
+    const legacy = Object.fromEntries(v1Keys.map(key => [key, enriched[key]]));
+    const legacyHash = digest(JSON.stringify(legacy, null, 2) + "\n");
+    assert.equal(material.collectionReceiptSha256, legacyHash);
+    assert.notEqual(legacyHash, digest(JSON.stringify(enriched, null, 2) + "\n"));
     assert.equal(material.cases.length, 3); assert.equal(material.cases.flatMap(c => c.outputs).length, 3);
     const overflowOutput = material.cases.find(c => c.caseId === "gold-sre").outputs[0];
     assert.equal(overflowOutput.raw, overflow); assert.equal(overflowOutput.outputSha256, digest(overflow));
     assert.equal(overflowOutput.unreviewableReason, "invalid_json");
-    const review = { schemaVersion: 1, campaignId: material.campaignId, collectionReceiptSha256: material.collectionReceiptSha256,
+    const review = { schemaVersion: 1, campaignId: material.campaignId, collectionReceiptSha256: legacyHash,
       reviewer: { kind: "operator_source_review", label: "Synthetic fixture reviewer, not a real judgement", externalHuman: false, blind: false, providerAttestation: false },
       cases: material.cases.map(c => ({ caseId: c.caseId, taskId: c.taskId, caseSha256: c.caseSha256, inputMaterialSha256: c.inputMaterialSha256,
         outputs: c.outputs.map(o => ({ outputIndex: o.outputIndex, outputSha256: o.outputSha256, unreviewableReason: o.unreviewableReason,
@@ -103,6 +112,11 @@ test("source-review overlay exhaustively binds accepted, rejected and full overf
     await rejectChange(r => r.cases[1].outputs[0].claims[0].star.result = "present", /unsupported_star_credit/);
     await rejectChange(r => r.cases[0].outputs[0].claims[0].star.result = "present", /result_source/);
     await rejectChange(r => r.reviewer.externalHuman = true, /Invalid/);
+    // Even a whitespace-only change to the original event journal changes the
+    // v1 byte identity. A persisted copy of the old receipt cannot override it.
+    await fs.writeFile(path.join(campaignDirectory, "receipt.json"), JSON.stringify(legacy, null, 2) + "\n");
+    await fs.appendFile(path.join(campaignDirectory, "events.ndjson"), "\n");
+    await rejectChange(() => {}, /semantic_campaign_binding_changed/);
     assert.equal(calls, 3, "offline review never invokes or retries a model");
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 });

@@ -28,7 +28,7 @@ test("career retrieval retains full source records/observations and exposes ever
   const recent = Array.from({ length: 14 }, (_, i) => ({ tool: "read_material", result: "x".repeat(7000) + ` OBSERVATION_END_${i}` }));
   const original=structuredClone(task.evidence);
   const result = taskContext(task, recent);
-  assert.equal(result.retrieval.version,"bm25-v1");
+  assert.equal(result.retrieval.version,"hybrid-tfidf-v2");
   assert.equal(result.retrieval.selected.length,6);
   assert.deepEqual(task.evidence,original,"selection never replaces complete stored excerpts");
   assert.equal(result.evidenceIndex.length, 72);

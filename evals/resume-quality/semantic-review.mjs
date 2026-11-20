@@ -67,7 +67,10 @@ export async function loadSemanticReviewMaterial(options) {
       outcome: result.outcome, model: receipt.metadata, protocolVersion: plan.protocolVersion,
       unrecordedModelOutputs: record.task.usage.modelCalls - attempts.length, source, outputs };
   });
-  return { schemaVersion: 1, campaignId: receipt.campaignId, collectionReceiptSha256: digest(JSON.stringify(receipt, null, 2) + "\n"), cases,
+  // v1 annotations bind the original collection receipt bytes. Runtime quality
+  // is a later projection of the same verified files; their hashes stay bound.
+  const { runtimeQuality, ...v1Receipt } = receipt;
+  return { schemaVersion: 1, campaignId: receipt.campaignId, collectionReceiptSha256: digest(JSON.stringify(v1Receipt, null, 2) + "\n"), cases,
     modelRequests: 0, sourcePolicy: "Author self-report, not independently verified employment. Operator annotations are separate from generation and original Gold/rule scores." };
 }
 

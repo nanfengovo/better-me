@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"H01","sources":[{"id":"packing","text":"我在测试区核对了 7 张出库单的批次号，并将异常项交给值班员复核。"}],"claim":"我在测试区核对了 7 张出库单的批次号，并将异常项交给值班员复核。","citedIds":["packing"],"expected":"supported","rationale":"完整陈述逐字一致。"},
+    {"id":"H02","sources":[{"id":"filter","text":"筛选规则由小组另一位同学制定；我只执行旧样本复测。"}],"claim":"制定筛选规则，并执行旧样本复测。","citedIds":["filter"],"expected":"unsupported","rationale":"规则归属明确冲突。"},
+    {"id":"H03","sources":[{"id":"desk-alpha","text":"同名项目“接口联调”甲组：本人比对设备模拟器的回执顺序。"},{"id":"desk-beta","text":"同名项目“接口联调”乙组：本人整理历史工单的状态枚举。"}],"claim":"在甲组比对设备模拟器的回执顺序。","citedIds":["desk-beta"],"expected":"wrong_citation","rationale":"同名不同项目，完整依据在甲组。"},
+    {"id":"H04","sources":[{"id":"trace","text":"我整理了三类接口异常样本。记录没有说明是否参与修复。"}],"claim":"整理了三类接口异常样本，并参与修复。","citedIds":["trace"],"expected":"uncertain","rationale":"修复参与情况缺失。"},
+    {"id":"H05","sources":[{"id":"invoice-check","text":"我用 4 张测试发票核对税号格式，发现有一处需要同事复查。"}],"claim":"使用 4 张测试发票检查税号格式，找到一处待同事复核的事项。","citedIds":["invoice-check"],"expected":"supported","rationale":"所有动作、数量和范围均保留。"},
+    {"id":"H06","sources":[{"id":"template","text":"交接模板仅完成纸面评审，没有投入实际使用。"}],"claim":"将交接模板投入实际使用。","citedIds":["template"],"expected":"unsupported","rationale":"明确未使用。"},
+    {"id":"H07","sources":[{"id":"checkin","text":"我与同事共同检查了一份签到表。现存记录只保留参与者的名字。"}],"claim":"我主导检查签到表的人员安排，并参与了检查。","citedIds":["checkin"],"expected":"uncertain","rationale":"参与有据，主导安排未知。"},
+    {"id":"H08","sources":[{"id":"shelf","text":"门店岗位：我检查收货区的货架编号。"},{"id":"route","text":"配送课程：我按站点顺序整理退件路线。"}],"claim":"在配送课程按站点顺序整理退件路线。","citedIds":["shelf"],"expected":"wrong_citation","rationale":"来源是配送课程，门店材料不支持。"},
+    {"id":"H09","sources":[{"id":"review-1","text":"在仓储模拟测试中，我核对了两组返回码；其中一组需复查。"},{"id":"review-2","text":"同一模拟测试的复盘记录：我把这组返回码和现象发给负责人。"}],"claim":"在仓储模拟测试中比对两组返回码，将需复查的一组现象交给负责人。","citedIds":["review-1","review-2"],"expected":"supported","rationale":"两份同范围材料组合支持，测试环境保留。"},
+    {"id":"H10","sources":[{"id":"demo-env","text":"本人只在本地模拟器重放设备回执，未接触任何生产设备。"}],"claim":"在生产设备上重放回执。","citedIds":["demo-env"],"expected":"unsupported","rationale":"测试环境明确排除生产设备。"},
+    {"id":"H11","sources":[{"id":"warehouse-replay","text":"仓储测试：我用 Redis 回放重复请求。"},{"id":"sqlite-replay","text":"账务测试：我用 SQLite 回放事务回滚。"}],"claim":"在账务测试用 SQLite 回放事务回滚。","citedIds":["warehouse-replay"],"expected":"wrong_citation","rationale":"引用的是另一个项目和另一技术。"},
+    {"id":"H12","sources":[{"id":"count","text":"我逐项登记了本周收到的反馈。表中没有总量统计。"}],"claim":"登记了本周收到的 30 条反馈。","citedIds":["count"],"expected":"uncertain","rationale":"数量缺少支持，现有材料未给出冲突值。"}
+  ]
+}

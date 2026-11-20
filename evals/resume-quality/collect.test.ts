@@ -167,9 +167,13 @@ test("five normal authenticated HTTP tasks archive successes, invalid candidates
     const receipt = await reviewCollection({ datasetDirectory, campaignDirectory: f.options.outputDirectory, outputDirectory: reportDirectory });
     assert.equal(receipt.planned, 5); assert.equal(receipt.frozen, 3); assert.equal(receipt.failed, 2); assert.equal(receipt.verifiedArchives, 5);
     assert.equal(receipt.observedModelCalls, 8); assert.equal(receipt.candidateAcceptancePercent, 60); assert.equal(receipt.comparable, false);
+    assert.deepEqual(receipt.runtimeQuality.taskDelivery, { numerator: 3, denominator: 5, percent: 60, failed: 2, unresolved: 0 });
+    assert.equal(receipt.runtimeQuality.budget.modelCharges, 8);
+    assert.equal(receipt.runtimeQuality.tools.campaignSuccessPercent, null);
     await assert.rejects(reviewCollection({ datasetDirectory, campaignDirectory: f.options.outputDirectory, outputDirectory: reportDirectory }), { code: "EEXIST" });
     const full = await reviewCollectionQuality({ datasetDirectory, campaignDirectory: reportDirectory, outputDirectory: path.join(f.directory, "whole-quality-report") });
     assert.equal(full.planned, 5); assert.equal(full.qualityMeasured, 3); assert.equal(full.failed, 2); assert.equal(full.allPlannedQualityMeasured, false);
+    assert.deepEqual(full.runtimeQuality, receipt.runtimeQuality);
     for (const entry of full.results.filter(r => r.metrics)) {
       assert.deepEqual(entry.metrics.editorial.automaticChecksScope, ["antiHallucination", "layout"]);
       assert.equal(entry.metrics.editorial.overallQualityPassed, null, "facts/layout pass never becomes overall editorial approval");
@@ -248,6 +252,9 @@ test("an observation deadline retains the live original ID and unknown final usa
     assert.equal(receipt.unresolved, 1); assert.equal(receipt.verifiedArchives, 0); assert.equal(receipt.observedModelCalls, null);
     const full = await reviewCollectionQuality({ datasetDirectory, campaignDirectory: f.options.outputDirectory, outputDirectory: path.join(f.directory, "unresolved-quality") });
     assert.equal(full.unresolved, 1); assert.equal(full.qualityMeasured, 0); assert.equal(full.observedModelCalls, null); assert.equal(full.results[0].metrics, null);
+    assert.deepEqual(full.runtimeQuality.taskDelivery, { numerator: 0, denominator: 1, percent: 0, failed: 0, unresolved: 1 });
+    assert.equal(full.runtimeQuality.budget.activeMs, null);
+    assert.equal(full.runtimeQuality.providerUsage.tokenCoverage.denominator, null);
     const file = path.join(f.options.recordDirectory, `${summary.results[0].taskId}.json`), record = JSON.parse(await fs.readFile(file, "utf8"));
     assert.equal(record.task.status, "running"); assert.equal(record.task.usage.modelCalls, 1);
   } finally { gate.resolve(); await f.close(); }

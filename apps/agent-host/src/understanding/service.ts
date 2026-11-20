@@ -140,8 +140,7 @@ export class ProjectUnderstandingService {
       revision(stored.session, input.expectedRevision);
       if (input.sourceText === stored.session.sourceText) return clone(stored.session);
       this.abortOwned(id, "context_changed");
-      stored.session.sourceText = input.sourceText;
-      stored.session.messages.push({ id: `msg_${randomUUID()}`, role: "user", text: `用户更新了项目原文：\n${input.sourceText}`, at: now() });
+      this.protocol.replaceSource(stored.session, input.sourceText);
       stored.agentContextFloor = stored.session.messages.length;
       const userMessageIds = new Set(stored.session.messages.filter(message => message.role === "user").map(message => message.id));
       for (const evidence of stored.session.evidence) if (evidence.grantId === "conversation" && !userMessageIds.has(evidence.path)) evidence.excerpt = "";

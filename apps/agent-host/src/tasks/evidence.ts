@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { isImplementationEvidencePath, type CareerTask, type CareerTaskDecision, type CareerTaskEvidence, type CareerTaskPatch, type UnderstandingGrant } from "@better-me/agent-contracts";
+import { hasUnbackedWritingScope, hasUncitedWritingNumber } from "@better-me/core/writing-grounding";
 import { EvidenceBroker, EvidenceAccessError } from "../understanding/evidence-broker.js";
 
 export const digest = (x:unknown) => createHash("sha256").update(typeof x==="string"?x:JSON.stringify(x)).digest("hex");
@@ -50,7 +51,18 @@ export async function observe(task:CareerTask, grants:UnderstandingGrant[], brok
     }
   }
 }
-const splitSentences=(text:string)=>text.split(/(?<=[。！？!?；;])\s*|(?<=\.)\s+(?=[A-Z])|\n+/u).map(t=>t.trim()).filter(Boolean);
+export const splitSentences=(text:string)=>text.split(/(?<=[。！？!?；;])\s*|(?<=\.)\s+(?=[A-Z])|\n+/u).map(t=>t.trim()).filter(Boolean);
+function isSingleSentenceEdit(before: string[], after: string[]): boolean {
+  let start = 0;
+  let beforeEnd = before.length;
+  let afterEnd = after.length;
+  while (start < beforeEnd && start < afterEnd && before[start] === after[start]) start++;
+  while (beforeEnd > start && afterEnd > start && before[beforeEnd - 1] === after[afterEnd - 1]) {
+    beforeEnd--;
+    afterEnd--;
+  }
+  return beforeEnd - start <= 1 && afterEnd - start <= 1;
+}
 const metric=(s:string)=>[...s.normalize("NFKC").matchAll(/(?:\d+(?:[.,]\d+)*)(?:\s*(?:%|ms\b|s\b|QPS\b|TPS\b|万|亿|倍|毫秒|秒|人|年|次))?/gi)].map(m=>m[0].replace(/\s/g,"").toLowerCase());
 const ownership=/(?:主导|负责|牵头|推动|实现|搭建|独立|交付|落地|部署|上线|改造|开发|优化|implemented|owned|led\b|built\b|delivered|deployed)/i;
 const teamOrPlan=/(?:团队|项目计划|拟建|计划|方案|仅设计|设计稿|未(?:上线|落地|实现|部署)|不(?:是本人|负责)|team\b|planned|proposal|not implemented)/i;
@@ -60,6 +72,9 @@ const individual=/(?:我(?:本人|独立|主导|牵头|带领|负责|交付|实�
 const qualifier=/(?:计划|目标是|设计稿|仅设计|尚未|并未|未(?:上线|投产|落地|实现|部署|实施)|(?:未|没有)(?:负责|参与|承担)|不(?:是本人|负责)|提议|planned|proposal|not (?:implemented|deployed|delivered))/i;
 const nonPersonal=(s:string)=>qualifier.test(s)||teamOrPlan.test(s)&&!individual.test(s);
 const strengthened=[/(?:主导|牵头|带领|领衔|led\b|owned\b)/i,/(?:独立|独自|solely|single.hand)/i,/(?:上线|投产|投运|生产部署|production|deployed)/i];
+const personalActions=/(?:设计|制定|编写|实现|搭建|交付|落地|部署|改造|开发|优化|主导|牵头|推动|\b(?:designed|authored|implemented|built|delivered|deployed|developed|led|spearheaded)\b)/giu;
+const otherContributor=/(?:团队|小组|其他人|他人|(?:另一|另外|其他)(?:一位|一名|的)?(?:成员|组员|同事)|组员|同事|供应商|\b(?:team|colleagues?|teammates?|vendor)\b)/iu;
+const outcome=/(?:提升|提高|降低|减少|节省|缩短|改善|增长|\b(?:improved|increased|reduced|saved|boosted|shortened)\b)/iu;
 const tech=(s:string)=>s.match(/[A-Za-z][A-Za-z0-9.+#_-]{2,}/g)??[];
 const excludedEnglish=new Set("the and with for built improved developed worked led using delivered reduced increased on in used from to of an this a role designed implementation implemented team as by managed owned system project supported deployed performance".split(" "));
 const sameTarget=(a:CareerTaskPatch["targetRef"],b:CareerTaskPatch["targetRef"])=>a.locale===b.locale&&(a.kind==="profile_headline"?b.kind==="profile_headline":b.kind==="claim_text"&&a.experienceId===b.experienceId&&a.claimId===b.claimId);
@@ -81,7 +96,7 @@ export function validateDraft(task:CareerTask,decision:Extract<CareerTaskDecisio
     if(!sentences.length || sentences.length!==segments.length || !sentences.every((s,i)=>s.text.trim()===segments[i]))throw new CareerTaskError("sentence_evidence_required",422);
     const oldSegments=splitSentences(p.originalText);
     // One field patch = one independently approvable changed sentence. Never bundle unrelated revisions under one approval.
-    if(segments.filter(s=>!oldSegments.includes(s)).length>1||oldSegments.filter(s=>!segments.includes(s)).length>1)throw new CareerTaskError("one_sentence_change_per_patch",422);
+    if(!isSingleSentenceEdit(oldSegments,segments))throw new CareerTaskError("one_sentence_change_per_patch",422);
     for(const sentence of sentences){
       if(sentence.evidenceIds.some(i=>!p.evidenceIds.includes(i)))throw new CareerTaskError("sentence_evidence_outside_patch",422);
       const cited=requireEvidence(task,sentence.evidenceIds,exposedEvidenceIds),personal=cited.filter(e=>e.kind==="resume"&&e.sourceId===`resume:${p.fieldId}`||e.kind==="user_statement");
@@ -96,6 +111,21 @@ export function validateDraft(task:CareerTask,decision:Extract<CareerTaskDecisio
         if(strengthened.some(re=>re.test(clause)&&!groundedClauses.some(s=>re.test(s))))throw new CareerTaskError("unsupported_scope_upgrade",422);
       }
       if(tech(sentence.text).some(t=>!excludedEnglish.has(t.toLowerCase())&&!grounded.toLowerCase().includes(t.toLowerCase())))throw new CareerTaskError("unsupported_technology_or_entity",422);
+      // The general tool workflow may still propose new wording. Reject recognizable
+      // changes in units, attribution, action or observed outcome. An exact complete
+      // personal source sentence retains the speaker's wording and qualifications.
+      const sourceTexts=personal.map(e=>e.excerpt);
+      if(sourceTexts.some(text=>splitSentences(text).includes(sentence.text.trim())))continue;
+      if(hasUncitedWritingNumber(sentence.text,sourceTexts,sourceTexts))throw new CareerTaskError("unsupported_number",422);
+      if(hasUnbackedWritingScope(sentence.text,sourceTexts,sourceTexts))throw new CareerTaskError("unsupported_scope_upgrade",422);
+      const ownClauses=groundedClauses.filter(clause=>!otherContributor.test(clause));
+      const sourceActions=new Set(ownClauses.flatMap(clause=>Array.from(clause.matchAll(personalActions),match=>match[0].toLowerCase())));
+      for(const clause of sentence.text.split(/[。！？!?;；，,\n]+/)){
+        if(qualifier.test(clause))continue;
+        const actions=Array.from(clause.matchAll(personalActions),match=>match[0].toLowerCase());
+        if(actions.some(action=>!sourceActions.has(action)))throw new CareerTaskError("unsupported_personal_contribution",422);
+        if(outcome.test(clause)&&!ownClauses.some(source=>source.trim()===clause.trim()))throw new CareerTaskError("unsupported_work_outcome",422);
+      }
     }
     return {...p,sentences,id:`patch_${digest([task.id,p]).slice(0,24)}`};
   });

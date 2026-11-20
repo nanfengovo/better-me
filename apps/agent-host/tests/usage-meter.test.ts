@@ -3,7 +3,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { ModelUsageMeter, providerTokenUsage } from "../src/tasks/usage-meter.ts";
+import { ModelUsageMeter, providerTokenCounts, providerTokenUsage } from "../src/tasks/usage-meter.ts";
+
+test("per-call counts distinguish reported zero, missing sides and invalid counts", () => {
+  assert.deepEqual(providerTokenCounts(undefined), {});
+  assert.deepEqual(providerTokenCounts({ total_tokens: 10 }), {});
+  assert.deepEqual(providerTokenCounts({ input_tokens: 0 }), { inputTokens: 0 });
+  assert.deepEqual(providerTokenCounts({ input_tokens: 0.5, output_tokens: 3 }), { outputTokens: 3 });
+  assert.deepEqual(providerTokenCounts({ input_tokens: 5, output_tokens: -1 }), { inputTokens: 5 });
+});
 
 test("only provider-reported tokens are counted; unmetered runtimes keep calls without estimates", () => {
   let now = new Date(2026, 10, 14, 9, 0);

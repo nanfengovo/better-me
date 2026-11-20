@@ -26,6 +26,23 @@ test("local BM25 ranks mixed C#/.NET and Chinese responsibility evidence ahead o
   assert.ok(evidenceTerms("C# .NET 缓存击穿").includes("c#"));assert.ok(evidenceTerms("缓存击穿").includes("击穿"));
 });
 
+test("versioned cosine retrieval finds related word forms outside the BM25 vocabulary", () => {
+  const layout = evidence("source", "a-layout", "map", "warehouse shelves");
+  const replay = evidence("source", "b-replay", "log", "replayed requests");
+  const sources = [layout, replay];
+  const old = rankEvidence(sources, "replaying", 1, "bm25-v1");
+  assert.equal(old.policy, "bm25-v1");
+  assert.equal(old.selected[0]!.evidence.id, layout.id);
+  assert.equal(old.selected[0]!.score, 0);
+  const current = rankEvidence(sources, "replaying", 1);
+  assert.equal(current.policy, "hybrid-tfidf-v2");
+  assert.deepEqual(current.selected[0]!.evidence, replay);
+  assert.equal(current.selected[0]!.coarseScore, 0);
+  assert.ok(current.selected[0]!.vectorCosine! > 0);
+  assert.equal(rankEvidence([replay], replay.excerpt).selected[0]!.vectorCosine!.toFixed(6), "1.000000");
+  assert.equal(rankEvidence([layout], "？").selected[0]!.score, 0);
+});
+
 test("lossless passage partition preserves CRLF, long-line tails, emoji and exact absolute coordinates",()=>{
   const full="prefix\r\n"+"🧪合成缓存".repeat(500)+"\r\n\r\n最后一段：没有上线。";
   const original=evidence("source","synthetic","合成原文",full);

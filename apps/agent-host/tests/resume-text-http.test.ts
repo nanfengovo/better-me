@@ -26,7 +26,8 @@ test("text writing uses two explicit task turns, confirms the exact plan, and re
       {fieldId:"g",include:false,reason:"旧资料未体现本岗位关注点，保留原稿不删除。",evidenceIds:[omitted.id]},
     ],questions:[{id:"q1",fieldId:"f",question:"缓存测试中你实际补了什么？没有记录的指标可以说未知。",evidenceIds:[own.id]}]}:
       {kind:"draft",patches:[{fieldId:"f",targetRef:state.resume.fields[0].targetRef,originalText:"维护缓存测试。",proposedText:"维护缓存测试并补充异常分支。",evidenceIds:[own.id,...state.evidence.filter((e:{sourceId:string})=>e.sourceId.startsWith("answer:")).map((e:{id:string})=>e.id)],rationale:"仅采用已确认的实际补充。"}],unknowns:["耗时和上线指标未知，不填写数字。"]};
-    res.setHeader("Content-Type","application/json");res.end(JSON.stringify({id:"text-fixture",object:"chat.completion",model:body.model,choices:[{index:0,finish_reason:"stop",message:{role:"assistant",content:JSON.stringify(output)}}]}));
+    const usage=state.writingPhase==="plan"?{prompt_tokens:37,completion_tokens:11,total_tokens:48}:undefined;
+    res.setHeader("Content-Type","application/json");res.end(JSON.stringify({id:"text-fixture",object:"chat.completion",model:body.model,usage,choices:[{index:0,finish_reason:"stop",message:{role:"assistant",content:JSON.stringify(output)}}]}));
   });
   provider.listen(0,"127.0.0.1");await once(provider,"listening");const pa=provider.address();assert.ok(pa&&typeof pa!=="string");
   const runtime={kind:"model" as const,modelSettings:{provider:"custom" as const,model:"text-fixture",baseUrl:`http://127.0.0.1:${pa.port}/v1`,apiKey:"SYNTHETIC-TEXT-KEY-NEVER-SAVE"}},runtimeBinding=careerRuntimeBinding(runtime);
@@ -55,5 +56,14 @@ test("text writing uses two explicit task turns, confirms the exact plan, and re
     t=await task(await call(`/${t.id}/receipt`,receipt));assert.equal(t.status,"completed");assert.equal((await task(await call(`/${t.id}/receipt`,receipt))).receipt?.versionId,receipt.versionId);
     await close();await open();assert.equal((await task(await call(`/${t.id}`))).status,"completed");assert.equal(calls,2);
     const raw=await fs.readFile(path.join(directory,"accounts","owners",identity.principal.id,"career-tasks-v1",`${t.id}.json`),"utf8");assert.ok(!raw.includes(runtime.modelSettings.apiKey));
+    const rows=JSON.parse(raw).recent.filter((r:{writingPhase?:string})=>r.writingPhase);
+    assert.deepEqual(rows.map((r:{providerCallOrdinal:number})=>r.providerCallOrdinal),[1,2]);
+    assert.deepEqual(rows.map((r:{writingPhase:string})=>r.writingPhase),["resume_text_plan","resume_text_draft"]);
+    const timings=rows.map((r:{providerObservation:{wallMs:number}})=>r.providerObservation.wallMs);
+    assert.ok(timings.every((ms:number)=>Number.isSafeInteger(ms)&&ms>=0));
+    assert.deepEqual(rows.map((r:{providerObservation:unknown})=>r.providerObservation),[
+      {wallMs:timings[0],inputTokens:37,outputTokens:11},{wallMs:timings[1]},
+    ]);
+    assert.doesNotMatch(JSON.stringify(t),/providerObservation|providerCallOrdinal/);
   }finally{await close();await new Promise<void>(resolve=>provider.close(()=>resolve()));}
 });

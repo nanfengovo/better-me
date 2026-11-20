@@ -1,0 +1,15 @@
+{
+  "id": "interface-scope-holdout-v2",
+  "query": "在两个都叫“接口联调”的项目中，只核对设备模拟组。请定位使用模拟器检查回执顺序、交给同事复核异常回执这两项工作的原句。检查回执顺序可能发现乱序属于哪类结论？能否确认生产设备稳定性收益？",
+  "sources": [
+    {"id":"device-order","text":"设备模拟组“接口联调”中，我在本地模拟器核对了设备回执的先后顺序。"},
+    {"id":"device-review","text":"设备模拟组“接口联调”的测试记录：我将异常回执样本整理后交给同事复核。"},
+    {"id":"ticket-review","text":"工单组“接口联调”中，我整理了历史工单状态字段的复查记录。"}
+  ],
+  "expectedFacts": [
+    {"sourceId":"device-order","quote":"设备模拟组“接口联调”中，我在本地模拟器核对了设备回执的先后顺序。"},
+    {"sourceId":"device-review","quote":"设备模拟组“接口联调”的测试记录：我将异常回执样本整理后交给同事复核。"}
+  ],
+  "expectedInference":{"basisSourceId":"device-order","termGroups":[["乱序","顺序","先后"],["发现","识别","排查","检查","核对"]]},
+  "expectedUnknown":{"terms":["生产","设备稳定性","稳定性","收益"]}
+}

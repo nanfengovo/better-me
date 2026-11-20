@@ -1,0 +1,15 @@
+{
+  "id": "warehouse-dedup-replay-v1",
+  "query": "在仓储项目材料中定位重复请求去重和 Redis 回放两项工作的原句。去重可能减少重复处理属于哪一类结论？能否证实上线收益？",
+  "sources": [
+    {"id": "warehouse-dedup", "text": "在仓储项目的联调环境中，我按请求编号对重复入库请求做了去重。"},
+    {"id": "warehouse-replay", "text": "我在仓储测试中用 Redis 回放重复请求，核对了相同请求编号的处理记录。"},
+    {"id": "warehouse-layout", "text": "在仓储轮岗时，我整理了收货区的货架位置图。"}
+  ],
+  "expectedFacts": [
+    {"sourceId": "warehouse-dedup", "quote": "在仓储项目的联调环境中，我按请求编号对重复入库请求做了去重。"},
+    {"sourceId": "warehouse-replay", "quote": "我在仓储测试中用 Redis 回放重复请求，核对了相同请求编号的处理记录。"}
+  ],
+  "expectedInterpretation": "inference",
+  "expectedProductionBenefit": "unknown"
+}

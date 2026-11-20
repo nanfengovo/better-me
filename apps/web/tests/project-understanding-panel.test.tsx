@@ -23,7 +23,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 }
 const { act, createElement: h } = React;
 const { createRoot } = await import("react-dom/client");
-const { ProjectUnderstandingPanel, understandingScope } = await import("../src/components/ProjectUnderstandingPanel");
+const { ProjectUnderstandingPanel, understandingScope, extractUnderstandingUserSupplement } = await import("../src/components/ProjectUnderstandingPanel");
 const config = { provider: "ollama" as const, model: "synthetic", baseUrl: "https://model-fixture.invalid/v1", apiKey: "", temperature: 0 };
 const sourceText = fixtureSession().sourceText;
 const projectKey = "synthetic-field";
@@ -259,4 +259,36 @@ test("revoked context is labelled as continued history and selections keep their
   assert.match(dom.document.body.textContent ?? "", /此材料已撤销或不再用于后续推理/);
   assert.match(dom.document.body.textContent ?? "", /CORRECT_ORIGINAL_LABEL/);
   assert.doesNotMatch(dom.document.body.textContent ?? "", /WRONG_REUSED_LABEL/);
+});
+
+test("project claims open their own source excerpt and a replaced project field stays out of the writing handoff", async () => {
+  const fake = fakeClient(), at = "2026-11-20T09:00:00Z";
+  const original = "旧原文记录了未经核对的上线职责。", correction = "联调环境按请求编号去重。";
+  const note = "使用 Redis 回放了仓储重复请求。";
+  const statement = "用户更新了项目原文：\n这是我的独立补充。";
+  const messages: UnderstandingSession["messages"] = [
+    { id: "first", role: "user", at, text: original },
+    { id: "legacy", role: "user", at, text: "用户更新了项目原文：\n旧更正仍误写生产指标。" },
+    { id: "answer", role: "user", at, text: statement, selectedOptionIds: [] },
+    { id: "replacement", role: "user", at, text: "用户更新了项目原文：\n" + correction, supersedesSourceId: "legacy" },
+  ];
+  await seed(fake, { phase: "awaiting-confirmation", sourceText: correction, messages,
+    grants: [{ id: "folder", path: "fixture", label: "仓储", createdAt: at }],
+    evidence: [{ id: "ev_replay", path: "recording.md", grantId: "folder", hash: "a".repeat(64), startLine: 2, endLine: 2, excerpt: note, collectedAt: at }],
+    understanding: { ...fixtureUnderstanding, claims: [{ id: "replay", kind: "documentation", text: "仓储联调材料记录了回放。", evidenceIds: ["ev_replay"] }] },
+  });
+  await render(fake, { sourceText: correction });
+  assert.equal(dom.document.querySelectorAll(".understanding-history li strong").length, 4);
+  assert.equal([...dom.document.querySelectorAll(".understanding-history li strong")].filter(label => label.textContent?.includes("已替换")).length, 2);
+  assert.equal(extractUnderstandingUserSupplement(fake.server), statement + "\n" + correction);
+  const reference = [...dom.document.querySelectorAll("summary")].find(label => label.textContent?.includes("查看这项结论的 1 处依据"))!;
+  assert.ok(reference);
+  await flush(() => {
+    const panel = reference.parentElement!;
+    panel.setAttribute("open", "");
+    panel.dispatchEvent(new dom.Event("toggle"));
+  });
+  await waitFor(() => reference.parentElement?.querySelector("pre")?.textContent === note);
+  assert.match(reference.parentElement!.textContent, /recording\.md · 第 2–2 行/);
+  assert.ok(reference.parentElement!.textContent.includes("a".repeat(64)));
 });

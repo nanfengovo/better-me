@@ -1,8 +1,39 @@
 # 简历四轴离线质检
 
-离线报告管线不调用模型、不采用简历或修改 FactBase。另有显式启动的隔离本机采样器，只经正常认证 tasks HTTP；它会产生真实本机推理，不能和离线命令混淆。现有 `evals/career-intelligence` 继续负责委员会协议/守卫回归；不能把它的合成案例当作这里的真实 Gold。
+离线报告管线不调用模型、不采用简历或修改 FactBase。完整简历的隔离采样器经认证的 tasks HTTP 调用模型，仓储单题采样器直接连接指定的本机 Ollama 进行推理。现有 `evals/career-intelligence` 继续负责委员会协议/守卫回归；不能把它的合成案例当作这里的真实 Gold。
+
+## 同题比较模型、提示和 Agent 检索版本
+
+复验完整产品的项目取证流程，可运行 `pnpm evals:project-evidence --model EXACT_LOCAL_MODEL --case warehouse --out NEW_DIRECTORY`。案例可选 `warehouse`、`interface`、`inventory`。该命令在临时账号中创建合成材料目录，让本机模型经正常项目任务入口自行取证。评分会重开原始文本，核对引用权限、文件指纹、行号和字符范围，检查全部目标原句、无多余事实、推断前提和未知收益。第二版同时要求全部工具读取、来源复核和所引原句重读都有实际结果，本机模型每次返回的输入输出 token 都有回执。输出目录保存执行前计划、实际决策、证据、计量及结果；退出码 1 表示未通过。每次复跑使用新目录。
+
+仓储合成题要求从给定项目材料中引用两条完整技术原句，区分推断与已知事实，并判断上线收益是否有据。每格使用同一题、相同的生成参数和同一份评分规则。两个 Agent 版本调用生产环境的 BM25 和混合 TF-IDF 检索策略，保持相同的检索条数。程序记录实际交给模型的材料和完整回答。一次执行每格采样一次，重复实验可指定新的输出目录。[仓储题和逐条判据](gold/warehouse-replay-v1.json) · [提示版本](version-matrix/profiles.json)
+
+```sh
+pnpm evals:version-matrix --endpoint http://127.0.0.1:11434 \
+  --model MODEL_A --model MODEL_B --out NEW_ARCHIVE
+pnpm evals:version-matrix:cost --archive NEW_ARCHIVE
+pnpm evals:version-matrix:cost --archive NEW_ARCHIVE --rates RATES.json
+```
+
+模型名须使用本机已安装的精确标签。单模型也可以运行两种提示和两种检索策略。重复的权重别名会在推理前被拒绝。可重复使用 `--prompt`、`--agent` 选择各个版本。所有模型从指定的本机回环地址读取，作为任务输入发给模型的只有查询和检索到的材料。八格完整矩阵会生成十二组单因素对照，给出完成率、主机等待时长和输入输出 Token 的变化。失败和中断保留在计划分母中。单题成绩只描述这道题。
+
+每格 `.intent.json` 保存来源顺序、实际模型请求和版本绑定，`.result.json` 保存相应的原始响应或错误。`--verify ARCHIVE` 可以重算中断批次。审计入口另核对封存报告和逐格原始响应 JSON 的摘要，报告历史结算是否完整与当前源码是否匹配。封存后出现缺格、错绑、响应数据变化或多出未登记的格子时，审计失败。未封存批次列出缺格，只能估计已经观察到的 Token 成本。校验依赖本地归档来源可信。
+
+费率文件是 JSON 数组。每项须提供 `provider`（本入口为 `ollama`）、`model`、`revision`、`currency`、`inputPerMillion` 和 `outputPerMillion`。模型标签与修订摘要取自报告对应行，后两项表示每百万输入和输出 Token 的费率。可以只给部分模型提供费率。费率未给、计量缺失和实付金额均保留为未知。完整且币种一致时才汇总全矩阵估算。审计和估算都离线运行，结果打印到标准输出。
 
 ## 运行
+
+### 从一条简历修改验证可靠性
+
+- `pnpm test:resume-quality` 会在临时存储中执行两轮定向修改，按批准范围保存两份岗位版，再重开服务核对原句、引文、未选字段和历史版本。固定模型答复让失败可以重放。[回归场景](./revision-continuity.test.ts)
+- `pnpm evals:resume-revisions --model EXACT_LOCAL_MODEL --out NEW_DIRECTORY` 用真实本地模型经 Host HTTP 执行三组独立合成简历、每组两轮修改。用户选材和确认的完整补充来自固定数据集，由 Host 构造带原句和本次字段证据的改稿；独立评分核对未选字段、已确认句子、原始 FactBase、两次版本提交和服务重启后的读回。在选材中合并重复判断，对冲突的字段要求人工核对。模型截断时原始返回仍留档，并提供完整手工选材清单或仅由唯一已确认单句构造待审核草稿。报告独立列出实际模型调用和截断恢复次数。[三组合成数据](./gold/reviewed-revisions-v2.json)
+- `pnpm evals:judge run gemma4:e2b-it-qat 新目录` 使用已安装的本机 Ollama 模型逐条审核 12 条合成陈述。模型只收到材料、主张和所引编号。离线重新评分可用 `pnpm evals:judge replay 目录`。逐案 JSON 保留原答、真实返回的 token、整次等待时间和引文核验结果。模型或协议变动时请使用新目录。[固定校准集](./judge-calibration/cases.json)
+- `pnpm evals:judge-v2 run calibration|holdout|confirmation EXACT_LOCAL_MODEL NEW_DIRECTORY` 按原始引文和其他材料分别逐条判断，最终规则结合引文、数字单位、分工、否定、上线阶段。模型判读是审核建议；自动事实证据通过要求原句完整、无多余断言及可核对来源，改写和有疑义的结论进入人工审核。`replay DIRECTORY` 按归档协议重放，`rescore DIRECTORY NEW_DIRECTORY` 使用当前规则对归档原始模型答复重新评分，保留旧报告并标明没有新增模型调用。三组数据分别是 [校准集](./judge-calibration/cases.json)、[独立保留集](./judge-calibration/holdout-v2.json)、[最终确认集](./judge-calibration/confirmation-v4.json)。
+- `pnpm evals:resume-quality --dataset evals/resume-quality/gold/v1 --campaign 已采集批次 --out 新目录` 从既有任务档案生成交付、工具、用量和延迟报告。失败与未决任务保留在计划分母中。工具成功需要运行结果，实付需要账单。[本轮实测和指标口径](../../docs/reports/resume-agent-reliability-2026-11-20.md)
+
+当输入和输出各有固定单价时，如需估算 token 费用，可向最后一条命令加 `--rates 费率文件.json`。文件需包含 `provider`、`model`、`revision`（与采集回执一致）、三字母 `currency`、每百万输入和输出 token 的 `inputPerMillion` 和 `outputPerMillion`。估算仅涵盖输入和输出都已记录的调用。完整批次估算还要求每个计划案例的账本和调用计量齐全。缓存折扣、阶梯价、折让和本机硬件成本需另行核算。
+
+### 从案例与冻结候选生成四轴报告
 
 ```sh
 pnpm test:resume-quality

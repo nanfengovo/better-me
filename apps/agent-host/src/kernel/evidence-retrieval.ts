@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import type { CareerTaskEvidence } from "@better-me/agent-contracts";
+import { passageCosines } from "./evidence-vectors.js";
 
-export const EVIDENCE_RETRIEVAL_POLICY = { version: "bm25-v1", topK: 6, passageChars: 2400 } as const;
+export type RetrievalVersion = "bm25-v1" | "hybrid-tfidf-v2";
+export const EVIDENCE_RETRIEVAL_POLICY = { version: "hybrid-tfidf-v2", topK: 6, passageChars: 2400 } as const;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const lineCount = (text: string) => text.split("\n").length - 1;
 const sourceKey = (item: CareerTaskEvidence) => JSON.stringify([item.sourceId, item.path ?? null, item.hash]);
@@ -61,10 +63,12 @@ export function resolveEvidenceHandle(items: CareerTaskEvidence[], handle: strin
   return index < 0 ? undefined : items[index];
 }
 
-/** Phase 1 BM25 over every collected authorized passage; phase 2 query-coverage
- * reranking and exact-span deduplication. Stable ties make the projection reproducible. */
-export function rankEvidence(items: CareerTaskEvidence[], query: string, topK: number = EVIDENCE_RETRIEVAL_POLICY.topK) {
+/** Both versions use the same eligible exact spans, BM25 weights and stable ties.
+ * V2 adds the cosine between the query and each passage in a character TF-IDF space. */
+export function rankEvidence(items: CareerTaskEvidence[], query: string, topK: number = EVIDENCE_RETRIEVAL_POLICY.topK,
+  version: RetrievalVersion = EVIDENCE_RETRIEVAL_POLICY.version) {
   if (!Number.isSafeInteger(topK) || topK < 1 || topK > 40) throw new Error("invalid_retrieval_top_k");
+  if (version !== "bm25-v1" && version !== "hybrid-tfidf-v2") throw new Error("invalid_retrieval_version");
   const passages = new Map<string, CareerTaskEvidence>();
   const unlocatedEvidenceIds = items.filter(item => item.startOffset === undefined).map(item => item.id).sort();
   for (const item of items.filter(item => !unlocatedEvidenceIds.includes(item.id))) for (const passage of evidencePassages(item)) {
@@ -79,7 +83,8 @@ export function rankEvidence(items: CareerTaskEvidence[], query: string, topK: n
   const terms = [...new Set(evidenceTerms(query))], df = new Map<string, number>();
   for (const term of terms) df.set(term, documents.filter(d => d.frequencies.has(term)).length);
   const averageSize = documents.reduce((sum, d) => sum + d.size, 0) / (documents.length || 1) || 1;
-  const ranked = documents.map(({ passage, frequencies, size }) => {
+  const cosines = version === "hybrid-tfidf-v2" ? passageCosines(documents.map(doc => doc.passage.excerpt), query) : undefined;
+  const ranked = documents.map(({ passage, frequencies, size }, index) => {
     let coarseScore = 0, matches = 0;
     for (const term of terms) {
       const frequency = frequencies.get(term) ?? 0;
@@ -89,8 +94,11 @@ export function rankEvidence(items: CareerTaskEvidence[], query: string, topK: n
       coarseScore += inverseFrequency * frequency * 2.2 / (frequency + 1.2 * (0.25 + 0.75 * size / averageSize));
     }
     const queryCoverage = matches / (terms.length || 1);
-    return { evidence: passage, coarseScore, queryCoverage, score: coarseScore * (1 + 0.25 * queryCoverage) };
+    const lexicalScore = coarseScore * (1 + 0.25 * queryCoverage);
+    const vectorCosine = cosines?.[index];
+    return { evidence: passage, coarseScore, queryCoverage, ...(vectorCosine === undefined ? {} : { vectorCosine }),
+      score: lexicalScore + (vectorCosine ?? 0) };
   }).sort((a, b) => b.score - a.score || sourceKey(a.evidence).localeCompare(sourceKey(b.evidence))
     || (a.evidence.startOffset ?? 0) - (b.evidence.startOffset ?? 0) || a.evidence.id.localeCompare(b.evidence.id));
-  return { selected: ranked.filter(item => item.evidence.excerpt.trim()).slice(0, topK), totalPassages: documents.length, unlocatedEvidenceIds };
+  return { policy: version, selected: ranked.filter(item => item.evidence.excerpt.trim()).slice(0, topK), totalPassages: documents.length, unlocatedEvidenceIds };
 }

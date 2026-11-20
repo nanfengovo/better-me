@@ -4,6 +4,7 @@ import fs, { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { careerRuntimeBinding } from "@better-me/agent-contracts";
+import { setTimeout as delay } from "node:timers/promises";
 import { CareerTaskService, CareerTaskError } from "../src/tasks/service.js";
 import { RejectedTaskModelOutput } from "../src/kernel/model-protocol.js";
 
@@ -32,4 +33,29 @@ for(const mode of ["returned","fenced"] as const)test(`text ${mode} late respons
     for(let i=0;i<3;i++)task=await service.get(task.id);
     assert.equal(task.status,"paused");assert.equal(task.writingPlan,undefined);assert.equal(task.draft,undefined);assert.equal(task.usage.modelCalls,1);assert.equal(calls,1);assert.ok(!JSON.stringify(task).includes("TAIL"));
   }finally{done.resolve();flush.resolve();await service.close();}
+});
+
+test("an exhausted model context leaves an auditable manual plan and an exact confirmed field draft", async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-text-truncated-")),service=new CareerTaskService({ownerId:"synthetic",directory});
+  t.after(async()=>{await service.close();await fs.rm(directory,{recursive:true,force:true});});
+  const runtimeBinding=careerRuntimeBinding({kind:"model",modelSettings:{provider:"ollama",model:"fixture",baseUrl:"http://127.0.0.1:1/v1"}});
+  const access={session:"synthetic",valid:async()=>true},original="维护缓存测试。",supplement="我在本地复测缓存失效流程。";
+  let task=await service.create({workflow:"text_v1",workspaceKey:"synthetic",idempotencyKey:"synthetic-truncated",objective:"仅补缓存测试",consent:true,runtimeBinding,budget:{maxModelCalls:2,maxToolCalls:1,maxActiveMs:60000},job:{title:"测试",company:"",description:"缓存测试。"},resume:{id:"r",name:"合成",sourceFingerprint:"s1",fields:[
+    {id:"f",targetRef:{kind:"profile_headline",locale:"zh"},originalText:original},{id:"g",targetRef:{kind:"claim_text",experienceId:"e",claimId:"g",locale:"zh"},originalText:"整理旧记录。"},
+  ]}},access);
+  let calls=0;
+  const partial='{"kind":"partial';
+  const runtime={runtimeFingerprint:"truncated-fixture",reasoner:async()=>{calls++;return {text:partial,finishReason:"length"};}};
+  const command=()=>({expectedRevision:task.revision,sourceFingerprint:task.resume.sourceFingerprint,runtimeBinding,consent:true as const});
+  async function settled(){for(let i=0;i<400;i++){task=await service.get(task.id);if(task.status!=="running")return;await delay(5);}throw Error("Text task did not settle");}
+  await service.run(task.id,"start",command(),runtime,access);await settled();
+  assert.equal(task.status,"awaiting_answer");assert.deepEqual(task.writingPlan!.selections.map(item=>[item.fieldId,item.include]),[["f",false],["g",false]]);
+  const confirmation={planHash:task.writingPlan!.hash,selectedFieldIds:["f"],confirmed:true,answers:task.writingPlan!.questions.map(question=>({questionId:question.id,text:question.fieldId==="f"?supplement:"保留原文"}))};
+  await service.run(task.id,"answer",{...command(),answer:JSON.stringify(confirmation)},runtime,access);await settled();
+  assert.equal(task.status,"awaiting_review");assert.equal(task.draft!.patches.length,1);
+  assert.equal(task.draft!.patches[0]!.proposedText,original+"\n"+supplement);assert.equal(task.draft!.patches[0]!.fieldId,"f");
+  assert.equal(calls,2);assert.equal(task.usage.modelCalls,2);assert.equal(task.receipt,undefined);
+  const stored=JSON.parse(await readFile(path.join(directory,task.id+".json"),"utf8"));
+  assert.equal(stored.recent.filter((row:{finishReason?:string;output?:string})=>row.finishReason==="length"&&row.output===partial).length,2);
+  assert.equal(stored.recent.filter((row:{kind?:string})=>row.kind==="writing_fallback").length,2);
 });

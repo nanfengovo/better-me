@@ -8,9 +8,17 @@ import { careerTaskProtocol } from "../../apps/agent-host/src/kernel/model-proto
 import { loadGoldCase, prepareBenchmarkRequest } from "./freeze.mjs";
 const { toJsonSchema } = createRequire(new URL("../../apps/agent-host/package.json", import.meta.url))("@langchain/core/utils/json_schema");
 
-export async function localCatalog(model) {
+export function localOllamaOrigin(endpoint = "http://127.0.0.1:11434") {
+  const url = new URL(endpoint);
+  if (url.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(url.hostname)
+    || url.pathname !== "/" || url.username || url.password || url.search || url.hash) throw Error("local_ollama_loopback_origin_required");
+  return url.origin;
+}
+
+export async function localCatalog(model, endpoint) {
+  const origin = localOllamaOrigin(endpoint);
   const get = async (route, body) => {
-    const response = await fetch(`http://127.0.0.1:11434/api/${route}`, { method: body ? "POST" : "GET", redirect: "error",
+    const response = await fetch(`${origin}/api/${route}`, { method: body ? "POST" : "GET", redirect: "error",
       signal: AbortSignal.timeout(10_000), ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
     if (!response.ok) throw Error("ollama_catalog_unavailable"); return response.json();
   };

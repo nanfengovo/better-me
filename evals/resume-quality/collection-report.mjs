@@ -8,6 +8,8 @@ import { AgentTaskSchema } from "../../packages/agent-contracts/src/agent-task.t
 import { digest } from "./gold/extract.mjs";
 import { contextCheck } from "./ollama-context.mjs";
 import { runResumeQualityReport } from "./report.mjs";
+import { campaignRuntimeQuality, observedRuntime, runtimeQualityMarkdown } from "./runtime-quality.mjs";
+import { estimateTokenCost } from "./token-cost.mjs";
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const displayReason = result => {
@@ -51,6 +53,7 @@ export async function reviewCollection({ datasetDirectory, campaignDirectory, ou
     || !Array.isArray(intent.requests) || !same(intent.requests.map(r => r.caseId), intent.caseIds)
     || !Array.isArray(summary.results) || !same(summary.results.map(r => r.caseId), intent.caseIds) || summary.planned !== intent.caseIds.length) throw Error("collection_plan_or_result_set_changed");
   const files = new Map([["campaign.json", intentBytes], ["summary.json", summaryBytes], ["events.ndjson", events]]), results = [];
+  const runtimeObservations = new Map();
   for (const item of intent.requests) {
     const { caseId, request } = item, source = await loadGoldCase(datasetDirectory, caseId);
     const protocol = JSON.parse(request.conversation.messages[0].content).protocolVersion;
@@ -66,25 +69,38 @@ export async function reviewCollection({ datasetDirectory, campaignDirectory, ou
       if (!/^ct_[a-f0-9]{32}$/.test(result.taskId) || result.stem !== `${caseId}-${result.taskId}`) throw Error("collection_task_binding_changed");
       const subdir = result.outcome === "frozen" ? "frozen" : "failure", directory = path.join(campaignDirectory, caseId, subdir);
       const prefix = `${caseId}/${subdir}/`;
+      let archivePaths;
       if (result.outcome === "frozen") {
         const runBytes = await read(`${prefix}${result.stem}.run.json`), run = ResumeQualityRunSchema.parse(JSON.parse(decode(runBytes)));
         const frozen = await verifyFrozenCandidate(run, result.stem, directory, source.test);
         if (run.origin.taskId !== result.taskId || run.model.runtimeId !== metadata.runtimeId || !same(run.model, { provider: metadata.provider, id: metadata.id, revision: metadata.revision, runtimeId: metadata.runtimeId })
           || run.origin.execution !== metadata.execution || run.origin.inputMaterialSha256 !== inputMaterialSha256 || !same(run.budget, intent.budget)) throw Error("collection_frozen_metadata_changed");
         for (const [name, bytes] of frozen.files) files.set(prefix + name, bytes);
+        archivePaths = [...frozen.files.keys()];
         files.set(`${prefix}${result.stem}.freeze.json`, frozen.manifestBytes); files.set(`${prefix}${result.stem}.run.json`, runBytes);
         observed = run.observed;
       } else {
         const failure = await verifyTaskFailure(directory, result.stem);
         if (failure.taskId !== result.taskId || failure.ownerId !== intent.ownerId || failure.caseSha256 !== caseSha256 || failure.inputMaterialSha256 !== inputMaterialSha256
           || !same(failure.metadata, metadata) || !same(failure.budget, intent.budget) || !same(failure.reason, result.reason)) throw Error("collection_failure_metadata_changed");
-        for (const entry of failure.files) files.set(prefix + entry.path, await read(prefix + entry.path));
-        files.set(`${prefix}${result.stem}.failure.json`, await read(`${prefix}${result.stem}.failure.json`)); observed = failure.observed;
+        archivePaths = failure.files.map(entry => entry.path);
+        for (const entry of failure.files) {
+          const bytes = await read(prefix + entry.path);
+          if (bytes.length !== entry.bytes || digest(bytes) !== entry.sha256) throw Error("failure_archive_changed");
+          files.set(prefix + entry.path, bytes);
+        }
+        const manifestName = `${prefix}${result.stem}.failure.json`, manifestBytes = await read(manifestName);
+        if (!same(JSON.parse(decode(manifestBytes)), failure)) throw Error("failure_manifest_changed");
+        files.set(manifestName, manifestBytes); observed = failure.observed;
       }
       const task = AgentTaskSchema.parse(JSON.parse(decode(files.get(`${prefix}${result.stem}.task.json`))));
       if (task.ownerId !== intent.ownerId || task.workspaceKey !== expected.workspaceKey || task.rootScopeKey !== expected.rootScopeKey
         || task.responseContract !== expected.responseContract || !same(task.candidateSource, expected.candidateSource) || !same(task.runtimeBinding, intent.runtimeBinding)) throw Error("collection_original_task_changed");
       if (!same(result.observed, observed)) throw Error("collection_observed_ledger_changed");
+      const members = `${result.stem}.records/`;
+      const records = archivePaths.filter(name => name.startsWith(members) && /^ct_[a-f0-9]{32}\.json$/.test(name.slice(members.length)))
+        .map(name => JSON.parse(decode(files.get(prefix + name))));
+      runtimeObservations.set(caseId, observedRuntime(task, records, metadata.execution));
       if (["resume-quality-task-candidate-v6", "resume-quality-task-candidate-v7"].includes(protocol)) {
         const record = JSON.parse(decode(files.get(`${prefix}${result.stem}.records/${result.taskId}.json`)));
         candidateRejections = record.recent.filter(r => r.kind === "free_chat_rejected");
@@ -113,7 +129,8 @@ export async function reviewCollection({ datasetDirectory, campaignDirectory, ou
   }
   const receipt = { schemaVersion: 1, protocolVersion: "resume-quality-collection-receipt-v1", campaignId: intent.campaignId, metadata,
     planned: results.length, frozen, failed, unresolved: results.length - frozen - failed, verifiedArchives: results.filter(r => r.verifiedArchive).length,
-    observedModelCalls, comparable: false, capacityGuardVerified, candidateAcceptancePercent: 100 * frozen / results.length, results,
+    observedModelCalls, runtimeQuality: campaignRuntimeQuality(results, runtimeObservations),
+    comparable: false, capacityGuardVerified, candidateAcceptancePercent: 100 * frozen / results.length, results,
     files: [...files].map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: digest(bytes) })),
     limitations: ["All planned cases are retained; a failed or unresolved candidate is not assigned a fabricated four-axis score.",
       "This is a collection/provenance receipt, not a model ranking, semantic adjudication or scheduled multi-model quality report.",
@@ -128,17 +145,18 @@ export async function reviewCollection({ datasetDirectory, campaignDirectory, ou
   await fs.writeFile(path.join(outputDirectory, "receipt.json"), JSON.stringify(receipt, null, 2) + "\n", { flag: "wx", mode: 0o600 });
   const rows = results.map(r => `| ${r.caseId} | ${r.taskId ?? "未知，保留原创建意图"} | ${r.outcome} | ${r.observed?.modelCalls ?? "未知"} | ${displayReason(r)} |`);
   const md = `# 完整批次采样回执\n\n${metadata.id} @ ${metadata.revision}，${metadata.execution}。\n\n计划 ${receipt.planned}；有效候选 ${frozen}；失败 ${failed}；未决 ${receipt.unresolved}。有效候选格式接受率 ${receipt.candidateAcceptancePercent}%，不是事实合规或简历质量分。实际根账模型派送 ${observedModelCalls ?? "未能完整核对"} 次。\n\n本机容量守卫原件重核：${capacityGuardVerified ? "通过（前后 catalog/show/ps 全文随回执保留；不是精确 tokenizer 或提供商处理全量 token 的签名证明）" : "未提供独立容量记录，不能从 Host 全文推断服务端处理完整性"}。\n\n| 案例 | 原任务 | 结果 | 根账模型次数 | 原因 |\n| --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\n${receipt.limitations.map(x => `- ${x}`).join("\n")}\n`;
-  await fs.writeFile(path.join(outputDirectory, "report.md"), md, { flag: "wx", mode: 0o600 });
+  await fs.writeFile(path.join(outputDirectory, "report.md"), md + "\n" + runtimeQualityMarkdown(receipt.runtimeQuality) + "\n", { flag: "wx", mode: 0o600 });
   return receipt;
 }
 
 /** Full-denominator quality report. Frozen candidates are diagnosed; failed/unknown
  * cases stay visible with null scores. This is offline and never retries inference.
  */
-export async function reviewCollectionQuality({ datasetDirectory, campaignDirectory, outputDirectory, contextDirectory }) {
+export async function reviewCollectionQuality({ datasetDirectory, campaignDirectory, outputDirectory, contextDirectory, rates }) {
   await fs.mkdir(outputDirectory, { mode: 0o700 }); outputDirectory = await fs.realpath(outputDirectory);
   const collectionDirectory = path.join(outputDirectory, "collection");
   const collection = await reviewCollection({ datasetDirectory, campaignDirectory, contextDirectory, outputDirectory: collectionDirectory });
+  const costEstimate = rates === undefined ? undefined : estimateTokenCost(rates, collection);
   let quality = null;
   if (collection.frozen > 0) {
     const inputs = path.join(outputDirectory, "frozen-inputs"); await fs.mkdir(inputs, { mode: 0o700 });
@@ -173,15 +191,19 @@ export async function reviewCollectionQuality({ datasetDirectory, campaignDirect
     planned: collection.planned, frozen: collection.frozen, failed: collection.failed, unresolved: collection.unresolved,
     qualityMeasured: results.filter(r => r.metrics !== null).length, allPlannedQualityMeasured: collection.frozen === collection.planned,
     candidateAcceptancePercent: collection.candidateAcceptancePercent, observedModelCalls: collection.observedModelCalls,
+    runtimeQuality: collection.runtimeQuality, ...(costEstimate ? { costEstimate } : {}),
     capacityGuardVerified: collection.capacityGuardVerified, comparable: false, conditionalQuality: quality?.models ?? [], results, files,
     limitations: ["All planned cases remain the delivery denominator; failed/unresolved cases have null four-axis scores, never fabricated zero or perfect scores.",
       "Conditional quality statistics describe frozen candidates only. Source-exact/approved-paraphrase gates are conservative, not independent semantic certification.",
       "This single-campaign report is not a multi-model ranking or periodic execution. Different candidate protocols/configurations are not equivalent comparisons.",
       "No model requests, retries, recovery, adoption or FactBase writes occur. Full source, raw task output, failures, PDF and metrics are retained."] };
   await fs.writeFile(path.join(outputDirectory, "quality-receipt.json"), JSON.stringify(receipt, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+  const costLine = costEstimate ? [
+    "", `按指定费率估算，输入、输出用量均有记录的 ${costEstimate.coveredCalls} 次调用小计为 ${costEstimate.observedTokenEstimate ?? "未知"}（${costEstimate.rates.currency}）。全批估算为 ${costEstimate.fullCampaignTokenEstimate ?? "未知"}，实付金额待对账。`,
+  ].join("\n") : "";
   const value = n => n === null ? "待独立复核" : `${n}%`;
   const rows = results.map(r => `| ${r.caseId} | ${r.outcome} | ${r.metrics ? value(r.metrics.coverage) : "—"} | ${r.metrics ? value(r.metrics.antiHallucination) : "—"} | ${r.metrics ? value(r.metrics.star) : "—"} | ${r.metrics ? `${r.metrics.pages}页 / ${r.metrics.a4Passed ? "通过" : "未通过"}` : "—"} | ${displayReason(r)} |`);
-  await fs.writeFile(path.join(outputDirectory, "report.md"), `# 全计划候选交付与四轴质检\n\n计划 ${receipt.planned}；可冻结候选 ${receipt.frozen}；失败 ${receipt.failed}；未决 ${receipt.unresolved}。交付接受率 ${receipt.candidateAcceptancePercent}%，不是写作质量分。实际模型调用 ${receipt.observedModelCalls ?? "未知"} 次；本报告推理调用0次。\n\n质量实测 ${receipt.qualityMeasured}/${receipt.planned}，条件均值仅覆盖可冻结候选，不代表全计划质量，也不生成最佳模型结论。PDF保留所有页，版式失败不裁页。\n\n| 案例 | 交付 | JD覆盖 | 保守事实核准 | STAR | 实际A4 | 失败原因 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\n${receipt.limitations.map(x => `- ${x}`).join("\n")}\n`, { flag: "wx", mode: 0o600 });
+  await fs.writeFile(path.join(outputDirectory, "report.md"), `# 全计划候选交付与四轴质检\n\n计划 ${receipt.planned}；可冻结候选 ${receipt.frozen}；失败 ${receipt.failed}；未决 ${receipt.unresolved}。交付接受率 ${receipt.candidateAcceptancePercent}%，不是写作质量分。实际模型调用 ${receipt.observedModelCalls ?? "未知"} 次；本报告推理调用0次。\n\n质量实测 ${receipt.qualityMeasured}/${receipt.planned}，条件均值仅覆盖可冻结候选，不代表全计划质量，也不生成最佳模型结论。PDF保留所有页，版式失败不裁页。\n\n${runtimeQualityMarkdown(receipt.runtimeQuality)}${costLine}\n\n| 案例 | 交付 | JD覆盖 | 保守事实核准 | STAR | 实际A4 | 失败原因 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\n${receipt.limitations.map(x => `- ${x}`).join("\n")}\n`, { flag: "wx", mode: 0o600 });
   return receipt;
 }
 

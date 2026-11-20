@@ -18,7 +18,8 @@ import { CareerTaskBudgetSchema, CareerTaskCreateSchema, CareerTaskDecisionSchem
   type AgentTask, type AgentTaskCreate, type ConversationTask, type ExperienceRefineTask, type ExperienceRefineTaskCreate, type FreeChatTask, type FreeChatTaskCreate, type CareerTask, type CareerTaskBudget, type CareerTaskCreate, type CareerToolArtifact, type UnderstandingGrant } from "@better-me/agent-contracts";
 import type { WritingReply } from "@better-me/core/experience-writing";
 import type { StudioContext } from "@better-me/agent-contracts/career-studio";
-import { modelOutputText, modelOutputIncomplete, modelFinishReason, RejectedTaskModelOutput, type CareerTaskModelOutput } from "./model-protocol.js";
+import { modelOutputText, modelOutputIncomplete, modelFinishReason, projectSourceDiscovery, RejectedTaskModelOutput, type CareerTaskModelOutput } from "./model-protocol.js";
+import { providerJournalFields } from "../tasks/provider-observation.js";
 import type { z } from "zod";
 import { privateDirectory, readPrivateJson, writePrivateJson } from "../identity/private-json.js";
 import { EvidenceBroker } from "../understanding/evidence-broker.js";
@@ -28,7 +29,8 @@ import { taskContext } from "./context.js";
 import { buildTaskTool, invokeTaskTool, parseArtifact, type Reserve } from "./tool-builder.js";
 import { freeChatActions, freeChatPrompt, freeChatImages } from "./free-chat.js";
 import { experienceRefinePrompt, experienceRefineReply } from "./experience-refine.js";
-import { activeProjectEvidence, beginProjectTurn, collectProjectEvidence, invalidateProject, mountProjectContext, projectDecision, projectHandle, projectPrivate, projectPrompt, projectProtocol, projectReplay, protocolState, understandingHash, type ProjectStore } from "./project-understanding.js";
+import { checkQuoteProvenance, verifyProjectQuoteReview, type ProjectQuoteReview } from "./project-quote-review.js";
+import { activeProjectEvidence, beginProjectTurn, collectProjectEvidence, invalidateProject, mountProjectContext, projectDecision, projectHandle, projectPrivate, projectPrompt, projectProtocol, projectQuoteTurn, preserveConfirmedUnderstanding, projectReplay, projectReplyContract, protocolState, understandingHash, type ProjectStore } from "./project-understanding.js";
 import type { EvidenceResult } from "../understanding/evidence-broker.js";
 import { jdMatchContext,jdMatchDecision,jdMatchEvidence,jdMatchItems,jdMatchPrompt,readJdMatchEvidence,structureMatchJd } from "./jd-match.js";
 import { interviewContext,interviewDecision,interviewPrompt,interviewReceiptText,interviewSources,readInterviewEvidence } from "./mock-interview.js";
@@ -42,7 +44,7 @@ import { CommitteeReportSchema, validateCommitteeSnapshot, runHiringCommittee } 
 import { committeeModelRequest } from "../career-studio/committee-model.js";
 import { prepareCommitteeTask, revalidateCommitteeSources } from "./studio-committee.js";
 import { growthPracticeInput, isVerifiedGrowthPractice, lookupGrowthPracticeSource, runGrowthPracticeDecision, verifyGrowthPractice } from "./growth-practice.js";
-import { writingEvidence, writingPrompt, writingPlan, writingConfirmation, writingAnswerEvidence, writingDraft } from "./resume-text.js";
+import { writingEvidence, writingPrompt, writingPlan, writingConfirmation, writingAnswerEvidence, writingDraft, writingModelContract } from "./resume-text.js";
 import {
   activeLeaseMs,
   careerStore,
@@ -693,7 +695,7 @@ export class AgentTaskKernel{
     if(typeof sourceText!=="string"||!sourceText.trim()||sourceText.length>16000)fail("invalid_project_source",422);
     return this.changeAny(id,raw=>{const s=projectStore(raw);checkRevision(s,revision);if(s.task.status==="revoked")fail("task_revoked",403);
       if(s.task.project.sourceText===sourceText)return false;
-      this.fenceProject(s);s.task.project.sourceText=sourceText;s.task.project.messages.push({id:`msg_${randomUUID()}`,role:"user",text:`用户更新了项目原文：\n${sourceText}`,at:date()});
+      this.fenceProject(s);projectProtocol(s).replaceSource(s.task.project,sourceText);
       invalidateProject(s);s.task.sourceFingerprint=digest({projectKey:s.task.project.projectKey,label:s.task.project.label,sourceText});stage(s.task,"ready");event(s.task,"answer","User explicitly replaced project source on the same ledger; previous confirmation invalidated.");
     },access);
   }
@@ -724,8 +726,12 @@ export class AgentTaskKernel{
       for(const item of this.projectFiles(s)){
         const grant=s.grants.find(grant=>grant.id===item.grantId&&!grant.revokedAt);if(!grant)fail("source_changed_new_comparison_required");
         await this.reserve(s,"tool");event(s.task,"tool_call","Revalidate project source before human confirmation.");await this.save(s);
-        const result=await this.broker.execute(grant!,{operation:"read",path:item.path,startLine:item.startLine,endLine:item.startLine});await this.assertAccess(access);
-        if(!result.evidence.some(value=>value.hash===item.hash)){
+        let result:EvidenceResult|undefined;
+        try{result=await this.broker.execute(grant!,{operation:"read",path:item.path,startLine:item.startLine,endLine:item.startLine});}catch{/* A missing or inaccessible source cannot be confirmed. */}
+        await this.assertAccess(access);
+        const verified=Boolean(result?.evidence.some(value=>value.hash===item.hash));
+        this.recordProjectVerification(s,item,s.task.usage.toolCalls,"human_confirmation",verified);
+        if(!verified){
           invalidateProject(s);hold(s,"paused","source_changed_new_comparison_required");await this.save(s);fail("source_changed_new_comparison_required");
         }
       }
@@ -869,14 +875,14 @@ export class AgentTaskKernel{
   async cancelActive(id:string,expectedStartRevision?:number){const a=this.active.get(id);if(a&&(expectedStartRevision===undefined||a.startRevision===expectedStartRevision))await this.stopActive(id,a,"paused","authorization_changed");}
   async invalidateSession(session:string){this.revoked.add(session);await Promise.all([...this.active].filter(([,a])=>a.session===session).map(([id,a])=>this.stopActive(id,a,"paused","interaction_lease_invalid")));}
   async close(){this.closed=true;await Promise.all([...this.active].map(([id,a])=>this.stopActive(id,a,"interrupted","host_stopped")));await this.writes;this.writer?.close();this.writer=undefined;}
-  private async preserveOverflowOutput(s:AnyStore,text:string,runGeneration=s.runGeneration){
+  private async preserveOverflowOutput(s:AnyStore,text:string,runGeneration=s.runGeneration,providerFields:ReturnType<typeof providerJournalFields>={}){
     if(isCareerTask(s.task)||s.task.kind==="growth_practice")fail("task_kind_not_supported_by_operation",422);
     const task=s.task,hash=digest(text),outputId=`out_${digest([task.id,runGeneration,task.usage.modelCalls,hash]).slice(0,32)}`;
     const directory=path.join(this.opts.directory,"outputs",task.id);await privateDirectory(directory);
     const handle=await fs.open(path.join(directory,`${outputId}.txt`),"wx",0o600);
     try{await handle.writeFile(text);await handle.sync();}finally{await handle.close();}
     const artifact={id:outputId,bytes:Buffer.byteLength(text),hash,createdAt:date()};(task.outputArtifacts??=[]).push(artifact);
-    s.recent.push({kind:`${task.kind}_output_artifact`,turn:task.kind==="project_understanding"?task.project.turnCount:task.kind==="jd_match"?1:task.turn,artifact});event(task,"decision",`Complete oversized output preserved as ${outputId}; no clipped success or automatic retry.`);
+    s.recent.push({kind:`${task.kind}_output_artifact`,turn:task.kind==="project_understanding"?task.project.turnCount:task.kind==="jd_match"?1:task.turn,artifact,...providerFields});event(task,"decision",`Complete oversized output preserved as ${outputId}; no clipped success or automatic retry.`);
   }
   async readOutput(id:string,outputId:string){return this.atomic(async()=>{
     const task=(await this.loadAny(id)).task;
@@ -1267,10 +1273,11 @@ export class AgentTaskKernel{
         const contract=task.kind==="free_chat"?task.responseContract:undefined;
         const phase=contract==="resume_replacement_v1"?"resume_replacement":contract==="resume_candidate_v1"?"resume_candidate":contract?"resume_candidate_bound":task.kind;
         const response=await a.runtime.reasoner(prompt,a.controller.signal,phase,freeChatImages(task),boundSource),output=modelOutputText(response),finishReason=modelFinishReason(response);
+        const providerFields=task.kind==="free_chat"?providerJournalFields(response,task.usage.modelCalls):{};
         // Preserve the complete transport output before parsing or rejecting it.
         await this.checkedAny(id,a,async s=>{
-          if(output.length>126000){await this.preserveOverflowOutput(s,output);return;}
-          s.recent.push({kind:`${task.kind}_output`,turn:task.turn,output,finishReason});
+          if(output.length>126000){await this.preserveOverflowOutput(s,output,s.runGeneration,providerFields);return;}
+          s.recent.push({kind:`${task.kind}_output`,turn:task.turn,output,finishReason,...providerFields});
           if(!isCareerTask(s.task)&&s.task.kind!=="growth_practice"&&modelOutputIncomplete(response))s.task.partialOutput={text:output,finishReason};});
         if(output.length>126000)fail("decision_output_budget",413);
         if(modelOutputIncomplete(response))fail("model_output_incomplete",422);
@@ -1328,19 +1335,40 @@ export class AgentTaskKernel{
     }finally{if(!a.controller.signal.aborted)this.drop(id,a);}
   }
   private async checkedProject(id:string,a:Active,fn:(s:Store<ProjectUnderstandingTask>)=>void|Promise<void>){return projectStore(await this.checkedAny(id,a,s=>fn(projectStore(s))));}
+  private recordProjectVerification(s:ProjectStore,item:{grantId:string;path:string;hash:string},call:number,
+    check:"model_source_version"|"selected_quote"|"human_confirmation",verified:boolean){
+    s.recent.push({kind:"project_verification_result",call,check,grantId:item.grantId,path:item.path,hash:item.hash,
+      result:verified?{verified:true}:{error:{code:"source_changed_new_comparison_required"}}});
+    event(s.task,"tool_result",`Project ${check} verification: ${verified?"verified":"source_changed_new_comparison_required"}.`);
+  }
   private async recheckProjectFiles(id:string,a:Active){
     const current=await this.checkedProject(id,a,()=>{});
     for(const item of this.projectFiles(current)){
       const grant=current.grants.find(grant=>grant.id===item.grantId&&!grant.revokedAt);if(!grant)fail("source_changed_new_comparison_required");
-      await this.checkedProject(id,a,async s=>{await this.reserve(s,"tool");event(s.task,"tool_call","Revalidate project source before model send.");});
-      let result:EvidenceResult;
+      const reserved=await this.checkedProject(id,a,async s=>{await this.reserve(s,"tool");event(s.task,"tool_call","Revalidate project source before model send.");});
+      let result:EvidenceResult|undefined;
       try{result=await this.broker.execute(grant!,{operation:"read",path:item.path,startLine:item.startLine,endLine:item.startLine},a.controller.signal);}
-      catch{a.controller.signal.throwIfAborted();fail("source_changed_new_comparison_required");}
-      if(!result!.evidence.some(value=>value.hash===item.hash))fail("source_changed_new_comparison_required");
+      catch{a.controller.signal.throwIfAborted();}
+      const verified=Boolean(result?.evidence.some(value=>value.hash===item.hash));
+      await this.checkedProject(id,a,s=>this.recordProjectVerification(s,item,reserved.task.usage.toolCalls,"model_source_version",verified));
+      if(!verified)fail("source_changed_new_comparison_required");
+    }
+  }
+  private async verifyProjectQuoteFiles(id:string,a:Active,rows:ProjectQuoteReview["evidence"]){
+    for(const row of rows){
+      const state=await this.checkedProject(id,a,async s=>{await this.reserve(s,"tool");event(s.task,"tool_call","Verify selected quote at its original file coordinates.");});
+      const grant=state.grants.find(item=>item.id===row.grantId&&!item.revokedAt);
+      if(!grant||row.startOffset===undefined||row.endOffset===undefined)fail("source_changed_new_comparison_required");
+      let reread:EvidenceResult|undefined;
+      try { reread=await this.broker.execute(grant!,{operation:"read",path:row.path,offset:row.startOffset,length:row.endOffset!-row.startOffset!},a.controller.signal); }
+      catch { a.controller.signal.throwIfAborted(); }
+      const verified=Boolean(reread?.evidence.some(item=>item.hash===row.hash&&item.startOffset===row.startOffset&&item.endOffset===row.endOffset&&item.startLine===row.startLine&&item.endLine===row.endLine&&item.excerpt===row.excerpt));
+      await this.checkedProject(id,a,s=>this.recordProjectVerification(s,row,state.task.usage.toolCalls,"selected_quote",verified));
+      if(!verified)fail("source_changed_new_comparison_required");
     }
   }
   private async executeProject(id:string,a:Active){
-    let repairs=0;
+    let repairs=0, repeatedReadBatch=false;
     try{
       for(;;){
         await this.recheckProjectFiles(id,a);
@@ -1348,16 +1376,39 @@ export class AgentTaskKernel{
           if(Buffer.byteLength(JSON.stringify(s))>8*1024*1024)fail("task_storage_budget");
           mountProjectContext(s);await this.reserve(s,"model");event(s.task,"model",`project_understanding send ${s.task.usage.modelCalls}; shared root ledger.`);
         });
-        const response=await a.runtime.reasoner(projectPrompt(state),a.controller.signal,"project_understanding"),output=modelOutputText(response),finishReason=modelFinishReason(response);
+        const ledger=state.task.rootLedger??state.task;
+        // The current model call has been reserved. A read on the last call
+        // would leave the newly acquired evidence without a synthesis turn.
+        const synthesisOnly=repeatedReadBatch || ledger.usage.modelCalls>=ledger.budget.maxModelCalls || ledger.usage.toolCalls>=ledger.budget.maxToolCalls;
+        const quotation=projectQuoteTurn(state,synthesisOnly);
+        const contract=quotation?.contract ?? (synthesisOnly?projectReplyContract(state):activeProjectEvidence(state).length?undefined:projectSourceDiscovery);
+        if(quotation?.kind==="review") await this.checkedProject(id,a,s=>{
+          s.recent.push({kind:"project_quote_catalog",turn:s.task.project.turnCount,modelCall:s.task.usage.modelCalls,rows:quotation.rows.map(({id,evidence})=>{
+            return {selectionId:id,evidenceId:evidence.id,grantId:evidence.grantId,path:evidence.path,hash:evidence.hash,startLine:evidence.startLine,endLine:evidence.endLine,startOffset:evidence.startOffset,endOffset:evidence.endOffset};
+          })});
+        });
+        const response=await a.runtime.reasoner(quotation?.prompt??projectPrompt(state,synthesisOnly),a.controller.signal,"project_understanding",undefined,undefined,contract),output=modelOutputText(response),finishReason=modelFinishReason(response);
+        const providerFields=providerJournalFields(response,state.task.usage.modelCalls);
         await this.checkedProject(id,a,async s=>{
-          if(output.length>126000){await this.preserveOverflowOutput(s,output);return;}
-          s.recent.push({kind:"project_understanding_output",turn:s.task.project.turnCount,output,finishReason});
+          if(output.length>126000){await this.preserveOverflowOutput(s,output,a.token,providerFields);return;}
+          s.recent.push({kind:"project_understanding_output",turn:s.task.project.turnCount,output,finishReason,...providerFields});
           if(modelOutputIncomplete(response))s.task.partialOutput={text:output,finishReason};
         });
         if(output.length>126000)fail("decision_output_budget",413);
         if(modelOutputIncomplete(response))fail("model_output_incomplete",422);
-        let decision:ReturnType<typeof projectDecision>;
-        try{decision=projectDecision(state,output);}
+        let decision:ReturnType<typeof projectDecision>, verified:ProjectQuoteReview|undefined;
+        try{
+          if(quotation?.kind==="review") {
+            verified=verifyProjectQuoteReview(quotation.rows,JSON.parse(output),quotation.missingFiles);
+            decision=verified.reply;
+          } else {
+            decision=projectDecision(state,output);
+            if(quotation?.contract?.mode==="project_quote_sources" && (decision.kind!=="read" ||
+              decision.requests.some(request=>request.operation!=="read" || !quotation.contract?.files?.includes(request.path) || !quotation.contract?.grantIds?.includes(request.grantId)))) fail("project_quote_read_expected_files",422);
+          }
+          if(synthesisOnly&&decision.kind!=="reply")fail("project_synthesis_required",422);
+          if(contract===projectSourceDiscovery&&decision.kind==="read"&&decision.requests.some(request=>request.operation==="read_evidence"))fail("project_read_manifest_required",422);
+        }
         catch(error){
           const code=error instanceof SyntaxError?"invalid_json":safeCode(error);
           await this.checkedProject(id,a,s=>{s.recent.push({kind:"project_understanding_rejected",turn:s.task.project.turnCount,code,validation:error instanceof Error?error.message:"Invalid project decision"});event(s.task,"decision",`Rejected project output: ${code}; complete output retained.`);});
@@ -1365,7 +1416,19 @@ export class AgentTaskKernel{
         }
         if(decision.kind==="reply"){
           const reply=decision;
+          if(verified) await this.verifyProjectQuoteFiles(id,a,verified.evidence);
           await this.checkedProject(id,a,s=>{
+            if(verified) {
+              const exposed=new Set(s.exposedEvidenceIds);
+              // The quote catalog itself exposed these exact spans. The full
+              // parent records must still be active and the broker reread above
+              // must have succeeded, including those outside general Top-K.
+              checkQuoteProvenance(verified.evidence,activeProjectEvidence(s));
+              for(const item of verified.evidence){collectProjectEvidence(s,item);exposed.add(item.id);}
+              s.exposedEvidenceIds=[...exposed];
+              reply.understanding=preserveConfirmedUnderstanding(s,reply.understanding);
+              s.recent.push({kind:"project_quote_result",turn:s.task.project.turnCount,modelCall:s.task.usage.modelCalls,evidenceIds:verified.evidence.map(item=>item.id)});
+            }
             projectProtocol(s).validateReply(protocolState(s),reply);const session=s.task.project;
             session.understanding=reply.understanding;session.summaryHash=understandingHash(reply.understanding);session.question=reply.question;
             session.messages.push({id:`msg_${randomUUID()}`,role:"agent",text:reply.message,at:date(),question:reply.question});
@@ -1373,6 +1436,7 @@ export class AgentTaskKernel{
             hold(s,reply.readyForConfirmation?"awaiting_review":"awaiting_answer");event(s.task,"question",reply.readyForConfirmation?"Complete project understanding is ready for explicit human confirmation, not personal adoption.":reply.question!.text);
           });return;
         }
+        let unchangedReads=0;
         for(const request of decision.requests){
           const snapshot=await this.checkedProject(id,a,async s=>{await this.reserve(s,"tool");event(s.task,"tool_call",`project ${request.operation}`);});
           let result:EvidenceResult|{error:{code:string}};
@@ -1394,8 +1458,10 @@ export class AgentTaskKernel{
               const grant=snapshot.grants.find(grant=>grant.id===request.grantId&&!grant.revokedAt);if(!grant)fail("grant_unavailable",403);
               result=await this.broker.execute(grant!,{...request,operation:request.operation},a.controller.signal);
             }
-          }catch(error){a.controller.signal.throwIfAborted();const code=safeCode(error);if(code==="source_changed_new_comparison_required")throw error;result={error:{code}};}
+          }catch(error){a.controller.signal.throwIfAborted();result={error:{code:safeCode(error)}};}
           const observed=result;
+          if(request.operation==="read" && "evidence" in observed && observed.evidence.length &&
+            observed.evidence.every(item=>snapshot.task.project.evidence.some(previous=>previous.id===item.id&&previous.hash===item.hash))) unchangedReads++;
           await this.checkedProject(id,a,s=>{
             const ids:string[]=[];if("evidence" in observed)for(const item of observed.evidence){collectProjectEvidence(s,item);ids.push(item.id);}
             if("entries" in observed&&observed.entries&&request.grantId!=="conversation"){
@@ -1404,10 +1470,12 @@ export class AgentTaskKernel{
             const session=s.task.project;if(session.checkpoint){session.checkpoint.used=s.task.usage.toolCalls-projectPrivate(s).turnToolStart;session.checkpoint.evidenceIds=[...new Set([...session.checkpoint.evidenceIds,...ids])];}
             // Original excerpts live once in the durable evidence journal. The
             // observation names every record; the manifest can reread each one.
-            s.recent.push({operation:request.operation,request,evidenceIds:ids,result:"error" in observed?observed:{entries:observed.entries,truncated:observed.truncated,skipped:observed.skipped}});
+            s.recent.push({call:snapshot.task.usage.toolCalls,operation:request.operation,request,evidenceIds:ids,result:"error" in observed?observed:{entries:observed.entries,truncated:observed.truncated,skipped:observed.skipped}});
             event(s.task,"tool_result",`project ${request.operation}: ${ids.length} evidence records; ${"error" in observed?observed.error.code:"returned"}`);
           });
+          if("error" in observed&&observed.error.code==="source_changed_new_comparison_required")fail(observed.error.code);
         }
+        repeatedReadBatch=unchangedReads===decision.requests.length;
       }
     }catch(error){
       const code=safeCode(error);
@@ -1475,19 +1543,30 @@ export class AgentTaskKernel{
         const s=await this.checked(id,a,async s=>{await this.reserve(s,"model");event(s.task,"model",`Text ${s.task.writingConfirmation?"draft":"selection"}; one explicit phase, no automatic retry.`);});
         const phase=s.task.writingConfirmation?"resume_text_draft":"resume_text_plan";
         let response:CareerTaskModelOutput,rejected:RejectedTaskModelOutput|undefined;
-        try{response=await a.runtime.reasoner(writingPrompt(s.task),a.controller.signal,phase);}
+        try{response=await a.runtime.reasoner(writingPrompt(s.task),a.controller.signal,phase,undefined,undefined,writingModelContract(s.task));}
         catch(error){if(!(error instanceof RejectedTaskModelOutput))throw error;response=error.output;rejected=error;}
         const out=modelOutputText(response);
+        const providerFields=providerJournalFields(response,s.task.usage.modelCalls);
         // Returned bytes belong to the original owner even after a stop. Archival
         // is not permission to publish a plan, adopt a draft, or resume the turn.
         await this.atomic(async()=>{const stored=await this.load(id),current=!rejected&&this.active.get(id)===a&&stored.runGeneration===a.token&&stored.task.status==="running"&&!a.controller.signal.aborted;
-          stored.recent.push({writingPhase:phase,output:out,finishReason:modelFinishReason(response),runGeneration:a.token,late:!current});await this.save(stored);});
+          stored.recent.push({writingPhase:phase,output:out,finishReason:modelFinishReason(response),runGeneration:a.token,late:!current,...providerFields});await this.save(stored);});
         if(rejected)throw rejected;
         await this.checked(id,a,()=>{});
-        if(modelOutputIncomplete(response))fail("model_output_incomplete",422);
         if(out.length>126000)fail("decision_too_large",422);
-        let raw;try{raw=JSON.parse(out.trim().replace(/^\x60\x60\x60(?:json)?\s*/i,"").replace(/\s*\x60\x60\x60$/,""));}catch{fail("invalid_json",422);}
+        const incomplete=modelOutputIncomplete(response);
+        let raw;
+        if(incomplete){
+          // Never parse partial model JSON. An unambiguous, explicitly
+          // confirmed field edit can still be assembled mechanically. At
+          // planning time offer the complete inventory without model advice.
+          raw=s.task.writingConfirmation?{kind:"grounded_edits",selectedIds:[]}:{kind:"field_plan",selections:[],questions:[]};
+        }else{try{raw=JSON.parse(out.trim().replace(/^\x60\x60\x60(?:json)?\s*/i,"").replace(/\s*\x60\x60\x60$/,""));}catch{fail("invalid_json",422);}}
         await this.checked(id,a,s=>{
+          if(incomplete){
+            s.recent.push({kind:"writing_fallback",phase,reason:modelFinishReason(response),runGeneration:a.token});
+            event(s.task,"decision",s.task.writingConfirmation?"Incomplete model output retained. Prepared only unambiguous confirmed edits for review.":"Incomplete model output retained. Full field inventory requires manual selection.");
+          }
           if(s.task.writingConfirmation){s.task.draft=writingDraft(s.task,raw);hold(s,"awaiting_review");event(s.task,"draft","Confirmed text draft ready; original resume, jobs and long-term facts unchanged.");}
           else{s.task.writingPlan=writingPlan(s.task,raw);s.task.question="请核对选材与实际补充；未知可以明确写未知。";s.task.questionEvidenceIds=[];hold(s,"awaiting_answer");event(s.task,"question","Selection and omissions ready. Explicit answer confirmation is required before drafting.");}
         });return;
@@ -1531,12 +1610,22 @@ export class AgentTaskKernel{
           await this.checked(id,a,s=>{s.recent.push({decisionRejected:code});event(s.task,"decision",`Rejected decision: ${code}.`);});continue;
         }
         const request=decision!;
-        await this.checked(id,a,async s=>{await this.reserve(s,"tool");event(s.task,"tool_call",request.tool);});
+        const reserved = await this.checked(id, a, async current => {
+          await this.reserve(current, "tool");
+          // The reservation and exact decision reach disk before dispatch. A
+          // terminated turn leaves an unobserved call, never a successful read.
+          current.recent.push({ request, call: current.task.usage.toolCalls, status: "reserved" });
+          event(current.task, "tool_call", request.tool);
+        });
+        const observationIndex = reserved.recent.length - 1;
         let result:Awaited<ReturnType<typeof executeTaskTool>>;try{result=request.tool==="build_tool"||request.tool==="use_tool"?await this.executeGeneratedTool(id,a,s,request):await executeTaskTool(s.task,s.grants,this.broker,request,a.controller.signal,s.statements);}
         catch(e){a.controller.signal.throwIfAborted();if(["source_changed_new_comparison_required","tool_version_revoked","interaction_lease_invalid"].includes(safeCode(e)))throw e;result={evidence:[],detail:{error:safeCode(e)}};}
         await this.checked(id,a,s=>{
           for(const item of result.evidence)collectEvidence(s.task,item);
-          s.recent.push({tool:request.tool,evidenceIds:result.evidence.map(x=>x.id),result:result.detail});
+          s.recent[observationIndex] = {
+            request, call: reserved.task.usage.toolCalls, status: "observed", tool: request.tool,
+            evidenceIds: result.evidence.map(item => item.id), result: result.detail,
+          };
           event(s.task,"tool_result",`${request.tool}: ${result.evidence.length} evidence item(s); ${typeof result.detail==="object"&&result.detail&&"error" in result.detail?String(result.detail.error):"returned"}`);
         });
       }

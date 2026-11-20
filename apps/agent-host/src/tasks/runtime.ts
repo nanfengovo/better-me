@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { toJsonSchema } from "@langchain/core/utils/json_schema";
+import { ChatOpenAI } from "@langchain/openai";
 import { careerRuntimeBinding, type CareerTask, type ResumeCandidateSource } from "@better-me/agent-contracts";
 import { careerTaskProtocol, RejectedTaskModelOutput, type CareerTaskModelPhase, type CareerTaskReasoner } from "../kernel/model-protocol.js";
 import { buildModel,DeepSeekApiError } from "../model.js";
@@ -10,11 +11,10 @@ import { NativeToolError } from "../native-tools/process.js";
 import type { AgentRouting } from "../routing/service.js";
 import type { ChatGptPlanService } from "../chatgpt/service.js";
 import { ChatGptError } from "../chatgpt/errors.js";
-import { providerTokenUsage, type ModelUsageEntry, type ModelUsageMeter, type ProviderTokenUsage } from "./usage-meter.js";
+import { providerTokenCounts, type ModelUsageEntry, type ModelUsageMeter } from "./usage-meter.js";
+import { providerObservation, recordProviderObservation } from "./provider-observation.js";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-/** Side channel so provider token counts never enter durable task output. */
-const reportedUsage = new WeakMap<object, ProviderTokenUsage>();
 
 /** One task, one explicitly chosen runtime. SDK retries and routing fallbacks are
  * disabled: every subsequent dispatch must pass the task's own budget gate. */
@@ -103,17 +103,38 @@ export function createCareerTaskRuntimeResolver(deps: {
           // DeepSeek supports JSON objects, not JSON Schema; unknown/custom
           // providers keep their existing parameters and are validated by Host.
           const textJson=(phase==="resume_text_plan"||phase==="resume_text_draft")&&new URL(settings.baseUrl!).origin==="https://api.deepseek.com";
+          const started = performance.now();
+          const localFormat = binding.location === "local" && settings.provider === "ollama" ? { type: "json_schema" as const, json_schema: {
+            name: protocol.name, strict: true, schema: protocol.jsonSchema??toJsonSchema(protocol.schema),
+          } } : undefined;
+          // The SDK's structured parse throws on "length" before returning
+          // the response. These task phases need the actual partial text and
+          // finish reason from this same authorized request.
+          if (["project_understanding","resume_text_plan","resume_text_draft"].includes(phase) && localFormat && model instanceof ChatOpenAI && typeof content === "string") {
+            const options = model._getClientOptions({ signal, maxRetries: 0 });
+            const wire = await model.client.chat.completions.create({ model: settings.model,
+              temperature: settings.temperature ?? 0, stream: false, response_format: localFormat,
+              messages: [{role:"system",content:protocol.instructions},{role:"user",content}],
+            }, options);
+            const choice = wire.choices[0];
+            if (!choice || typeof choice.message.content !== "string" || !["length","stop"].includes(choice.finish_reason)) {
+              throw new CareerTaskError(phase==="project_understanding"?"invalid_local_project_completion":"invalid_local_writing_completion",422);
+            }
+            const output = { text: choice.message.content, finishReason: choice.finish_reason };
+            recordProviderObservation(output, { wallMs: Math.round(performance.now()-started),
+              ...providerTokenCounts(wire.usage && {input_tokens:wire.usage.prompt_tokens,output_tokens:wire.usage.completion_tokens}) });
+            return output;
+          }
           const response = await model.invoke([{ role: "system", content: protocol.instructions }, { role: "user", content }], {
             signal,
             ...(textJson?{response_format:{type:"json_object" as const}}:{}),
-            ...(binding.location === "local" && settings.provider === "ollama" ? { response_format: { type: "json_schema" as const, json_schema: {
-              name: protocol.name, strict: true, schema: protocol.jsonSchema??toJsonSchema(protocol.schema),
-            } } } : {}),
+            ...(localFormat ? { response_format: localFormat } : {}),
           });
+          const wallMs = Math.round(performance.now() - started);
           const text=typeof response.content === "string" ? response.content : response.content.filter(part => part.type === "text").map(part => "text" in part ? String(part.text) : "").join("\n");
           const finishReason=typeof response.response_metadata?.finish_reason==="string"?response.response_metadata.finish_reason:undefined;
-          const output={text,finishReason},usage=providerTokenUsage(response.usage_metadata);
-          if(usage)reportedUsage.set(output,usage);
+          const output={text,finishReason};
+          recordProviderObservation(output, { wallMs, ...providerTokenCounts(response.usage_metadata) });
           return output;
         };
       });
@@ -157,7 +178,10 @@ export function createCareerTaskRuntimeResolver(deps: {
         let output: Awaited<ReturnType<CareerTaskReasoner>>;
         try { output = await inner(prompt, signal, phase, images, candidateSource, analysisContract); }
         catch (error) { finishUsage?.({ ok: false }); throw error; }
-        finishUsage?.({ ok: true, usage: typeof output === "object" ? reportedUsage.get(output) : undefined });
+        const observed = providerObservation(output);
+        const usage = observed?.inputTokens !== undefined && observed.outputTokens !== undefined
+          ? { inputTokens: observed.inputTokens, outputTokens: observed.outputTokens } : undefined;
+        finishUsage?.({ ok: true, usage });
         try {
           if(signal.aborted)throw new CareerTaskError("stale_task_turn",409);
           await checkBinding();

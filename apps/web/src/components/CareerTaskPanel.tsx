@@ -16,6 +16,7 @@ import type { WorkspaceReceiptRequest, WorkspaceReceiptInspection } from "../lib
 import { understandingModelRuntime, type UnderstandingRuntime } from "../services/understanding-client";
 import { defaultCareerTaskClient, type CareerTaskClient, type CareerReceiptInput } from "../services/career-task-client";
 import { assertTaskScope, taskCreatePayload } from "../services/agent-task-scope";
+import { WritingPlanReview } from "./WritingPlanReview";
 import "./career-task-panel.css";
 
 export interface CareerTaskPanelProps {
@@ -26,6 +27,7 @@ export interface CareerTaskPanelProps {
   onReconcile?:(task:CareerTask, request:WorkspaceReceiptRequest)=>Promise<WorkspaceReceiptInspection>;
   initialObjective?:string; client?:CareerTaskClient; pollIntervalMs?:number;
   initialFocus?:CareerWritingFocus;
+  initialTextWorkflow?:boolean;
   onTaskChange?:(task:CareerTask|undefined)=>void;
 }
 const phaseText=(t:UiTranslator):Record<CareerTask["status"],string>=>({ready:t("等待启动","Ready to start"),running:t("正在执行","Running"),awaiting_answer:t("等你补充","Waiting for your answer"),awaiting_review:t("等待逐条审阅","Awaiting item-by-item review"),
@@ -123,7 +125,7 @@ export default function CareerTaskPanel(props:CareerTaskPanelProps) {
   return <TaskSession key={JSON.stringify([currentPrincipal()?.id,props.workspaceKey])} {...props}/>;
 }
 export { CareerTaskPanel };
-function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeName,sourceFingerprint,llmConfig,onSave,onCommitFact,onReconcile,initialObjective,initialFocus,
+function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeName,sourceFingerprint,llmConfig,onSave,onCommitFact,onReconcile,initialObjective,initialFocus,initialTextWorkflow=true,
   client=defaultCareerTaskClient,pollIntervalMs=1500,onTaskChange}:CareerTaskPanelProps) {
   const {t,locale}=useUiPreferences(),phase=phaseText(t),kindText=kindLabels(t),locText=locationLabels(t);
   const {agent}=useBetterMeAgent();
@@ -146,6 +148,7 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
   const historicalFocus=task?.status==="completed"&&focusInTask;
   const statementInTask=!!(task&&focus?.userStatement&&(task.materials.some(m=>m.kind==="user_statement"&&m.text===focus.userStatement)||task.evidence.some(e=>e.kind==="user_statement"&&e.excerpt===focus.userStatement)));
   const [allowBuild,setAllowBuild]=useState(false),[installed,setInstalled]=useState<CareerToolArtifact[]>([]),[toolVersions,setToolVersions]=useState<string[]>([]),[installApproval,setInstallApproval]=useState("");
+  const textWorkflow=initialTextWorkflow&&!directoryLines.trim()&&!allowBuild&&!toolVersions.length;
   const [consent,setConsent]=useState(""),[budgetConsent,setBudgetConsent]=useState(""),[checked,setChecked]=useState<string[]>([]);
   const [budget,setBudget]=useState<CareerTaskBudget>(()=>{
     const parsed=scope.lease.ownerId && CareerTaskBudgetSchema.safeParse(readJson(scope.storage,"career-task.v1:budget"));
@@ -160,7 +163,7 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
   const credentials=useRef({key:llmConfig?.apiKey,generation:0});
   if(credentials.current.key!==llmConfig?.apiKey)credentials.current={key:llmConfig?.apiKey,generation:credentials.current.generation+1};
   const selectedRuntime=JSON.stringify([model.binding,model.endpoint,credentials.current.generation,llmConfig?.temperature,llmConfig?.thinkingMode,llmConfig?.reasoningEffort,llmConfig?.maxTokens]), scopeToken=JSON.stringify([sourceSignature,selectedRuntime,task?.id,task?.revision,
-    task?undefined:[objective,selected,materials,directoryLines,budget,allowBuild,toolVersions],task?.status==="awaiting_answer"?answer:undefined]);
+    task?undefined:[objective,selected,materials,directoryLines,budget,allowBuild,toolVersions,textWorkflow],task?.status==="awaiting_answer"?answer:undefined]);
   const latestToken=useRef(scopeToken);latestToken.current=scopeToken;
   const candidate=useRef<{token:string;key:string} | undefined>(undefined);
   const observing=useRef(0);
@@ -258,7 +261,7 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
       if(!validSetup || !job || !sourceResumeId || !sourceResumeName)throw Error("任务约定缺少岗位、源简历或选中的字段。");
       const same=candidate.current?.token===scopeToken;const key=same?candidate.current!.key:crypto.randomUUID();
       candidate.current={token:scopeToken,key};
-      const data=CareerTaskCreateSchema.safeParse({workspaceKey,rootScopeKey,objective:objective.trim(),job:{id:job.id,title:job.title,company:job.company??"",description:job.description},
+      const data=CareerTaskCreateSchema.safeParse({...(textWorkflow?{workflow:"text_v1"}:{}),workspaceKey,rootScopeKey,objective:objective.trim(),job:{id:job.id,title:job.title,company:job.company??"",description:job.description},
         resume:{id:sourceResumeId,name:sourceResumeName,sourceFingerprint,fields:selectedFields},materials,directories,runtimeBinding:model.binding,budget,toolPolicy:{allowBuild,installedVersionIds:toolVersions},consent:true,idempotencyKey:key});
       if(!data.success)throw Error("任务约定格式超限或存在重复资料；请检查字段、材料、目录和预算。");
       current=await client.create(taskCreatePayload(data.data,sharedRoot?undefined:budget));checkOwned(current);
@@ -359,7 +362,7 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
         <blockquote>{focus.originalText}</blockquote>{focus.userStatement&&<p>{statementInTask?t("已收到的本人陈述","Received user statement"):t("待授权的本人陈述","User statement awaiting authorization")}：{focus.userStatement}</p>}
         {historicalFocus&&<p>{t("保留已完成任务当时的原句；当前新版本不继承旧任务的读取或执行许可。","The source text from the completed task is retained. The current version does not inherit the old task’s read or execution permissions.")}</p>}
         {task?<p>{t(`仍是同一任务 ${task.id}；目标、证据、预算和审阅保持不变。`,`This is still task ${task.id}; its objective, evidence, budget, and review remain unchanged. `)}{focusInTask?t("此字段已在任务范围内。","This field is already in scope. "):t("此字段尚不在当前任务授权内，未扩大范围。","This field is not authorized for the current task; scope was not expanded. ")}{focus.userStatement?(statementInTask?t("补充已列入本任务，实际取证请看来源记录；不自动写入事实库。","The supplement is included in this task. Review source records for the evidence; it is not written to the fact base automatically."):t("新补充尚未发送，也未写入事实库。","The new supplement has not been sent or written to the fact base.")):t("此次只定位，不增加资料或调用。","This only locates the field; it adds no sources or calls.")}</p>:<p>{t("只预选这一字段；本人补充作为单独来源列在材料中。核对岗位、模型和资料后授权启动，草稿逐条审阅后另存岗位版，不修改原稿或共享 FactBase。","Only this field is preselected, and the user supplement is listed as a separate source. Review the job, model, and sources before authorizing. Save an independently reviewed job-specific version without modifying the source or shared FactBase.")}</p>}
-        {task?.status==="awaiting_answer"&&focusInTask&&!statementInTask&&focus.userStatement&&<button type="button" disabled={busy} onClick={()=>{setAnswer(focus.userStatement!);setConsent("");}}>{t("将这段补充放入本任务回答框（暂不发送）","Place this supplement in the answer field (do not send yet)")}</button>}
+        {task?.status==="awaiting_answer"&&!task.workflow&&focusInTask&&!statementInTask&&focus.userStatement&&<button type="button" disabled={busy} onClick={()=>{setAnswer(focus.userStatement!);setConsent("");}}>{t("将这段补充放入本任务回答框（暂不发送）","Place this supplement in the answer field (do not send yet)")}</button>}
       </>}
       <button type="button" onClick={()=>{setIgnoredFocus(focus.id);setConsent("");}}>{t("关闭本次经历定位","Close this experience handoff")}</button>
     </section>}
@@ -387,6 +390,7 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
           {!installed.length&&<p>{t("当前账号没有可选择的已安装版本。","This account has no installed versions available for selection.")}</p>}
         </details>
         <button type="button" disabled={busy || !validBudget || !scope.lease.ownerId} onClick={()=>{if(persist("career-task.v1:budget",JSON.stringify(budget)))setNotice(t("预算已设为本账号默认值；未授权任何模型请求。","Budget saved as this account’s default; no model request was authorized."));}}>{t("设为本账号默认预算","Set as this account’s default budget")}</button>
+        <p>{textWorkflow?t("选材后确认本人事实，保留原文并逐条审核新增内容。","Review the source selection and confirm personal facts, then review additions while retaining the original wording."):t("本任务使用已授权的目录或工具取证；逐条审核后保存版本。","Use the authorized directories or tools to collect evidence and review each item before saving.")}</p>
         {consentBox}<button className="ct-primary" type="button" disabled={busy || !allowed || !validSetup} onClick={()=>void execute()}>{t("授权并启动任务","Authorize and start task")}</button></div></>}
     {task&&<><div className="ct-section">
       <div className="ct-status" role="status"><strong>{pending&&task.receipt&&!receiptMatches(task.receipt,pending)?t("两端回执冲突","Receipt conflict between workspace and Host"):phase[task.status]}</strong><span>{t(`根账累计 · 模型 ${(task.rootLedger?.usage??task.usage).modelCalls}/${task.budget.maxModelCalls} 次 · 读取 ${(task.rootLedger?.usage??task.usage).toolCalls}/${task.budget.maxToolCalls} 次 · 主动 ${fmt((task.rootLedger?.usage??task.usage).activeMs,t)}/${fmt(task.budget.maxActiveMs,t)}`,`Root ledger · Model ${(task.rootLedger?.usage??task.usage).modelCalls}/${task.budget.maxModelCalls} · Reads ${(task.rootLedger?.usage??task.usage).toolCalls}/${task.budget.maxToolCalls} · Active ${fmt((task.rootLedger?.usage??task.usage).activeMs,t)}/${fmt(task.budget.maxActiveMs,t)}`)}</span></div>
@@ -402,8 +406,11 @@ function TaskSession({workspaceKey,job,resumeFields,sourceResumeId,sourceResumeN
         <button type="button" disabled={busy} onClick={reset}>{t("打开新任务配置","Open new task setup")}</button></div></div>
       {["ready","paused","interrupted","awaiting_answer","failed","budget_exhausted"].includes(task.status)&&<div className="ct-section">
         <h3>{task.status==="awaiting_answer"?t("待回答的问题","Question awaiting answer"):t("核对后继续","Review before continuing")}</h3>
-        {task.status==="awaiting_answer"&&<><p>{task.question}</p><Sources task={task} ids={task.questionEvidenceIds??[]}/>
-          <label>{t("只用于这项任务的回答","Answer for this task only")}<textarea value={answer} maxLength={12000} onChange={e=>setAnswer(e.target.value)}/></label><small>{t("回答不会自动更新长期事实记录。","This answer does not update long-term fact records automatically.")}</small></>}
+        {task.status==="awaiting_answer"&&(task.workflow&&task.writingPlan?
+          <WritingPlanReview key={`${task.id}:${task.writingPlan.hash}`} task={task} storage={scope.storage} onChange={setAnswer} disabled={busy||!sourceMatches||uncertain}
+            supplement={focusField&&focus?.userStatement?{fieldId:focusField.id,text:focus.userStatement}:undefined}/>:
+          <><p>{task.question}</p><Sources task={task} ids={task.questionEvidenceIds??[]}/>
+          <label>{t("只用于这项任务的回答","Answer for this task only")}<textarea value={answer} maxLength={12000} onChange={e=>setAnswer(e.target.value)}/></label><small>{t("回答不会自动更新长期事实记录。","This answer does not update long-term fact records automatically.")}</small></>)}
         {!sourceMatches&&<p className="ct-alert">{t("当前岗位或简历原稿已变化。请切回相同来源，或新建任务。","The current job or resume source changed. Return to the same source or create a new task.")}</p>}
         {(!runtimeMatches||model.error)&&<p className="ct-alert">{model.error??t("当前选中的模型与任务绑定的底座不同；未自动切换。","The selected model differs from the runtime bound to this task; nothing was switched automatically.")}</p>}
         {model.runtime&&model.binding&&<p>{t("本次接收资料：","Sources will be sent to: ")}{model.binding.label} · {locText[model.binding.location]}{model.endpoint&&<> · <code>{model.endpoint}</code></>}</p>}

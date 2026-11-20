@@ -115,7 +115,7 @@ test("kernel persists every ranked passage before citation and pages omitted sou
     let current=await kernel.createTask(data,access),calls=0,retrievals=0;
     await kernel.run(current.id,"start",runInput(current),{runtimeFingerprint:"synthetic-runtime",reasoner:async prompt=>{
       const state=JSON.parse(prompt.split("\n\n").at(-1)!);
-      assert.equal(state.retrieval.version,"bm25-v1");assert.ok(state.retrieval.selected.length<=6);
+      assert.equal(state.retrieval.version,"hybrid-tfidf-v2");assert.ok(state.retrieval.selected.length<=6);
       if(++calls===1)return JSON.stringify({kind:"tool",tool:"read_job"});
       if(calls===2)return JSON.stringify({kind:"tool",tool:"read_resume"});
       if(calls<=11)return JSON.stringify({kind:"tool",tool:"read_material",id:`m${calls-3}`});
@@ -193,6 +193,72 @@ test("file edits between read and the next decision pause before stale ranked ev
     assert.equal(calls,1);assert.equal(current.usage.modelCalls,1);assert.equal(current.usage.toolCalls,2);
     assert.equal(current.evidence[0]!.excerpt,"C# 缓存测试，未上线。","original observation remains intact, not silently replaced");
   }finally{await kernel.close();await rm(directory,{recursive:true,force:true});}
+});
+
+for (const stopAction of ["pause", "revoke", "invalidate-session"] as const) test(`a tool returning after ${stopAction} retains its exact request without adopting evidence`, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-reserved-tool-"));
+  const source = path.join(directory, "materials");
+  const owner = path.join(directory, "owner");
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  let reads = 0;
+  class HeldBroker extends EvidenceBroker {
+    override async execute(grant: UnderstandingGrant, request: EvidenceRequest, signal?: AbortSignal) {
+      const result = await super.execute(grant, request, signal);
+      reads++;
+      entered.resolve();
+      await release.promise;
+      return result;
+    }
+  }
+  const options = { ownerId: "synthetic-owner", directory: owner, broker: new HeldBroker() };
+  let kernel = new AgentTaskKernel(options);
+  try {
+    await mkdir(source);
+    await writeFile(path.join(source, "warehouse.txt"), "synthetic warehouse test");
+    const data = input("synthetic-reserved-call");
+    data.directories = [{ path: source, label: "warehouse" }];
+    data.budget = { maxModelCalls: 2, maxToolCalls: 5, maxActiveMs: 60_000 };
+    let task = await kernel.create(data, access);
+    const request = { kind: "tool", tool: "read_file", id: task.directories[0]!.id, path: "warehouse.txt" };
+    const runtimeFingerprint = "synthetic-runtime";
+    task = await kernel.run(task.id, "start", runInput(task), {
+      runtimeFingerprint, reasoner: async () => JSON.stringify(request),
+    }, access) as CareerTask;
+    await entered.promise;
+    if (stopAction === "invalidate-session") await kernel.invalidateSession(access.session);
+    else await kernel.stop(task.id, task.revision, stopAction === "revoke", access);
+    await kernel.close();
+    release.resolve();
+    kernel = new AgentTaskKernel(options);
+    task = await kernel.get(task.id);
+    assert.equal(task.status, stopAction === "revoke" ? "revoked" : "paused");
+    assert.deepEqual(task.evidence, []);
+    assert.equal(task.events.filter(e => e.kind === "tool_result").length, 0);
+    const persisted = await readPrivateJson(path.join(owner, task.id + ".json")) as {recent: unknown[]};
+    assert.deepEqual(persisted.recent, [{ request, call: 1, status: "reserved" }]);
+    if (stopAction === "revoke") {
+      await assert.rejects(kernel.run(task.id, "resume", runInput(task), {
+        runtimeFingerprint, reasoner: async () => { throw Error("revoked task dispatched"); },
+      }, access), /task_not_runnable/);
+      return;
+    }
+    let recovered;
+    await kernel.run(task.id, "resume", runInput(task), {
+      runtimeFingerprint, reasoner: async prompt => {
+        recovered = JSON.parse(prompt.split("\n\n").at(-1)!).recentObservations;
+        return JSON.stringify({ kind: "tool", tool: "read_job" });
+      },
+    }, { ...access, session: "fresh-synthetic-session" });
+    const end = await settled(kernel, task.id);
+    assert.deepEqual(recovered, [{ request, call: 1, status: "reserved" }]);
+    assert.equal(reads, 1);
+    assert.equal(end.usage.toolCalls, 2);
+    assert.deepEqual(end.evidence.map(e => e.sourceId), ["job"]);
+  } finally {
+    release.resolve();
+    await kernel.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("a legacy persisted span gains hash-checked coordinates without replacing its text or citation identity",async()=>{

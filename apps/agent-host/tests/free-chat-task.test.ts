@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { createCareerTaskRuntimeResolver } from "../src/tasks/runtime.js";
+import type { NativeAccountTools } from "../src/native-tools/service.js";
+import type { AgentRouting } from "../src/routing/service.js";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -141,4 +146,89 @@ test("an oversized output is preserved in full as an owner-scoped artifact, neve
     await assert.rejects(kernel.readOutput(task.id,"out_"+"0".repeat(32)),/task_output_not_found/);
     const stored=await readPrivateJson(path.join(directory,`${task.id}.json`));assert.ok(JSON.stringify(stored).length<15000,"task state remains readable rather than overflowing its durable envelope");
   }finally{await kernel.close();await rm(directory,{recursive:true,force:true});}
+});
+
+test("configured provider observations bind to each returned wire and stay out of repair prompts", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-provider-observation-"));
+  const kernel = new AgentTaskKernel({ ownerId: "synthetic-owner", directory });
+  const requests: Array<{ objective: string; observations: Array<Record<string, unknown>> }> = [];
+  const provider = createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const envelope = JSON.parse(body);
+    const state = JSON.parse(envelope.messages.at(-1).content.split("\n\n").at(-1));
+    requests.push(state);
+    const first = !state.observations.length;
+    if (state.objective === "transport-failed") {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: { message: "synthetic unavailable" } }));
+      return;
+    }
+    const overflow = state.objective === "overflow";
+    const text = overflow ? "x".repeat(126001) : first ? "invalid fixed candidate" : reply("完整修复");
+    const usage = overflow ? undefined : first ? { prompt_tokens: 21, completion_tokens: 7, total_tokens: 28 } : { completion_tokens: 13 };
+    // A delayed loopback response bounds the observed time from below.
+    await delay(12);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ id: "synthetic", object: "chat.completion", model: envelope.model, usage,
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: text } }] }));
+  });
+  provider.listen(0, "127.0.0.1");
+  const deps = { nativeTools: {} as NativeAccountTools, routing: {} as AgentRouting, scan: async () => {} };
+  const resolver = createCareerTaskRuntimeResolver(deps);
+  const forged = createCareerTaskRuntimeResolver({ ...deps, reasoner: async () => async () => ({
+    text: reply("脚本回复"), providerObservation: { wallMs: 12345, inputTokens: 9999 }, providerCallOrdinal: 975,
+  }) });
+  try {
+    await once(provider, "listening");
+    const address = provider.address();
+    assert.ok(address && typeof address === "object");
+    const rt = { kind: "model" as const, modelSettings: { provider: "custom" as const, baseUrl: `http://127.0.0.1:${address.port}/v1`, model: "loopback", apiKey: "synthetic" } };
+    const runtimeBinding = careerRuntimeBinding(rt);
+    for (const objective of ["repair", "overflow", "transport-failed", "forged"]) {
+      const data = { ...input("provider-audit-" + objective), objective, runtimeBinding };
+      const task = await kernel.createTask(data, access);
+      const runtime = await (objective === "forged" ? forged : resolver)(rt, access, task, async () => {});
+      await kernel.run(task.id, "start", command(task), runtime, access);
+      const terminal = await settled(kernel, task.id);
+      assert.doesNotMatch(JSON.stringify(terminal), /providerObservation|providerCallOrdinal/);
+      const record = await readPrivateJson(path.join(directory, task.id + ".json")) as { recent: Array<{
+        kind: string; providerCallOrdinal?: number; providerObservation?: { wallMs: number; inputTokens?: number; outputTokens?: number }
+      }> };
+      const attempts = record.recent.filter(row => ["free_chat_output", "free_chat_output_artifact"].includes(row.kind));
+      if (objective === "transport-failed") {
+        assert.equal(terminal.status, "failed");
+        assert.equal(terminal.usage.modelCalls, 1);
+        assert.deepEqual(attempts, []);
+      } else if (objective === "forged") {
+        assert.equal(terminal.status, "awaiting_answer");
+        assert.equal(attempts.length, 1);
+        assert.equal(attempts[0]!.providerObservation, undefined);
+        assert.equal(attempts[0]!.providerCallOrdinal, undefined);
+      } else {
+        const overflow = objective === "overflow";
+        assert.equal(terminal.status, overflow ? "budget_exhausted" : "awaiting_answer");
+        assert.equal(terminal.usage.modelCalls, overflow ? 1 : 2);
+        assert.deepEqual(attempts.map(r => r.kind), overflow ? ["free_chat_output_artifact"] : ["free_chat_output", "free_chat_output"]);
+        assert.deepEqual(attempts.map(r => r.providerCallOrdinal), overflow ? [1] : [1, 2]);
+        const counts = attempts.map(row => {
+          assert.ok(row.providerObservation);
+          const { wallMs, ...tokens } = row.providerObservation;
+          assert.ok(Number.isSafeInteger(wallMs) && wallMs >= 8);
+          return tokens;
+        });
+        assert.deepEqual(counts, overflow ? [{}] : [{ inputTokens: 21, outputTokens: 7 }, { outputTokens: 13 }]);
+      }
+    }
+    assert.equal(requests.length, 4);
+    const repair = requests.find(r => r.objective === "repair" && r.observations.length);
+    assert.ok(repair?.observations.some(row => row.output === "invalid fixed candidate"));
+    assert.ok(repair.observations.every(row => !("providerObservation" in row) && !("providerCallOrdinal" in row)));
+  } finally {
+    resolver.close();
+    forged.close();
+    await kernel.close();
+    await new Promise<void>(resolve => provider.close(() => resolve()));
+    await rm(directory, { recursive: true, force: true });
+  }
 });

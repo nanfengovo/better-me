@@ -2,8 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { privateStorage as localStorage } from "../lib/identity";
 import { BookOpen, Check, FolderOpen, RefreshCw, Send, ShieldCheck, Square, X } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
-import type { UnderstandingCapability, UnderstandingSession } from "@better-me/agent-contracts";
-import { isImplementationEvidencePath, careerRuntimeBinding } from "@better-me/agent-contracts";
+import type { ProjectUnderstanding, UnderstandingCapability, UnderstandingSession } from "@better-me/agent-contracts";
+import { isImplementationEvidencePath, careerRuntimeBinding, projectSourceHistory, projectSourceUpdatePrefix } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { confirmedWritingProjectContext, type ConfirmedWritingProjectContext } from "../lib/resume-copilot";
 import { defaultUnderstandingClient, understandingModelRuntime, UnderstandingClientError, type UnderstandingClient, type UnderstandingRuntime } from "../services/understanding-client";
@@ -53,11 +53,35 @@ function relativeSeconds(at: string | undefined, now: number): number {
 
 export function extractUnderstandingUserSupplement(session: UnderstandingSession | undefined, draftAnswer = ""): string {
   const filler = /^(没有|没问题|没有问题|确认|对的|好的|无|ok|okay|no|none|nothing|yes|confirmed|fine|looks good|那现在这里是闭环了吗.*)$/i;
+  const messages = session?.messages ?? [];
+  const { currentId, supersededIds } = projectSourceHistory(messages);
   const parts = [
-    ...(session?.messages ?? []).filter(m => m.role === "user").map(m => m.text.trim()),
+    ...messages.filter(m => m.role === "user" && !supersededIds.has(m.id)).map(m =>
+      (m.id === currentId && m.text.startsWith(projectSourceUpdatePrefix) ? session!.sourceText : m.text).trim()),
     draftAnswer.trim(),
   ].filter(text => text.length > 0 && !filler.test(text));
   return [...new Set(parts)].join("\n");
+}
+
+function ProjectClaim({ claim, session, t }: { claim: ProjectUnderstanding["claims"][number]; session: UnderstandingSession; t: Translate }) {
+  const [expanded, setExpanded] = useState(false);
+  const sources = claim.evidenceIds.map(id => session.evidence.find(item => item.id === id));
+  const label = claim.kind === "source" && !sources.some(item => item?.excerpt && isImplementationEvidencePath(item.path))
+    ? t("历史材料结论 · 未核对代码证据", "Conclusion from historical material · code evidence not checked")
+    : evidenceLabel(claim.kind, t);
+  return <div><p><span className="understanding-evidence-kind">{label}</span>{claim.text}</p>
+    {claim.evidenceIds.length > 0 && <details onToggle={event => setExpanded(event.currentTarget.open)}>
+      <summary>{t(`查看这项结论的 ${claim.evidenceIds.length} 处依据`, `View ${claim.evidenceIds.length} supporting references`)}</summary>
+      {expanded && <ul>{claim.evidenceIds.map((id, index) => {
+        const source = sources[index];
+        const message = session.messages.find(item => item.id === (source?.grantId === "conversation" ? source.path : id));
+        if (message) return <li key={id}>{t("会话记录", "Conversation record")} · <time dateTime={message.at}>{new Date(message.at).toLocaleString()}</time><blockquote>{source?.excerpt ?? message.text}</blockquote></li>;
+        if (source && source.excerpt && session.grants.some(grant => grant.id === source.grantId && !grant.revokedAt))
+          return <li key={id}>{source.path} · {t(`第 ${source.startLine}–${source.endLine} 行`, `lines ${source.startLine}–${source.endLine}`)}<pre>{source.excerpt}</pre><small>SHA-256 <code>{source.hash}</code></small></li>;
+        return <li key={id}>{t("此引用当前不可用", "This reference is currently unavailable")} · <code>{id}</code></li>;
+      })}</ul>}
+    </details>}
+  </div>;
 }
 
 export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sourceText, config, onClose, onConfirmed,
@@ -265,6 +289,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   const runStart = session?.events[lastTerminal + 1]?.at ?? session?.updatedAt;
   const idleSeconds = relativeSeconds(lastEvent?.at ?? session?.updatedAt, now);
   const visibleMessages = showAllHistory ? session?.messages : session?.messages.slice(-20);
+  const { supersededIds } = projectSourceHistory(session?.messages ?? []);
   const sessionPhaseLabel = session?.phase === "idle" && session.turnCount > 0 ? t("等待继续对齐", "Waiting to continue aligning") : session ? phaseLabel(session.phase, t) : t("等待你发起第一轮", "Waiting for you to start the first round");
 
   return <section className="understanding-panel no-print" aria-labelledby={`${uid}-title`}>
@@ -315,11 +340,11 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
     </section>}
     {missing && <button type="button" disabled={busy} onClick={() => { setPointer(undefined); setMissing(false); setError(""); setSession(undefined); }}>{t("保留输入，重新建立对话", "Keep the input and start a new conversation")}</button>}
     {session?.id.startsWith("understanding_")&&<button type="button" disabled={busy||running} onClick={()=>{current.current.session=undefined;setPointer(undefined);setSession(undefined);setPending(undefined);setOptions([]);setConsent(false);setError("");confirmedCallback.current(undefined);}}>{t("保留旧记录，建立内核任务（重新授权）", "Keep the old record and create a kernel task (re-authorize)")}</button>}
-    {Boolean(session?.messages.length) && <details className="understanding-history" open><summary>{t("对话历史 · ", "Conversation history · ")}{t(`${session?.messages.length} 条`, `${session?.messages.length} messages`)}</summary>{!showAllHistory && (session?.messages.length ?? 0) > 20 && <button type="button" onClick={() => setShowAllHistory(true)}>{t(`展开更早的 ${(session?.messages.length ?? 0) - 20} 条记录`, `Show ${(session?.messages.length ?? 0) - 20} earlier messages`)}</button>}<ol>{visibleMessages?.map(message => <li key={message.id} data-role={message.role}><div><strong>{message.role === "user" ? t("你", "You") : message.role === "agent" ? "Agent" : t("状态", "Status")}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleTimeString()}</time></div><p>{message.text}</p>{message.question && <p className="understanding-history-question">{t("追问：", "Follow-up: ")}{message.question.text}</p>}</li>)}</ol></details>}
+    {Boolean(session?.messages.length) && <details className="understanding-history" open><summary>{t("对话历史 · ", "Conversation history · ")}{t(`${session?.messages.length} 条`, `${session?.messages.length} messages`)}</summary>{!showAllHistory && (session?.messages.length ?? 0) > 20 && <button type="button" onClick={() => setShowAllHistory(true)}>{t(`展开更早的 ${(session?.messages.length ?? 0) - 20} 条记录`, `Show ${(session?.messages.length ?? 0) - 20} earlier messages`)}</button>}<ol>{visibleMessages?.map(message => <li key={message.id} data-role={message.role}><div><strong>{supersededIds.has(message.id) ? t("你 · 已替换的项目原文", "You · superseded project text") : message.role === "user" ? t("你", "You") : message.role === "agent" ? "Agent" : t("状态", "Status")}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleTimeString()}</time></div><p>{message.text}</p>{message.question && <p className="understanding-history-question">{t("追问：", "Follow-up: ")}{message.question.text}</p>}</li>)}</ol></details>}
     {session?.understanding && <section ref={cardRef} tabIndex={-1} className="understanding-card" data-agent-guide="understanding-summary" aria-label={t("当前项目理解卡片", "Current project understanding card")}><div className="understanding-card-heading"><h3>{session.checkpoint && session.checkpoint.status !== "complete" ? t("上次理解 · 本轮尚未更新", "Previous understanding · not updated this round") : t("我目前这样理解（完整整理）", "My current understanding (full summary)")}</h3><span>{sourceChanged ? t("原文已变化 · 待重确认", "Source changed · re-confirm") : session.phase === "confirmed" ? t("你已确认", "You confirmed") : t("待你核对", "Awaiting your review")}</span></div><p>{session.understanding.summary}</p>
       {session.understanding.terms.length > 0 && <dl className="understanding-terms">{session.understanding.terms.map((term, index) => <div key={`${term.term}-${index}`}><dt>{term.term}</dt><dd>{term.meaning}</dd></div>)}</dl>}
       {session.understanding.boundaries.length > 0 && <><h4>{t("项目边界", "Project boundaries")}</h4><ul>{session.understanding.boundaries.map((text, index) => <li key={index}>{text}</li>)}</ul></>}
-      {session.understanding.claims.length > 0 && <details><summary>{t("理解依据与待核对推断", "Evidence and inferences to verify")}</summary>{session.understanding.claims.map(claim => <p key={claim.id}><span className="understanding-evidence-kind">{claim.kind === "source" && !session.evidence.some(item => claim.evidenceIds.includes(item.id) && item.excerpt && isImplementationEvidencePath(item.path)) ? t("历史材料结论 · 未核对代码证据", "Conclusion from historical material · code evidence not checked") : evidenceLabel(claim.kind, t)}</span>{claim.text}</p>)}</details>}
+      {session.understanding.claims.length > 0 && <details><summary>{t("理解依据与待核对推断", "Evidence and inferences to verify")}</summary>{session.understanding.claims.map(claim => <ProjectClaim key={claim.id} claim={claim} session={session} t={t} />)}</details>}
       {session.understanding.unknowns.length > 0 && <><h4>{t("仍不确定", "Still uncertain")}</h4><ul>{session.understanding.unknowns.map((text, index) => <li key={index}>{text}</li>)}</ul></>}
       {session.phase === "awaiting-confirmation" && <div className="understanding-confirm"><label><input type="checkbox" checked={confirmationToken === token && Boolean(token)} onChange={event => setConfirmationToken(event.target.checked ? token : "")} />{t("我已核对本版术语和项目边界；这不等于确认我的个人贡献", "I have checked this version of the terms and project boundaries; this does not confirm my personal contribution")}</label><button type="button" disabled={busy || sourceChanged || !token || confirmationToken !== token} onClick={() => void perform("confirm", async signal => {
         const next = await client.confirm(session.id, { expectedRevision: session.revision, summaryHash: session.summaryHash! }, signal);

@@ -689,7 +689,11 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   server.close=callback=>close(error=>{void drain().then(()=>callback?.(error),()=>callback?.(error??Error("agent_shutdown_failed")));});
   server.once("close",()=>{void drain().catch(()=>{ /* close callback reports a sanitized shutdown failure */ });});
   server.listen(opts.port, opts.host, () => {
-    console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
+    const address = server.address();
+    if (address && typeof address !== "string") {
+      const host = address.family === "IPv6" ? `[${address.address}]` : address.address;
+      console.log(`[agent-host] listening on http://${host}:${address.port}`);
+    }
   });
 
   return server;

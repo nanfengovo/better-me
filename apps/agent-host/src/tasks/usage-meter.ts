@@ -21,7 +21,7 @@ export type ProviderTokenUsage = { inputTokens: number; outputTokens: number };
 const MAX_MODELS = 32;
 const MAX_ACTIVE = 16;
 const localDay = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const count = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : undefined;
+const count = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 
 const persistedEntrySchema = z.object({
   label: z.string().min(1).max(120),
@@ -40,10 +40,15 @@ const persistedSnapshotSchema = z.object({
   models: z.array(persistedEntrySchema).max(MAX_MODELS),
 }).passthrough();
 
-export function providerTokenUsage(value: unknown): ProviderTokenUsage | undefined {
-  if (!value || typeof value !== "object") return undefined;
+export function providerTokenCounts(value: unknown): Partial<ProviderTokenUsage> {
+  if (!value || typeof value !== "object") return {};
   const usage = value as Record<string, unknown>;
   const inputTokens = count(usage.input_tokens), outputTokens = count(usage.output_tokens);
+  return { ...(inputTokens !== undefined && { inputTokens }), ...(outputTokens !== undefined && { outputTokens }) };
+}
+
+export function providerTokenUsage(value: unknown): ProviderTokenUsage | undefined {
+  const { inputTokens, outputTokens } = providerTokenCounts(value);
   return inputTokens === undefined || outputTokens === undefined ? undefined : { inputTokens, outputTokens };
 }
 

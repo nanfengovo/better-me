@@ -1,0 +1,15 @@
+{
+  "id": "inventory-verify-holdout-v2",
+  "query": "核对盘点测试项目，请引用按物料编码检查重复条目以及复核编号差异两项工作的原句。按编码检查可能帮助定位重复条目属于事实、推断还是未知？能否确定正式投产后的库存准确率提升？",
+  "sources": [
+    {"id":"stock-duplicate","text":"本次模拟盘点测试中，我按物料编码检查了表格中的重复条目。"},
+    {"id":"stock-difference","text":"我复核了测试盘点表中的两处编号差异，并将记录交给值班同事。"},
+    {"id":"stock-layout","text":"轮岗期间，我整理了仓库照明设施的位置清单。"}
+  ],
+  "expectedFacts": [
+    {"sourceId":"stock-duplicate","quote":"本次模拟盘点测试中，我按物料编码检查了表格中的重复条目。"},
+    {"sourceId":"stock-difference","quote":"我复核了测试盘点表中的两处编号差异，并将记录交给值班同事。"}
+  ],
+  "expectedInference":{"basisSourceId":"stock-duplicate","termGroups":[["重复","编码"],["定位","发现","识别","减少","检查","核对"]]},
+  "expectedUnknown":{"terms":["投产","生产","准确率","收益","提升","上线"]}
+}
