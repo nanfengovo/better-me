@@ -224,3 +224,28 @@ test("a learner can choose the actual actions for both exercises without a secon
   }
   assert.equal(consumed.length, 3);
 });
+
+test("an interview practice retains its original criterion and issue across reopen and cannot continue under another issue", async t => {
+  const h = await setup(t);
+  const kits = h.home.kits;
+  const interviewRef = "c".repeat(64);
+  const plan = await kits.plan({ ...request(), interviewRef }, access);
+  assert.equal(plan.interviewRef, interviewRef);
+  const trial = await kits.build(build(plan.id), access);
+  const first = await kits.command(trial.id, { action: "submit", revision: trial.revision, round: "practice", answer }, access);
+  const saved = (await kits.command(trial.id, { action: "keep", revision: first.kit!.revision }, access)).kit!;
+  kits.close();
+  await h.home.store.close();
+  const resumed = h.open(h.owner).kits;
+  assert.equal((await resumed.list(access))[0]?.interviewRef, interviewRef);
+  const reopened = await resumed.get(saved.id, access);
+  assert.equal(reopened.goal, goal);
+  assert.equal(reopened.interviewRef, interviewRef);
+  assert.equal(reopened.version, saved.version);
+  assert.ok(reopened.dueAt);
+  for (const other of [undefined, "d".repeat(64)]) {
+    await assert.rejects(resumed.plan({ ...request(ref(saved)), interviewRef: other }, access), unavailable);
+  }
+  assert.equal((await resumed.plan({ ...request(ref(saved)), interviewRef }, access)).interviewRef, interviewRef);
+  await assert.rejects(resumed.plan({ ...request(), interviewRef, engine: { type: "example", example: "canvas" } }, access), /training_interview_source_changed/);
+});

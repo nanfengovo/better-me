@@ -9,6 +9,7 @@ import {
   type PersonalRuleSidecar, type RuleEvolutionProposal, type OutcomeFeedbackReport, type OutcomeFeedbackSnapshot,
 } from "@better-me/core/career-intelligence";
 import { StudioIdSchema, StudioLocalRuntimeSchema, type StudioAccess, type StudioContext, type StudioLocalRuntime } from "./contracts.js";
+import { createInterviewFollowUps, type ReadInterviewKit } from "./interview-follow-up.js";
 import { StudioArtifactStore, StudioError, studioHash } from "./storage.js";
 
 const KIND_RUN = "replay-run", KIND_FEEDBACK = "outcome-feedback", KIND_RULE = "personal-rule", KIND_PROPOSAL = "rule-proposal";
@@ -98,6 +99,7 @@ export type StudioReplayLocalRequest = { context: ReplayFeedbackContext; runtime
 export type ReplayFeedbackOptions = {
   store: StudioArtifactStore; ownerId: string;
   getContext: (contextId: string, access: StudioAccess) => ReplayFeedbackContext | Promise<ReplayFeedbackContext>;
+  readInterviewKit?: ReadInterviewKit;
   localModel?: (request: StudioReplayLocalRequest) => Promise<ReplayStepResult>;
 };
 
@@ -207,6 +209,11 @@ export function createReplayFeedback(options: ReplayFeedbackOptions) {
       targetSidecarId: sidecar.id, inputHash: await intelligenceHash(operation === "apply" ? { operation, proposal: payload } : { operation, targetDecisionId: payload }), expectedRevision, expiresAt: selected.expiresAt } };
   }
   return {
+    ...createInterviewFollowUps({ store: options.store, readKit: options.readInterviewKit, scope: async (id, access) => {
+      const selected = await context(id, access);
+      const claims = await Promise.all(selected.claims.map(async c => ({ id: c.id, hash: await hashCommitteeText(c.text) })));
+      return { fingerprint: fingerprint(selected), workspaceKey: selected.workspaceKey, resumeId: selected.resumeId, claims, ...resumeVersion(selected) };
+    } }),
     replayStore,
     async replayCreate(body: unknown, access: StudioAccess) {
       const request = CreateRequest.parse(body), selected = await context(request.contextId, access);

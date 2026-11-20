@@ -6,7 +6,8 @@ import {
   readOpportunityLibrary, saveOpportunityLibrary, replaceCorruptOpportunityLibrary,
   normalizeOpportunityUrl, queryOpportunities, summarizeOpportunities,
   exportOpportunityJson, importOpportunityJson, mergeOpportunityLibraries, exportOpportunitiesCsv,
-  recordOpportunityMaterial, deleteOpportunityMaterial, MAX_OPPORTUNITY_MATERIALS,
+  recordOpportunityMaterial, deleteOpportunityMaterial, reviewOpportunityEvent, recordApplicationCommunication, deleteApplicationCommunication, MAX_OPPORTUNITY_MATERIALS,
+  captureOpportunityDecision, recommendOpportunityAction, opportunityDecisionCareerJob, opportunityDecisionSnapshotJob, recordOpportunityDecisionAction, recordOpportunityEvaluation, exportOpportunityEvaluations, consentedOpportunityEvaluations,
   type OpportunityLibrary,
 } from "../src/lib/opportunities.ts";
 
@@ -287,4 +288,177 @@ test("材料超限明确报错且不删除旧快照，手动清理后可以继�
   const empty = fixture();
   assert.throws(() => recordOpportunityMaterial(empty, empty.jobs[0]!.id, { ...material, markdown: "" }, AT), /简历材料正文/);
   assert.throws(() => recordOpportunityMaterial(empty, empty.jobs[0]!.id, { ...material, markdown: "x".repeat(120_001) }, AT), /简历材料正文/);
+});
+
+test("reopens the original JD, chosen resume material, rationale and feedback type after later edits", () => {
+  const { library: first, job } = addOpportunity(emptyOpportunityLibrary(), { company: "A", title: "Engineer", description: "Original requirement" }, AT);
+  let library = recordOpportunityMaterial(first, job.id, { resumeViewId: "v1", resumeName: "Design work", locale: "en", markdown: "Original resume", resumeUpdatedAt: AT }, AT);
+  const materialId = library.jobs[0]!.materials[0]!.id;
+  library = updateApplication(library, job.id, { stage: "evaluating" }, { now: AT });
+  const event = library.jobs[0]!.application.history.at(-1)!;
+  const decision = { action: "collect-evidence", reason: "Review design authorship", materialId, feedback: "interpretation", observation: "My inference" } as const;
+  library = reviewOpportunityEvent(library, job.id, "stage", event.id, decision, AT);
+  library = updateOpportunity(library, job.id, { title: "Changed role", description: "New requirement" }, LATER);
+  library = updateApplication(library, job.id, { stage: "preparing" }, { now: LATER });
+  library = updateApplication(library, job.id, { stage: "interview" }, { now: LATER });
+  const reopened = importOpportunityJson(exportOpportunityJson(library)).jobs[0]!;
+  assert.equal(reopened.jdSnapshots?.length, 2);
+  assert.equal(reopened.jdSnapshots?.find(row => row.id === event.jdSnapshotId)?.description, "Original requirement");
+  const persisted = reopened.application.history.find(row => row.id === event.id)!.review!;
+  assert.deepEqual(persisted, { ...decision, reviewedAt: AT });
+  assert.equal(reopened.materials.find(item => item.id === persisted.materialId)?.markdown, "Original resume");
+  assert.equal(reopened.application.submittedAt, undefined);
+  assert.equal(library.schemaVersion, 3);
+  assert.throws(() => reviewOpportunityEvent(library, job.id, "stage", event.id, { ...decision, materialId: "foreign" }), /此岗位/);
+  const removed = deleteOpportunityMaterial(library, job.id, materialId);
+  assert.equal(removed.jobs[0]!.application.history.find(row => row.id === event.id)!.review!.materialId, undefined);
+  assert.equal(removed.jobs[0]!.application.history.find(row => row.id === event.id)!.review!.reason, decision.reason);
+});
+
+test("backfilled and legacy events keep unknown JD versions; silence and interpretation stay distinct from reported feedback", () => {
+  const base = fixture(), id = base.jobs[0]!.id;
+  const legacy = importOpportunityJson(exportOpportunityJson(base));
+  const saved = legacy.jobs[0]!.application.history[0]!;
+  assert.equal(saved.jdSnapshotId, undefined);
+  const modified = updateOpportunity(legacy, id, { description: "Revised before backfill" }, LATER);
+  let library = recordApplicationCommunication(modified, id, { direction: "inbound", method: "email", occurredAt: AT, contact: "", summary: "Receipt" }, { occurredConfirmed: true, now: LATER });
+  const comm = library.jobs[0]!.application.communications[0]!;
+  assert.equal(comm.jdSnapshotId, undefined);
+  const reason = { action: "apply", reason: "Close alignment", observation: "Guessed reason", feedback: "unobserved" } as const;
+  library = reviewOpportunityEvent(library, id, "stage", saved.id, reason, LATER);
+  assert.equal(library.jobs[0]!.application.history[0]!.review!.observation, "");
+  assert.throws(() => reviewOpportunityEvent(library, id, "stage", saved.id, { ...reason, feedback: "reported", observation: " " }), /反馈/);
+  library = reviewOpportunityEvent(library, id, "communication", comm.id, { ...reason, feedback: "reported", observation: "Please show a design decision" }, LATER);
+  assert.equal(library.jobs[0]!.application.communications[0]!.review!.feedback, "reported");
+  assert.equal(library.jobs[0]!.application.stage, "saved");
+  const forged = JSON.parse(exportOpportunityJson(library));
+  forged.jobs[0].application.communications[0].jdSnapshotId = "other-job";
+  assert.throws(() => importOpportunityJson(JSON.stringify(forged)), /不属于/);
+});
+
+test("decision receipts replay an exact earlier JD, adopted resume, actual stage and reported feedback", () => {
+  const { library: initial, job } = addOpportunity(emptyOpportunityLibrary(), {
+    company: "Synthetic company", title: "Engineer", description: "Design dependable services",
+    sourceJobId: "canonical-job-id", sourcePlatform: "Test", sourceUrl: "https://example.invalid/jobs/1", status: "open",
+  }, AT);
+  const officialVersion = { documentId: "synthetic-doc", versionId: "synthetic-adoption", contentHash: "a".repeat(64) };
+  const before = { total: 2, supported: 2, partial: 0, independentRetests: [] };
+  let library = captureOpportunityDecision(initial, job.id, before, officialVersion, AT);
+  const receipt = library.jobs[0]!.decisions![0]!;
+  assert.deepEqual({ action: receipt.action, reason: receipt.reasonCode }, { action: "apply", reason: "verified-requirements" });
+  assert.equal(library.schemaVersion, 4);
+  assert.notEqual(job.id, job.sourceJobId);
+  assert.equal(opportunityDecisionCareerJob(job).id, "canonical-job-id");
+  library = recordOpportunityMaterial(library, job.id, { resumeViewId: "view", resumeName: "Synthetic resume", resumeUpdatedAt: AT, markdown: "# old resume", locale: "en", officialVersion }, AT);
+  const materialId = library.jobs[0]!.materials[0]!.id;
+  library = updateApplication(library, job.id, { stage: "preparing" }, { now: AT });
+  const stage = library.jobs[0]!.application.history.at(-1)!;
+  const input = { action: "practice", reason: "Validate before applying", feedback: "unobserved", observation: "", materialId } as const;
+  assert.throws(() => recordOpportunityDecisionAction(library, job.id, receipt.id, input), /确认/);
+  assert.throws(() => recordOpportunityDecisionAction(library, job.id, "another-job-decision", input, { occurredConfirmed: true, now: AT }), /不属于/);
+  library = recordOpportunityDecisionAction(library, job.id, receipt.id, input, { occurredConfirmed: true, now: AT, sourceEvent: { kind: "stage", id: stage.id } });
+  const actionId = library.jobs[0]!.application.actions![0]!.id;
+  assert.throws(() => recordOpportunityDecisionAction(library, job.id, receipt.id, input, { occurredConfirmed: true, now: AT, sourceEvent: { kind: "stage", id: stage.id } }), /重复关联/);
+  const actual = library.jobs[0]!.application.actions![0]!;
+  assert.deepEqual(actual.review.officialVersion, officialVersion);
+  assert.equal(actual.review.outcome, "unknown");
+  assert.equal(library.jobs[0]!.application.submittedAt, undefined);
+
+  library = recordApplicationCommunication(library, job.id, { direction: "inbound", method: "email", occurredAt: LATER, contact: "Private contact", summary: "Please explain resilience tradeoffs" }, { occurredConfirmed: true, now: LATER });
+  const feedbackCommunicationId = library.jobs[0]!.application.communications[0]!.id;
+  const retest = { kitId: "private-training-identifier", questionVersion: "b".repeat(64), capabilityId: "c".repeat(64), sourceVersion: "d".repeat(64), completedAt: LATER, result: "met" as const };
+  library = reviewOpportunityEvent(library, job.id, "action", actionId,
+    { ...input, feedback: "reported", observation: "Please explain resilience tradeoffs", outcome: "positive", feedbackCommunicationId, afterEvidence: { ...before, independentRetests: [retest] } }, LATER);
+  library = recordOpportunityEvaluation(library, job.id, actionId, true, LATER);
+  assert.deepEqual(consentedOpportunityEvaluations(library), [{ schemaVersion: 1, recommendedAction: "apply", actualAction: "practice", outcome: "positive", corrected: true, independentRetest: "met" }]);
+  const exported = exportOpportunityEvaluations(library);
+  for (const privateValue of [job.id, job.company, job.title, job.description, job.sourceUrl, job.sourceJobId!, actionId, feedbackCommunicationId, materialId, officialVersion.documentId, retest.kitId, retest.sourceVersion, LATER, "Private contact", "tradeoffs"]) assert.ok(!exported.includes(privateValue), privateValue);
+  library = updateOpportunity(library, job.id, { description: "Different JD", status: "closed", sourceJobId: "new-id" }, LATER);
+  library = captureOpportunityDecision(library, job.id, { total: 0, supported: 0, partial: 0, independentRetests: [] }, undefined, LATER);
+  const replay = importOpportunityJson(exportOpportunityJson(library));
+  const revised = replay.jobs[0]!;
+  assert.deepEqual(revised.decisions![0], receipt);
+  assert.equal(opportunityDecisionSnapshotJob(revised, receipt).description, job.description);
+  assert.equal(opportunityDecisionSnapshotJob(revised, receipt).sourceJobId, "canonical-job-id");
+  assert.equal(revised.decisions!.at(-1)!.reasonCode, "closed-opportunity");
+  assert.equal(revised.application.actions![0]!.previousReviews![0]!.outcome, "unknown");
+  assert.equal(revised.application.actions![0]!.review.feedbackCommunicationId, feedbackCommunicationId);
+  const removedMaterial = deleteOpportunityMaterial(replay, job.id, materialId, LATER);
+  assert.deepEqual(removedMaterial.jobs[0]!.application.actions![0]!.review.officialVersion, officialVersion);
+  const removedCommunication = deleteApplicationCommunication(removedMaterial, job.id, feedbackCommunicationId, LATER);
+  assert.equal(removedCommunication.jobs[0]!.application.actions![0]!.review.feedbackCommunicationId, undefined);
+  assert.equal(removedCommunication.jobs[0]!.application.actions![0]!.review.observation, "Please explain resilience tradeoffs");
+  library = recordOpportunityEvaluation(removedCommunication, job.id, actionId, false, LATER);
+  assert.equal(exportOpportunityEvaluations(library), "[]");
+});
+
+test("recommendation reacts to the latest independent retest, missing evidence and unknown job status", () => {
+  const missed = { kitId: "first-attempt", questionVersion: "a".repeat(64), capabilityId: "b".repeat(64), sourceVersion: "c".repeat(64), completedAt: AT, result: "missed" as const };
+  const base = { total: 1, supported: 0, partial: 1, independentRetests: [missed] };
+  assert.equal(recommendOpportunityAction(base, "open").action, "practice");
+  assert.equal(recommendOpportunityAction(base, "unknown").reasonCode, "unverified-opportunity");
+  assert.equal(recommendOpportunityAction(base, "closed").reasonCode, "closed-opportunity");
+  const latest = { ...missed, kitId: "new-attempt", sourceVersion: "d".repeat(64), completedAt: LATER, result: "met" as const };
+  assert.equal(recommendOpportunityAction({ ...base, supported: 1, partial: 0, independentRetests: [missed, latest] }, "open").action, "apply");
+  assert.equal(recommendOpportunityAction({ ...base, independentRetests: [missed, { ...latest, result: "recorded" }] }, "open").reasonCode, "unreviewed-retest");
+  assert.equal(recommendOpportunityAction({ ...base, independentRetests: [] }, "open").reasonCode, "missing-evidence");
+});
+
+test("anonymous aggregate counts new independent results once, distinguishes unknown feedback and resets consent after correction", () => {
+  let { library, job } = addOpportunity(emptyOpportunityLibrary(), { company: "A", title: "Role", description: "Test workflow", status: "open" }, AT);
+  const base = { total: 2, supported: 0, partial: 0, independentRetests: [] };
+  const newRetest = { kitId: "same-independent-attempt", questionVersion: "a".repeat(64), capabilityId: "b".repeat(64), sourceVersion: "c".repeat(64), completedAt: LATER, result: "met" as const };
+  const action = { action: "practice", reason: "I chose to practise", feedback: "interpretation", observation: "My guess", outcome: "positive", afterEvidence: { ...base, independentRetests: [newRetest] } } as const;
+  for (let i = 0; i < 2; i++) {
+    library = captureOpportunityDecision(library, job.id, base, undefined, AT);
+    const decision = library.jobs[0]!.decisions!.at(-1)!;
+    library = recordOpportunityDecisionAction(library, job.id, decision.id,
+      { ...action, afterEvidence: { ...base, independentRetests: [] } }, { occurredConfirmed: true, now: AT });
+    const event = library.jobs[0]!.application.actions!.at(-1)!;
+    library = reviewOpportunityEvent(library, job.id, "action", event.id, action, LATER);
+    library = recordOpportunityEvaluation(library, job.id, event.id, true, LATER);
+  }
+  const samples = consentedOpportunityEvaluations(library);
+  assert.equal(samples.length, 2);
+  assert.equal(samples.filter(row => row.independentRetest === "met").length, 1);
+  assert.equal(samples.filter(row => row.independentRetest === "unknown").length, 1);
+  assert.ok(samples.every(row => row.outcome === "unknown"));
+  const originalAction = library.jobs[0]!.application.actions![0]!;
+  const decisionId = originalAction.decisionId;
+  library = recordOpportunityDecisionAction(library, job.id, decisionId, { ...action, afterEvidence: undefined }, { occurredConfirmed: true, now: AT });
+  assert.throws(() => recordOpportunityEvaluation(library, job.id, library.jobs[0]!.application.actions!.at(-1)!.id, true, LATER), /同一建议/);
+  library = reviewOpportunityEvent(library, job.id, "action", originalAction.id, { ...action, action: "collect-evidence" }, LATER);
+  assert.equal(consentedOpportunityEvaluations(library).length, 1);
+  const altered = JSON.parse(exportOpportunityJson(library));
+  altered.jobs[0].application.actions[1].evaluationSample.corrected = false;
+  assert.throws(() => importOpportunityJson(JSON.stringify(altered)), /样本.*不一致/);
+});
+
+test("a manually saved JD keeps its no-ID/no-platform scope, while a canonical source keeps its identity", () => {
+  const { library, job } = addOpportunity(emptyOpportunityLibrary(), { company: "A", title: "Role", description: "A requirement", status: "open" }, AT);
+  const { id, sourcePlatform } = opportunityDecisionCareerJob(job);
+  assert.equal(id, undefined);
+  assert.equal(sourcePlatform, undefined);
+  const withDecision = captureOpportunityDecision(library, job.id, { total: 1, supported: 0, partial: 0, independentRetests: [] }, undefined, AT);
+  const replay = importOpportunityJson(exportOpportunityJson(withDecision)).jobs[0]!;
+  assert.deepEqual(opportunityDecisionCareerJob(opportunityDecisionSnapshotJob(replay, replay.decisions![0]!)), opportunityDecisionCareerJob(job));
+});
+
+test("career identity retains the exact Agent URL while opportunity dedup uses its normalized URL", () => {
+  const originalUrl = "https://example.invalid/job?z=1&a=2&utm_source=fixture#position";
+  const { library, job } = addOpportunity(emptyOpportunityLibrary(), { company: "A", title: "Role", description: "Requirements", sourceJobId: "canonical", sourcePlatform: "Fixture", sourceUrl: originalUrl }, AT);
+  const normalized = normalizeOpportunityUrl(originalUrl);
+  assert.equal(job.sourceUrl, normalized);
+  assert.equal(opportunityDecisionCareerJob(job).sourceUrl, originalUrl);
+  let next = captureOpportunityDecision(library, job.id, { total: 1, supported: 0, partial: 0, independentRetests: [] }, undefined, AT);
+  const receipt = next.jobs[0]!.decisions![0]!;
+  next = updateOpportunity(next, job.id, { sourceUrl: normalized, salaryText: "Updated" }, LATER);
+  assert.equal(opportunityDecisionCareerJob(next.jobs[0]!).sourceUrl, originalUrl);
+  next = updateOpportunity(next, job.id, { sourceUrl: "https://example.invalid/job?z=3" }, LATER);
+  assert.equal(opportunityDecisionCareerJob(next.jobs[0]!).sourceUrl, "https://example.invalid/job?z=3");
+  const replay = importOpportunityJson(exportOpportunityJson(next));
+  assert.equal(opportunityDecisionCareerJob(opportunityDecisionSnapshotJob(replay.jobs[0]!, receipt)).sourceUrl, originalUrl);
+  const corrupted = JSON.parse(exportOpportunityJson(replay));
+  corrupted.jobs[0].careerSourceUrl = "https://other.invalid/unrelated";
+  assert.throws(() => importOpportunityJson(JSON.stringify(corrupted)), /来源.*不一致/);
 });

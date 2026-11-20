@@ -47,8 +47,14 @@ test("A/B private records, source grants, provider profiles, task IDs and thread
     const bSummary = await (await call(b.headers, "/tasks/summary")).json();
     assert.equal(aSummary.ownerId, a.principal.id);
     assert.equal(aSummary.totalTasks, 1);
+    assert.equal(aSummary.readyCount, 1);
+    assert.equal(aSummary.runningCount, 0);
+    assert.equal(aSummary.recentByKind.length, 1);
     assert.equal(bSummary.ownerId, b.principal.id);
     assert.equal(bSummary.totalTasks, 0);
+    assert.equal(bSummary.readyCount, 0);
+    assert.equal(bSummary.runningCount, 0);
+    assert.deepEqual(bSummary.recentByKind, []);
     assert.doesNotMatch(JSON.stringify(aSummary), /A_ONLY_/);
     assert.equal((await call({ ...b.headers, "X-BetterMe-Owner": a.principal.id }, "/understanding/capabilities")).status, 409);
     assert.equal((await call({ ...b.headers, "X-BetterMe-Owner": a.principal.id }, "/vork/status")).status, 409);

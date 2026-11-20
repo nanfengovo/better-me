@@ -357,3 +357,41 @@ test("a second transfer decision targets the adopted specialty and cites the chi
   assert.deepEqual(next.career, career);
   assert.deepEqual(next.transferFrom, from);
 });
+
+test("writing transfer can only advance on changed frozen conditions and an exact passage of the learner's response", async t => {
+  const answer = "I will request a new signature before publishing.";
+  const scenes = ["Alex has the project.", "Blair has the project."].map(situation => ({
+    brief: "Handoff", situation, steps: [writing("Explain the decision"), writing("List the next step")],
+  }));
+  for (const changed of [false, true]) {
+    let cited = "This passage was never written.";
+    const h = await setup(t, {
+      design: async () => ({ kind: "studio", title: "Approval", scenes,
+        ...(changed ? { decisionCondition: { subject: "Client signature", firstState: "confirmed" } } : {}) }),
+      recommendTransfer: async (_m,_p,input) => ({ ...advice(input), direction: "extend",
+        reasons: advice(input).reasons.map(reason => reason.evidenceId === "retest.part1" ? { ...reason, answerQuote: cited } : reason) }),
+    });
+    h.advance();
+    const done = await h.submit(h.saved, answer);
+    await assert.rejects(h.kits.command(done.id, command(done), access), /training_transfer_invalid/);
+    cited = "request a new signature";
+    if (!changed) {
+      assert.equal(done.attempts[1]!.retestChange, undefined);
+      await assert.rejects(h.kits.command(done.id, command(done), access), /training_transfer_invalid/);
+      continue;
+    }
+    const change = done.attempts[1]!.retestChange!;
+    assert.ok(done.attempts[0]!.question!.notes.includes(change.before));
+    assert.ok(done.attempts[1]!.question!.notes.includes(change.after));
+    assert.ok(done.attempts[1]!.question!.notes.includes(change.criterion));
+    const result = (await h.kits.command(done.id, command(done), access)).kit!;
+    h.kits.close(); await h.store.close();
+    const resumed = h.open();
+    const reopened = await resumed.kits.get(result.id, access);
+    assert.deepEqual(reopened.attempts[1]?.retestChange, change);
+    assert.deepEqual(reopened.transferDecision, result.transferDecision);
+    assert.equal(reopened.transferDecision?.reasons.find(reason => reason.evidenceId === "retest.part1")?.answerQuote, cited);
+    const plan = await resumed.kits.plan({ ...start(), transferFrom: source(reopened) }, access);
+    assert.deepEqual(plan.transferFrom?.retestChange, change);
+  }
+});

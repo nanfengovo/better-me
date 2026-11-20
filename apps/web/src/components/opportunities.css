@@ -346,3 +346,60 @@
 .is-compact .opportunity-card-actions { flex-wrap:nowrap; }
 @media(max-width:620px) { .opportunity-card-actions { width:100%; justify-content:stretch; } .opportunity-card-actions > button { flex:1; } }
 .opportunity-notice.error { position:sticky; top:8px; z-index:20; box-shadow:0 8px 20px rgba(0,0,0,0.08); }
+
+/* Keep the review and aggregate surfaces consistent with the adjacent opportunity panels. */
+.opportunity-dialog > .opportunity-event-review, .opportunity-evaluation {
+  min-width:0; border:1px solid var(--ui-border); border-radius:12px;
+  background:var(--ui-surface); color:var(--ui-text); padding:0;
+  font-size:13px; line-height:1.6;
+}
+.opportunity-dialog > .opportunity-event-review { margin:16px 16px 0; }
+.opportunity-evaluation { margin:0 0 14px; }
+.opportunity-event-review > summary, .opportunity-evaluation > summary {
+  display:flex; align-items:center; gap:12px; padding:16px 18px;
+  color:var(--ui-text); font-size:13px; font-weight:600; list-style:none; cursor:pointer;
+}
+.opportunity-event-review > summary::-webkit-details-marker, .opportunity-evaluation > summary::-webkit-details-marker { display:none; }
+.opportunity-event-review > summary::after, .opportunity-evaluation > summary::after { content:"+"; font-size:18px; font-weight:400; line-height:1; margin-left:auto; color:var(--ui-text-secondary); }
+.opportunity-event-review[open] > summary::after, .opportunity-evaluation[open] > summary::after { content:"−"; }
+.opportunity-review-content, .opportunity-evaluation-content { display:grid; gap:16px; padding:0 18px 18px; min-width:0; }
+.opportunity-decision-section, .opportunity-review-event, .opportunity-review-consent { display:grid; gap:12px; min-width:0; }
+.opportunity-decision-section + .opportunity-review-event, .opportunity-review-consent { border-top:1px solid var(--ui-border); padding-top:16px; }
+.opportunity-decision-summary, .opportunity-review-record { display:grid; gap:8px; min-width:0; border-radius:9px; padding:14px 16px; background:var(--ui-surface-soft); }
+.opportunity-review-content p, .opportunity-evaluation-content p { margin:0; line-height:1.65; overflow-wrap:anywhere; }
+.opportunity-decision-title { font-size:15px; color:var(--ui-accent); font-weight:650; line-height:1.4; }
+.opportunity-review-meta, .opportunity-review-record small { font-size:12px; color:var(--ui-text-secondary); overflow-wrap:anywhere; }
+.opportunity-review-content label { display:flex; flex-direction:column; gap:6px; margin:0; color:var(--ui-text-secondary); font-size:13px; font-weight:500; }
+.opportunity-review-content :is(select,input:not([type=checkbox]),textarea) { display:block; width:100%; min-width:0; min-height:38px; border:1px solid var(--ui-border); border-radius:7px; padding:8px 10px; background:var(--ui-surface); color:var(--ui-text); font:inherit; }
+.opportunity-review-content textarea { min-height:80px; resize:vertical; }
+.opportunity-review-content :is(input,select,textarea):focus-visible, .opportunity-event-review summary:focus-visible, .opportunity-evaluation summary:focus-visible { outline:2px solid var(--ui-accent); outline-offset:2px; }
+.opportunity-review-content label:is(.opportunity-decision-confirm,.application-communication-confirm) { flex-direction:row; align-items:flex-start; gap:9px; line-height:1.6; font-weight:400; }
+.opportunity-review-content input[type=checkbox] { flex:0 0 auto; width:16px; height:16px; margin-top:3px; accent-color:var(--ui-accent); }
+.opportunity-review-actions, .opportunity-review-content .application-communication-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-start; }
+.opportunity-review-content .studio-button, .opportunity-evaluation-content .studio-button { justify-self:start; font-size:12px; min-height:36px; }
+.opportunity-review-content .application-communication-form { display:grid; gap:14px; background:var(--ui-surface-raised); border-color:var(--ui-border); margin:0; padding:16px; }
+.opportunity-review-content .application-communication-form > .application-communication-actions:last-child { justify-content:flex-end; }
+.opportunity-event-review .opportunity-review-content details { min-width:0; padding:10px 0 0; font-size:13px; color:var(--ui-text-secondary); border-color:var(--ui-border); line-height:1.6; }
+.opportunity-review-content details > summary { color:var(--ui-text-secondary); cursor:pointer; }
+.opportunity-review-content details[open] > summary { margin-bottom:8px; }
+.opportunity-review-content details pre { font-family:inherit; font-size:13px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; max-height:260px; overflow:auto; padding:12px; border:1px solid var(--ui-border); border-radius:7px; margin:8px 0; background:var(--ui-surface-raised); }
+.opportunity-review-content details ul { padding-inline-start:18px; display:grid; gap:6px; overflow-wrap:anywhere; }
+.opportunity-evaluation-content > p:first-child { font-weight:600; color:var(--ui-text); }
+.opportunity-evaluation-content > p { color:var(--ui-text-secondary); }
+.opportunity-evaluation-table { overflow-x:auto; min-width:0; border:1px solid var(--ui-border); border-radius:9px; }
+.opportunity-evaluation-table table { width:100%; min-width:345px; border-collapse:collapse; text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.opportunity-evaluation-table thead { background:var(--ui-surface-soft); color:var(--ui-text-secondary); }
+.opportunity-evaluation-table th, .opportunity-evaluation-table td { padding:10px 12px; border-bottom:1px solid var(--ui-border); }
+.opportunity-evaluation-table tr > th:first-child { text-align:left; }
+.opportunity-evaluation-table tbody th { font-weight:500; }
+.opportunity-evaluation-table tbody tr:last-child > * { border-bottom:0; }
+@media (max-width:620px) {
+  .opportunity-dialog > .opportunity-event-review { margin:12px 12px 0; }
+  .opportunity-event-review > summary, .opportunity-evaluation > summary { padding:14px; }
+  .opportunity-review-content, .opportunity-evaluation-content { padding:0 14px 14px; }
+  .opportunity-review-content .application-communication-form, .opportunity-decision-summary, .opportunity-review-record { padding:12px; }
+}
+@media (pointer:coarse) {
+  .opportunity-review-content .studio-button, .opportunity-evaluation-content .studio-button,
+  .opportunity-review-content :is(select,input:not([type=checkbox])) { min-height:44px; }
+}

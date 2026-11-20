@@ -112,7 +112,7 @@ export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
   const ownerId = currentPrincipal()?.id;
   const libraryKey = ownerId ? ["studio:opportunity-library", ownerId] : "studio:opportunity-library";
   const { data: libraryState, mutate } = useSWR(active ? libraryKey : null, () => readOpportunityLibrary(), { refreshInterval: 5_000 });
-  const { data: kernelTelemetry, mutate: mutateTelemetry } = useSWR(active && ownerId ? ["studio:kernel-telemetry", ownerId] : null, fetchAutopilotKernelTelemetry, { refreshInterval: 8_000 });
+  const { data: kernelTelemetry, mutate: mutateTelemetry } = useSWR(active && ownerId ? ["studio:kernel-telemetry", ownerId] : null, ([, summaryOwner]) => fetchAutopilotKernelTelemetry(summaryOwner), { refreshInterval: 8_000 });
   useEffect(() => {
     if (!active) return;
     const sync = () => { void mutate(); void mutateTelemetry(); };
@@ -293,8 +293,8 @@ export function AutopilotWorkbenchPrototype({
     });
   }, [activeNodeIdx, conveyorShiftMode, studioNodes]);
 
-  // 中央 CLI 终端滚动结构化树日志
-  const visibleTerminalStream = useMemo(() => {
+  // 当前节点附近的能力流程，用于导航。
+  const visibleCapabilityFlow = useMemo(() => {
     const list = [];
     for (let offset = -4; offset <= 0; offset++) {
       const idx = (activeNodeIdx + offset + STUDIO_20_NODES.length) % STUDIO_20_NODES.length;
@@ -691,15 +691,10 @@ export function AutopilotWorkbenchPrototype({
                   </span>
                 </div>
 
-                {/* 描述与遥测指标 */}
+                {/* 能力描述 */}
                 <div className="my-1">
                   <div className={`text-[10px] truncate ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
                     {node.sub}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5 text-[9px] font-mono text-slate-500">
-                    <span className={theme === "light" ? "text-slate-600 font-semibold" : "text-slate-400"}>{node.latency}</span>
-                    <span>•</span>
-                    <span>{node.tokens === "—" ? t("按需触发", "On demand") : node.tokens}</span>
                   </div>
                 </div>
 
@@ -756,7 +751,7 @@ export function AutopilotWorkbenchPrototype({
                       }`}
                     >
                       <Terminal className="w-3 h-3" />
-                      <span>{t("实时终端树 (CLI)", "Live terminal tree (CLI)")}</span>
+                      <span>{t("能力流程", "Capability flow")}</span>
                     </button>
                     <button
                       onClick={() => setTerminalTab("inspector")}
@@ -1052,9 +1047,9 @@ export function AutopilotWorkbenchPrototype({
                       </div>
                     )}
 
-                    {/* 树状调用日志流 */}
+                    {/* 能力流程导航 */}
                     <div className="space-y-2 pt-1 font-mono">
-                      {visibleTerminalStream.map((item) => (
+                      {visibleCapabilityFlow.map((item) => (
                         <div key={item.id} className="space-y-0.5">
                           <div className={`flex items-center justify-between ${
                             theme === "light" ? "text-slate-800" : "text-slate-200"
@@ -1073,7 +1068,6 @@ export function AutopilotWorkbenchPrototype({
                                 ({item.cmdTitle})
                               </span>
                             </div>
-                            <span className="text-slate-500 text-[10px]">{item.latency}</span>
                           </div>
                           <div className={`pl-4 flex items-center justify-between text-[11px] ${
                             theme === "light" ? "text-slate-600" : "text-slate-400"
@@ -1636,7 +1630,6 @@ export function AutopilotWorkbenchPrototype({
                         theme={theme}
                         savedJobsCount={jobs.length}
                         claimCount={claimCount}
-                        targetCompany={activeJob?.company}
                         telemetry={kernelTelemetry}
                         onOpenOpportunitySources={onOpenOpportunitySources}
                         onAnalyzeActiveJob={activeJob && onAnalyzeOpportunity ? () => onAnalyzeOpportunity(activeJob.sourceJob) : undefined}

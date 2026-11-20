@@ -46,7 +46,7 @@ export function createFreeChatTaskClient(options:{fetch?:typeof fetch;baseUrl?:s
     if(!["paused","interrupted","budget_exhausted","failed"].includes(task.status))throw new FreeChatTaskError("请先读取并核对任务状态；未自动恢复。","task_not_runnable",task.id);
     return observe(await read(task.id,params.signal,{expectedRevision:task.revision,sourceFingerprint:task.sourceFingerprint,runtimeBinding:binding,consent:true,runtime:params.runtime},"/resume"),params.signal,params.onTask);
   }
-  async function send(params:{messages:ChatMessage[];context?:AgentChatContext;workspaceKey:string;rootScopeKey?:string;parentTaskId?:string;runtime:UnderstandingRuntime;preferredRuntimeId?:string;signal?:AbortSignal;onTask?:(task:FreeChatTask)=>void}){
+  async function send(params:{messages:ChatMessage[];responseContract?:"resume_replacement_v1";context?:AgentChatContext;workspaceKey:string;rootScopeKey?:string;parentTaskId?:string;runtime:UnderstandingRuntime;preferredRuntimeId?:string;signal?:AbortSignal;onTask?:(task:FreeChatTask)=>void}){
     const lease=captureIdentityLease();lease.assert();params.signal?.throwIfAborted();
     if(!lease.ownerId)throw new FreeChatTaskError("请先登录 BetterMe 账号；未从浏览器直接调用其他模型。","identity_required");
     const messages=z.array(ChatMessageSchema).min(1).parse(params.messages),latest=messages.at(-1)!;
@@ -60,12 +60,13 @@ export function createFreeChatTaskClient(options:{fetch?:typeof fetch;baseUrl?:s
     if(!task){
       const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([params.workspaceKey,messages[0]!.id])));
       const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
-      const created=await request("",taskCreatePayload(FreeChatTaskCreateSchema.parse({kind:"free_chat",workspaceKey:params.workspaceKey,rootScopeKey:params.rootScopeKey,parentTaskId:params.parentTaskId,objective:"连续职业对话：回应本轮问题，保留完整授权上下文；所有建议待本人核对。",
+      const created=await request("",taskCreatePayload(FreeChatTaskCreateSchema.parse({kind:"free_chat",responseContract:params.responseContract,workspaceKey:params.workspaceKey,rootScopeKey:params.rootScopeKey,parentTaskId:params.parentTaskId,objective:params.responseContract==="resume_replacement_v1"?"从本次岗位要求和可用材料中选择一条可审阅的替换。":"连续职业对话：回应本轮问题，保留完整授权上下文；所有建议待本人核对。",
         conversation:{messages,context},runtimeBinding:binding,consent:true,idempotencyKey:`chat:${key}`})),params.signal);lease.assert();
       const parsed=one.safeParse(created.raw);if(!parsed.success)throw new FreeChatTaskError("新任务回执无法核对；未执行模型。","invalid_response");
       if(parsed.data.task.ownerId!==lease.ownerId)throw new IdentityBoundaryError();task=parsed.data.task;
     }
     assertTaskScope(task,params.rootScopeKey);params.onTask?.(task);lease.assert();
+    if(task.responseContract!==params.responseContract)throw new FreeChatTaskError("原任务的回复协议不同，本次未重发资料。","conversation_scope_changed",task.id);
     if(!same(task.runtimeBinding,binding))throw new FreeChatTaskError(issueText.runtime_binding_changed!,"runtime_binding_changed",task.id);
     if(!same(task.conversation.context??{},context??{}))throw new FreeChatTaskError("共享范围或项目共识已变化，请先核对原对话；未重发旧授权资料，也未新建任务清账。","conversation_scope_changed",task.id);
     const known=new Map(task.conversation.messages.map(message=>[message.id,message]));

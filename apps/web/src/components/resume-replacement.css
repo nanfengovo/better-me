@@ -1,0 +1,25 @@
+.rr-editor { flex: 0 0 auto; margin: 0; border-bottom: 1px solid var(--ui-border,#d8ded2); background: var(--ui-surface,#fff); color: var(--ui-text,#233326); font-size: 13px; }
+.rr-editor .rr-toggle { display: flex; align-items: center; gap: .55rem; width: 100%; padding: .8rem 1rem; text-align: start; }
+.rr-toggle svg:last-child { margin-inline-start: auto; }
+.rr-toggle[aria-expanded=true] svg:last-child { transform: rotate(180deg); }
+.rr-body,.rr-review,.rr-fields,.rr-editor label { display: grid; gap: .45rem; min-width: 0; }
+.rr-body { padding: 0 1rem 1rem; gap: .8rem; }
+.rr-editor :is(p,summary,small) { overflow-wrap: anywhere; }
+.rr-editor p { margin: 0; line-height: 1.55; white-space: pre-wrap; }
+.rr-editor small,.rr-origin { display: block; color: var(--ui-text-muted,#566454); font-size: .78rem; }
+.rr-editor :is(input:not([type=checkbox]),select,textarea) { border: 1px solid var(--ui-border,#ccd5c7); padding: .5rem; width: 100%; }
+.rr-editor textarea { resize: vertical; }
+.rr-editor button:not(.rr-toggle) { justify-self: start; border: 1px solid var(--ui-border,#ccd5c7); border-radius: 7px; padding: .4rem .65rem; }
+.rr-editor button:disabled { opacity: .52; }
+.rr-editor button.rr-primary { color: white; background: #305942; border-color: #305942; }
+.rr-editor details > summary { cursor: pointer; font-size: .8rem; }
+.rr-editor details[open] > summary { margin-bottom: .45rem; }
+.rr-materials > label { display: flex; align-items: flex-start; gap: .45rem; padding-block: .25rem; }
+.rr-materials input { margin-top: .25rem; }
+.rr-quote { padding-inline-start: .65rem; border-inline-start: 2px solid var(--ui-border,#becbb9); }
+.rr-compare { display: grid; gap: .4rem; }
+.rr-compare > div { padding: .6rem .75rem; background: var(--ui-input,#f3f5ef); border-radius: 6px; }
+.rr-compare > div:last-child { border-inline-start: 3px solid #558768; }
+.rr-actions,.rr-saved { display:flex; gap:.55rem; flex-wrap:wrap; align-items:center; }
+.rr-saved { padding:.6rem 1rem; border-bottom: 1px solid var(--ui-border,#d8ded2); }
+.rr-error { color: var(--ui-danger,#ab283d); }

@@ -231,6 +231,8 @@ test("job actions keep the primary source URL and successful observation time in
   assert.equal(action.url, listing.canonicalUrl);
   assert.equal(action.text, job.description);
   assert.equal(action.title, `${item.company.names[0]} · ${job.title.value}`);
+  assert.equal(action.jobTitle, job.title.value);
+  assert.equal(action.company, item.company.names[0]);
   listing.observationIds = [failed.id];
   assert.equal(buildAtlasJobAction(data, item).observedAt, undefined);
   assert.equal(buildAtlasJobAction(data, item).sourcePublishedAt, undefined);

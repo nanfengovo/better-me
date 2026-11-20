@@ -7,6 +7,7 @@ const instructions = [
   "先通读两道题、材料和学生的全部作答。每个阶段选一条最影响原目标的答题片段，在 reason 中直接比较它说了什么与题面要求。发现错误优先选错处。要明确写出是符合还是违背条件以及具体原因，不能仅说‘和材料相关’。",
   "改写是在点评帮助下产生的另一版作品。只有 before-retest 能说它早于复测，不推断因果。不同题中的同一编号可以考不同内容。recorded 只是保存原文，开放作答由你结合材料来分析；met/missed 是程序核对本题规则或运行用例的实际结果。",
   "重点判断复测作品在新条件下是否做到原目标。taskRequirement 写与原目标有关的新题要求，learnerDid 写复测答案实际做了什么。只对照这两句回答 hasConcreteMismatch：可观察到作品与目标所需的条件冲突、有要求没做到，选 true。appliedTarget 仅在作品确实运用了目标能力时填 true。新题没考原目标时，两项都填 false。",
+  "change 包含实际展示给学习者的前后条件和要观察的判断。请选择回答中体现本人对这一变化作出选择的原句。没有这种判断时 appliedTarget 填 false；缺少 change 的记录只能用于再次验证。",
   "首答和改写只用来解释该变化。独立新题有偏差就缩小这个难点补练；独立新题运用成功就引入一个新的限制；不可比较时重新检验。assisted 或 untracked 时在复测 reason 说明依据有限，并要求在全新题里独立作答。preview 是试算反馈，practiceReference 是参考之前的答案。untracked 表示当时没有跟踪。",
   "接下来你也是练习出题人。历史资料只能用于解释已有表现；新的练习可以并且必须主动虚构一个不同的小情境，无需等待新材料。为原目标写出三个不同的候选学习任务。每个都直接对学习者说：在某种具体的新条件下，要亲手交出什么。不要复述旧题。程序根据你对作品的观察选用其中一项。",
   "reinforceTask 缩小到本次一个薄弱点，extendTask 给已能运用这项技能的人增加一个具体的新限制，verifyTask 让学习者用陌生材料无提示独立再试。三项须有实质区别。action 只选本人提交作品的主要形式。不要给能力认证。",
@@ -58,11 +59,12 @@ export async function recommendLocalTransfer(model: string, pin: string, input: 
   const rewrites = evidence.filter(item => item.phase === "rewrite");
   const retest = evidence.filter(item => item.phase === "retest");
   const independenceKnown = input.retest.independence === "independent" && !input.retest.usedPreview;
+  const change = input.retest.change;
   const ruleMissed = retest.some(item => item.status === "missed");
   const choice = z.object({
     start: observation(practice, rewrites),
     revision: rewrites.length ? observation(rewrites, practice) : z.null().describe("本轮没有改写。"),
-    transfer: observation(retest).extend({
+    transfer: observation(change ? retest.filter(item => item.key === change.key) : retest).extend({
       taskRequirement: z.string().trim().min(1).describe("复测题面要求或事实是什么？只看新题的材料。"),
       learnerDid: z.string().trim().min(1).describe("复测时学生的作品实际主张了什么？只看选中的回答。"),
       hasConcreteMismatch: z.boolean().describe("刚才两句话是否显示与原目标相关的冲突或明确遗漏？出现这种偏差就是 true。"),
@@ -84,7 +86,7 @@ export async function recommendLocalTransfer(model: string, pin: string, input: 
     practice: { brief: input.practice.brief, material: input.practice.material, usedPreview: input.practice.usedPreview, responses: practice },
     ...(rewrites.length ? { revisionsToPractice: rewrites } : {}),
     retest: { brief: input.retest.brief, material: input.retest.material, usedPreview: input.retest.usedPreview,
-      independence: input.retest.independence, aids: input.retest.aids, responses: retest },
+      independence: input.retest.independence, aids: input.retest.aids, change: input.retest.change, responses: retest },
   }, z.toJSONSchema(choice), signal));
   const assistance = retestAssistance(input.retest, chineseGoal);
   const reasons = [start, ...(revision ? [revision] : []), transfer].map(({ spanId, reason: rawReason }) => {
@@ -96,9 +98,9 @@ export async function recommendLocalTransfer(model: string, pin: string, input: 
     const text = spanId === transfer.spanId && rawReason.length > reasonLimit ? transfer.learnerDid : rawReason;
     const reason = concise(text, reasonLimit) + independenceNote;
     const anchored = "「" + quote + "」 " + reason;
-    return { evidenceId, reason: anchored.length <= 300 && !reason.includes(quote) ? anchored : reason };
+    return { evidenceId, reason: anchored.length <= 300 && !reason.includes(quote) ? anchored : reason, answerQuote: quote };
   });
-  const direction = !independenceKnown ? "verify" : transfer.hasConcreteMismatch ? "reinforce" : transfer.appliedTarget && !ruleMissed ? "extend" : "verify";
+  const direction = !independenceKnown || !change ? "verify" : transfer.hasConcreteMismatch ? "reinforce" : transfer.appliedTarget && !ruleMissed ? "extend" : "verify";
   const independentTask = !independenceKnown ? (chineseGoal ? "独立完成：" : "Complete independently: ") : "";
   const nextExercise = direction === "verify" ? verifyTask : direction === "reinforce" ? reinforceTask : extendTask;
   const nextGoal = independentTask + concise(nextExercise, 400 - independentTask.length);

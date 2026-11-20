@@ -13,6 +13,7 @@ import {
   type TrainingTransferSource,
   TrainingWritingFeedback,
   trainingRewriteSourceDetail,
+  trainingWritingMaterial,
   type TrainingPlan,
   type TrainingDesign,
   type TrainingAttempt,
@@ -33,7 +34,7 @@ import {
   TrainingProgramMismatch,
   validateDesign,
 } from "./training-rules.js";
-import { studioSource } from "./training-studio.js";
+import { studioRetestChange, studioSource } from "./training-studio.js";
 import { localTrainingAuthor, type TrainingAuthor } from "./training-model.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -82,6 +83,7 @@ const signature = (
     ...(k.questions ? [k.plan.career ?? null, k.questions] : []),
     ...(k.plan.followFrom ? [k.plan.followFrom] : []),
     ...(k.plan.transferFrom ? [k.plan.transferFrom] : []),
+    ...(k.plan.interviewRef ? [{ interviewRef: k.plan.interviewRef, goal: k.plan.goal }] : []),
   ]);
 const screenFor = (k: Kit, index: number) => k.questions?.[index] ?? makeScreen(k.design, index);
 const questionVersion = (k: Kit, index: number, screen: TrainingScreen) => hash([k.version, index, screen]);
@@ -139,7 +141,7 @@ export class TrainingKits {
     const current = await this.career({ workspaceKey: career.workspaceKey, targetId: career.targetId }, access);
     if (JSON.stringify(current) !== JSON.stringify(career)) learningFail("training_career_target_changed", 409);
   }
-  private async followSource(ref: TrainingFollowRef, goal: string, career: TrainingCareerContext | undefined, access: CareerTaskAccess) {
+  private async followSource(ref: TrainingFollowRef, goal: string, career: TrainingCareerContext | undefined, interviewRef: string | undefined, access: CareerTaskAccess) {
     const parent = await this.read(ref.kitId, access);
     if (ref.round === "practice" && referenceHidden(parent, stage(parent, this.clock())))
       learningFail("training_practice_reference_required", 409);
@@ -147,7 +149,7 @@ export class TrainingKits {
     const field = attempt?.question?.fields.find(item => item.key === ref.key);
     const evidence = attempt?.feedback.evidence?.find(item => item.key === ref.key);
     const answer = attempt && "parts" in attempt.answer ? attempt.answer.parts[ref.key] : undefined;
-    if (!parent.saved || parent.design.kind !== "studio" || parent.plan.goal !== goal || parent.version !== ref.version ||
+    if (!parent.saved || parent.design.kind !== "studio" || parent.plan.goal !== goal || parent.plan.interviewRef !== interviewRef || parent.version !== ref.version ||
         JSON.stringify(parent.plan.career) !== JSON.stringify(career) ||
         !attempt?.questionVersion || !field || !evidence || !answer)
       learningFail("training_follow_source_changed", 409);
@@ -173,27 +175,29 @@ export class TrainingKits {
     if (!input) learningFail("training_transfer_unavailable", 409);
     return input;
   }
-  private async transferSource(ref: TrainingTransferRef, goal: string, career: TrainingCareerContext | undefined, access: CareerTaskAccess): Promise<TrainingTransferSource> {
+  private async transferSource(ref: TrainingTransferRef, goal: string, career: TrainingCareerContext | undefined, interviewRef: string | undefined, access: CareerTaskAccess): Promise<TrainingTransferSource> {
     const parent = await this.read(ref.kitId, access);
     const decision = parent.transferDecision;
-    if (parent.version !== ref.version || parent.plan.goal !== goal || JSON.stringify(parent.plan.career) !== JSON.stringify(career) ||
+    if (parent.version !== ref.version || parent.plan.goal !== goal || parent.plan.interviewRef !== interviewRef || JSON.stringify(parent.plan.career) !== JSON.stringify(career) ||
         !decision || decision.evidenceVersion !== ref.evidenceVersion) learningFail("training_transfer_source_changed", 409);
     const input = this.transferInput(parent);
+    if (decision.direction === "extend" && !input.retest.change) learningFail("training_transfer_source_changed", 409);
     if (hash(input) !== ref.evidenceVersion) learningFail("training_transfer_source_changed", 409);
     const { direction, nextGoal, actions, reasons } = decision;
     return { kitId: parent.id, version: parent.version, evidenceVersion: decision.evidenceVersion, kitTitle: parent.design.title,
       direction, nextGoal, actions, reasons, citations: input.evidence.filter(e => reasons.some(r => r.evidenceId === e.id)),
       practiceVersion: input.practice.questionVersion, retestVersion: input.retest.questionVersion,
-      retestIndependence: input.retest.independence, retestAids: input.retest.aids };
+      retestIndependence: input.retest.independence, retestAids: input.retest.aids,
+      ...(input.retest.change ? { retestChange: input.retest.change } : {}) };
   }
-  private async assertInputs(plan: Pick<TrainingPlan, "goal" | "career" | "followFrom" | "transferFrom">, access: CareerTaskAccess) {
+  private async assertInputs(plan: Pick<TrainingPlan, "goal" | "career" | "interviewRef" | "followFrom" | "transferFrom">, access: CareerTaskAccess) {
     await this.assertCareer(plan.career, access);
     if (plan.transferFrom) {
-      const current = await this.transferSource(plan.transferFrom, plan.goal, plan.career, access);
+      const current = await this.transferSource(plan.transferFrom, plan.goal, plan.career, plan.interviewRef, access);
       if (JSON.stringify(current) !== JSON.stringify(plan.transferFrom)) learningFail("training_transfer_source_changed", 409);
     }
     if (plan.followFrom) {
-      const current = await this.followSource(plan.followFrom, plan.goal, plan.career, access);
+      const current = await this.followSource(plan.followFrom, plan.goal, plan.career, plan.interviewRef, access);
       if (JSON.stringify(current) !== JSON.stringify(plan.followFrom)) learningFail("training_follow_source_changed", 409);
     }
   }
@@ -246,11 +250,12 @@ export class TrainingKits {
       if (this.plans.size >= 24) learningFail("training_preview_limit", 429);
       const career = input.careerTarget ? await this.career(input.careerTarget, access) : undefined;
       if (career && input.goal !== career.competency) learningFail("training_career_target_changed", 409);
+      if (input.interviewRef && (career || input.engine.type !== "local")) learningFail("training_interview_source_changed", 409);
       if (input.followFrom && input.engine.type !== "local") learningFail("training_follow_source_changed", 409);
       if (input.transferFrom && (input.followFrom || input.engine.type !== "local" || input.evidence))
         learningFail("training_transfer_source_changed", 409);
-      const transferFrom = input.transferFrom ? await this.transferSource(input.transferFrom, input.goal, career, access) : undefined;
-      const followFrom = input.followFrom ? await this.followSource(input.followFrom, input.goal, career, access) : undefined;
+      const transferFrom = input.transferFrom ? await this.transferSource(input.transferFrom, input.goal, career, input.interviewRef, access) : undefined;
+      const followFrom = input.followFrom ? await this.followSource(input.followFrom, input.goal, career, input.interviewRef, access) : undefined;
       await this.once(input.requestId, access);
       let advice: TrainingAdvice, pin: string | undefined;
       if (input.engine.type === "local") {
@@ -258,7 +263,7 @@ export class TrainingKits {
         try {
           pin = await this.author.pin(model, signal);
           await this.store.assert(access);
-          await this.assertInputs({ goal: input.goal, career, followFrom, transferFrom }, access);
+          await this.assertInputs({ goal: input.goal, career, interviewRef: input.interviewRef, followFrom, transferFrom }, access);
           advice = transferFrom ? { route: "studio", practiceActions: transferFrom.actions,
             observation: transferFrom.reasons[0]!.reason, nextStep: transferFrom.nextGoal } : TrainingAdvice.parse(
             await this.author.diagnose(
@@ -298,13 +303,14 @@ export class TrainingKits {
         };
       }
       await this.store.assert(access);
-      await this.assertInputs({ goal: input.goal, career, followFrom, transferFrom }, access);
+      await this.assertInputs({ goal: input.goal, career, interviewRef: input.interviewRef, followFrom, transferFrom }, access);
       signal.throwIfAborted();
       const plan: TrainingPlan = {
         id: randomUUID(),
         goal: input.goal,
         evidence: input.evidence,
         ...(career ? { career } : {}),
+        ...(input.interviewRef ? { interviewRef: input.interviewRef } : {}),
         ...(followFrom ? { followFrom } : {}),
         ...(transferFrom ? { transferFrom } : {}),
         advice,
@@ -366,7 +372,9 @@ export class TrainingKits {
             if (!d.scenes.every(scene => scene.steps.length === actions.length &&
               scene.steps.every((step, index) => step.mode === actions[index]))) learningFail("training_design_invalid", 422);
           }
-        } catch {
+        } catch (error) {
+          if (error instanceof Error && error.message === "training_retest_repeated")
+            return learningFail("training_retest_repeated", 422);
           return learningFail("training_design_invalid", 422);
         }
         await this.store.assert(access);
@@ -452,6 +460,7 @@ export class TrainingKits {
       title: k.design.title,
       goal: k.plan.goal,
       career: k.plan.career,
+      interviewRef: k.plan.interviewRef,
       followFrom: hideHistory ? undefined : k.plan.followFrom,
       transferFrom: hideHistory ? undefined : k.plan.transferFrom,
       transferDecision: k.transferDecision,
@@ -519,6 +528,7 @@ export class TrainingKits {
             origin: k.plan.origin,
             stage: stage(k, this.clock()),
             career: k.plan.career,
+            interviewRef: k.plan.interviewRef,
           };
         }),
     );
@@ -572,7 +582,7 @@ export class TrainingKits {
       let raw: unknown;
       try {
         raw = await this.author.reviewWriting(model, pin, {
-          goal: k.plan.goal, material: [screen.brief, ...screen.notes.slice(0, 1)], question: field.label, answer: original,
+          goal: k.plan.goal, material: trainingWritingMaterial(screen), question: field.label, answer: original,
         }, signal);
       } catch {
         signal.throwIfAborted();
@@ -618,6 +628,14 @@ export class TrainingKits {
     const advice = parsed.data;
     const refs = new Set(advice.reasons.map(r => r.evidenceId));
     const cited = input.evidence.filter(e => refs.has(e.id));
+    const change = input.retest.change;
+    const changedResponse = change && cited.find(e => e.phase === "retest" && e.key === change.key);
+    if (advice.reasons.some(r => r.answerQuote && !cited.find(e => e.id === r.evidenceId)?.answer.includes(r.answerQuote)))
+      learningFail("training_transfer_invalid", 422);
+    if (advice.direction === "extend") {
+      const quote = advice.reasons.find(r => r.evidenceId === changedResponse?.id)?.answerQuote;
+      if (!changedResponse || (changedResponse.control === "write" && !quote)) learningFail("training_transfer_invalid", 422);
+    }
     if (cited.length !== advice.reasons.length || new Set(cited.map(e => e.phase)).size !== new Set(input.evidence.map(e => e.phase)).size ||
         (input.retest.independence !== "independent" && advice.direction !== "verify") ||
         (advice.direction === "extend" && input.evidence.some(e => e.phase === "retest" && e.status === "missed")))
@@ -711,6 +729,7 @@ export class TrainingKits {
             usedPreview: k.explored[index] || (index === 1 && !!k.practiceReferenceViewed),
             ...(index === 1 && k.design.kind === "studio" && k.practiceReferenceViewed !== undefined
               ? { aids: { preview: k.explored[1], practiceReference: k.practiceReferenceViewed } } : {}),
+            ...(index === 1 && k.design.kind === "studio" ? { retestChange: studioRetestChange(k.design) } : {}),
             question,
             questionVersion: questionVersion(k, index, question),
           });

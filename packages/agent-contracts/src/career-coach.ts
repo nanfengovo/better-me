@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { LlmConfig } from "@better-me/core";
 import { ResumeProposalTargetSchema, type ResumeEditContext } from "./resume-edit-context.js";
-import { CoachTrainingEvidenceRefSchema, CoachTrainingTargetSchema, TrainingCareerContextSchema, careerJobSnapshotVersion, careerTrainingRequirements, type TrainingCareerRef } from "./career-training.js";
+import { CoachTrainingEvidenceRefSchema, CoachTrainingTargetSchema, TrainingCareerContextSchema, careerJobSnapshotVersion, careerRequirementCapabilityId, careerTrainingRequirements, type TrainingCareerRef } from "./career-training.js";
 
 /** Full 20k practice source, all checks and evidence notes; overflow is rejected. */
 export const COACH_EVIDENCE_LIMIT = 64_000;
@@ -179,11 +179,18 @@ export function resolveCareerTrainingTarget(state: CoachState, ref: TrainingCare
   const criterion = task?.acceptanceCriteria[target.criterionIndex];
   const requirement = careerTrainingRequirements(target.job).find(item => item.id === target.itemId && item.originalQuote === target.quote);
   if (!task || !criterion || !requirement) return undefined;
+  const source = target.quoteSource;
+  if (source && (source.parserVersion !== requirement.parserVersion
+    || source.sourceSpan.start !== requirement.sourceSpan?.start || source.sourceSpan.end !== requirement.sourceSpan?.end
+    || (source.sourceSpan.line !== undefined && source.sourceSpan.line !== requirement.sourceSpan?.line))) return undefined;
+  const snapshotVersion = careerJobSnapshotVersion(target.job);
+  if (target.capabilityId && target.capabilityId !== careerRequirementCapabilityId(snapshotVersion, requirement.id, requirement.originalQuote)) return undefined;
   return TrainingCareerContextSchema.parse({
     ...ref, goalId: goal.id, goal: goal.goal, planId: plan.id, planTitle: plan.plan.title,
-    taskId: task.id, taskTitle: task.title, competency: target.competency, criterion,
+    taskId: task.id, taskTitle: task.title, ...(target.capabilityId ? { capabilityId: target.capabilityId } : {}), competency: target.competency, criterion,
     requirement: { jobId: target.job.id, title: target.job.title, company: target.job.company,
       sourcePlatform: target.job.sourcePlatform, sourceUrl: target.job.sourceUrl,
-      snapshotVersion: careerJobSnapshotVersion(target.job), itemId: requirement.id, quote: requirement.originalQuote },
+      snapshotVersion, itemId: requirement.id, quote: requirement.originalQuote,
+      ...(source ? { quoteSource: source } : {}) },
   });
 }

@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
+import { ResumeReplacementSelectionSchema } from "@better-me/core";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { AGENT_TASK_SUMMARY_LIMIT, inventoryProbeTaskId, InventoryTaskCreateSchema, InventoryProbeResultSchema, type AgentTaskListSummary, type InventoryTask, type InventoryTaskCreate } from "@better-me/agent-contracts";
+import { AGENT_TASK_SUMMARY_LIMIT, AGENT_TASK_STAGE_SUMMARY_LIMIT, type AgentTaskSummary, inventoryProbeTaskId, InventoryTaskCreateSchema, InventoryProbeResultSchema, type AgentTaskListSummary, type InventoryTask, type InventoryTaskCreate } from "@better-me/agent-contracts";
 import { DatabaseSync } from "node:sqlite";
 import { CareerTaskBudgetSchema, CareerTaskCreateSchema, CareerTaskDecisionSchema, CareerTaskReceiptSchema, AgentTaskRunSchema, AgentTaskSchema, FreeChatTaskCreateSchema, ExperienceRefineTaskCreateSchema, FreeChatReplyDecisionSchema, ResumeCandidateSchema, resumeCandidateSource, resumeCandidateBoundSchema, reviewResumeCandidateAttribution, reviewResumeCandidateWorkCoverage, isCareerTask, agentTaskSourceFingerprint,
   ProjectUnderstandingTaskCreateSchema, UnderstandingTurnSchema, isConversationTask,
@@ -73,11 +74,25 @@ import {
 export { CareerTaskError };
 export type { AgentTaskCommand, CareerTaskAccess, CareerTaskRun, CareerTaskRuntime };
 
+type TaskFileMetadata = { ino: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint };
+type TaskSummaryEntry = { meta: TaskFileMetadata | null; task: AgentTaskSummary };
+function sameTaskFile(a: TaskFileMetadata | null, b: TaskFileMetadata | null): boolean {
+  return !!a && !!b && a.ino === b.ino && a.size === b.size && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
+}
+function taskSummary(task: AgentTask): AgentTaskSummary {
+  const kind = task.kind ?? "resume_tailor";
+  return { id: task.id, kind, title: isCareerTask(task) ? task.job.title.slice(0, 160) : kind, status: task.status, updatedAt: task.updatedAt };
+}
+
 /** One instance per authenticated owner (never per tab). Operations serialize before publication; no credential is part of Store. */
 export class AgentTaskKernel{
   private readonly active=new Map<string,Active>();
   private readonly storeCache=new Map<string,{ino:bigint;size:bigint;mtimeNs:bigint;ctimeNs:bigint;store:AnyStore}>();
   private readonly rootIndex=new Map<string,{ino:bigint;size:bigint;mtimeNs:bigint;ctimeNs:bigint;rootTaskId?:string}>();
+  // Only bounded summary fields enter this index. Interactive task reads maintain
+  // the separate full-store cache and remain serialized in the writer queue.
+  private readonly summaryIndex = new Map<string, TaskSummaryEntry>();
+  private summaryRefresh?: Promise<AgentTaskListSummary>;
   private writes:Promise<unknown>=Promise.resolve();
   private closed=false;
   private revoked=new Set<string>();
@@ -123,7 +138,19 @@ export class AgentTaskKernel{
     if(meta){
       this.storeCache.set(s.task.id,{...meta,store:structuredClone(s)});
       this.rootIndex.set(s.task.id,{...meta,rootTaskId:s.task.rootTaskId});
-    }}
+    }
+    this.summaryIndex.set(s.task.id, { meta, task: taskSummary(s.task) });
+  }
+  private checkedPrivateStore(id:string,raw:unknown):AnyStore{
+    if(!raw||typeof raw!=="object")fail("invalid_private_task",503);
+    const s=raw as AnyStore;
+    if(s.schema!==1||s.task?.id!==id||s.task?.ownerId!==this.opts.ownerId||!Array.isArray(s.recent)||!Array.isArray(s.grants)||!AgentTaskSchema.safeParse(s.task).success)fail("invalid_private_task",503);
+    if(s.task.kind==="project_understanding"){
+      const metaState=s.projectState,session=s.task.project;
+      if(session.id!==id||session.workspaceKey!==s.task.workspaceKey||session.revision!==s.task.revision||digest(session.grants)!==digest(s.grants)||!metaState||!Number.isSafeInteger(metaState.agentContextFloor)||metaState.agentContextFloor<0||metaState.agentContextFloor>session.messages.length||!Number.isSafeInteger(metaState.recentContextFloor)||metaState.recentContextFloor<0||metaState.recentContextFloor>s.recent.length||!metaState.receipts||typeof metaState.receipts!=="object")fail("invalid_private_task",503);
+    }
+    return s;
+  }
   private async loadAny(id:string, mode:"recover"|"inspect"="recover"):Promise<AnyStore>{
     const filePath=this.file(id);
     const cached=this.storeCache.get(id);
@@ -139,12 +166,7 @@ export class AgentTaskKernel{
     this.storeCache.delete(id);
     this.rootIndex.delete(id);
     const raw=await readPrivateJson(filePath);if(!raw)fail("task_not_found",404);
-    const s=raw as AnyStore;
-    if(s.schema!==1||s.task?.id!==id||s.task?.ownerId!==this.opts.ownerId||!Array.isArray(s.recent)||!Array.isArray(s.grants)||!AgentTaskSchema.safeParse(s.task).success)fail("invalid_private_task",503);
-    if(s.task.kind==="project_understanding"){
-      const metaState=s.projectState,session=s.task.project;
-      if(session.id!==id||session.workspaceKey!==s.task.workspaceKey||session.revision!==s.task.revision||digest(session.grants)!==digest(s.grants)||!metaState||!Number.isSafeInteger(metaState.agentContextFloor)||metaState.agentContextFloor<0||metaState.agentContextFloor>session.messages.length||!Number.isSafeInteger(metaState.recentContextFloor)||metaState.recentContextFloor<0||metaState.recentContextFloor>s.recent.length||!metaState.receipts||typeof metaState.receipts!=="object")fail("invalid_private_task",503);
-    }
+    const s=this.checkedPrivateStore(id,raw);
     if(mode==="recover"&&s.task.status==="running"&&!this.active.has(id)){
       // A missing final heartbeat forfeits its last leased interval (not all wall time while offline).
       // Repeated forced restarts cannot refund the elapsed active interval.
@@ -408,32 +430,80 @@ export class AgentTaskKernel{
   async listTasks(){return this.atomic(async()=>{const names=await fs.readdir(this.opts.directory).catch((e:NodeJS.ErrnoException)=>{if(e.code==="ENOENT")return [];throw e;});
     const tasks:AgentTask[]=[];for(const name of names.filter(s=>/^ct_[a-f0-9]{32}\.json$/.test(s)))tasks.push(await this.view(await this.loadAny(name.slice(0,-5))));
     return tasks.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));});}
-  async listTaskSummary(): Promise<AgentTaskListSummary> {
-    return this.atomic(async () => {
-      const summary: AgentTaskListSummary = {
-        ownerId: this.opts.ownerId, totalTasks: 0, runningCount: 0, awaitingCount: 0,
-        completedCount: 0, pausedCount: 0, failedCount: 0, tasks: [],
-      };
-      // Inspect each archive once. Only a task's interactive read needs a root
-      // ledger or persists restart recovery.
-      for (const name of await fs.readdir(this.opts.directory)) {
-        if (!/^ct_[a-f0-9]{32}\.json$/.test(name)) continue;
-        const { task } = await this.loadAny(name.slice(0, -5), "inspect");
-        const status = task.status === "running" && !this.active.has(task.id) ? "interrupted" : task.status;
-        summary.totalTasks++;
-        if (status === "running" || status === "ready") summary.runningCount++;
-        else if (status === "awaiting_answer" || status === "awaiting_review") summary.awaitingCount++;
-        else if (status === "completed") summary.completedCount++;
-        else if (status === "paused") summary.pausedCount++;
-        else summary.failedCount++;
-        const kind = task.kind ?? "resume_tailor";
-        const title = isCareerTask(task) ? task.job.title.slice(0, 160) : kind;
-        summary.tasks.push({ id: task.id, kind, title, status, updatedAt: task.updatedAt });
-        summary.tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
-        if (summary.tasks.length > AGENT_TASK_SUMMARY_LIMIT) summary.tasks.pop();
+  private async readSummaryEntry(id: string, cached?: TaskSummaryEntry): Promise<TaskSummaryEntry | undefined> {
+    const filename = this.file(id);
+    let meta = await this.statPrivateStore(filename);
+    if (cached && sameTaskFile(cached.meta, meta)) return cached;
+    // A write replaces the file atomically. If the file changed while it was
+    // being read, refresh once. The writer's committed index entry wins below.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const raw = await readPrivateJson(filename);
+      if (raw === undefined) return undefined;
+      const row = taskSummary(this.checkedPrivateStore(id, raw).task);
+      const observed = await this.statPrivateStore(filename);
+      if (sameTaskFile(meta, observed) || !meta && !observed) return { meta: observed, task: row };
+      const committed = this.summaryIndex.get(id);
+      if (committed && sameTaskFile(committed.meta, observed)) return committed;
+      meta = observed;
+    }
+    fail("task_summary_changed", 503);
+  }
+  private async refreshTaskSummary(): Promise<AgentTaskListSummary> {
+    if (this.closed) fail("host_stopped", 503);
+    // The per-owner writer lease is needed to attribute live runs to this host.
+    // Acquire it before a cold read, not once per archive or poll.
+    if (!this.writer) await this.atomic(async () => {});
+    const baseline = new Map(this.summaryIndex);
+    const names = (await fs.readdir(this.opts.directory)).filter(name => /^ct_[a-f0-9]{32}\.json$/.test(name));
+    const seen = new Set<string>();
+    // Sequential async file reads bound I/O and never occupy the mutation queue.
+    // A warm entry needs only metadata validation, no full-store parse or clone.
+    for (const name of names) {
+      const id = name.slice(0, -5);
+      seen.add(id);
+      const entry = await this.readSummaryEntry(id, this.summaryIndex.get(id));
+      if (this.closed) fail("host_stopped", 503);
+      // Preserve newer entries published by the writer during the scan.
+      if (this.summaryIndex.get(id) === baseline.get(id)) {
+        if (entry) this.summaryIndex.set(id, entry);
+        else this.summaryIndex.delete(id);
       }
-      return summary;
-    });
+    }
+    for (const [id, previous] of baseline) {
+      if (!seen.has(id) && this.summaryIndex.get(id) === previous) this.summaryIndex.delete(id);
+    }
+    if (this.closed) fail("host_stopped", 503);
+    const summary: AgentTaskListSummary = {
+      ownerId: this.opts.ownerId, totalTasks: 0, readyCount: 0, runningCount: 0, awaitingCount: 0,
+      completedCount: 0, pausedCount: 0, failedCount: 0, tasks: [], recentByKind: [],
+    };
+    const rows = [...this.summaryIndex.values()].map(({ task }) => ({
+      ...task,
+      status: task.status === "running" && !this.active.has(task.id) ? "interrupted" as const : task.status,
+    })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+    const kindCounts = new Map<AgentTaskSummary["kind"], number>();
+    for (const row of rows) {
+      summary.totalTasks++;
+      if (row.status === "ready") summary.readyCount++;
+      else if (row.status === "running") summary.runningCount++;
+      else if (row.status === "awaiting_answer" || row.status === "awaiting_review") summary.awaitingCount++;
+      else if (row.status === "completed") summary.completedCount++;
+      else if (row.status === "paused") summary.pausedCount++;
+      else summary.failedCount++;
+      const count = kindCounts.get(row.kind) ?? 0;
+      if (count < AGENT_TASK_STAGE_SUMMARY_LIMIT) {
+        summary.recentByKind.push(row);
+        kindCounts.set(row.kind, count + 1);
+      }
+    }
+    summary.tasks = rows.slice(0, AGENT_TASK_SUMMARY_LIMIT);
+    return summary;
+  }
+  listTaskSummary(): Promise<AgentTaskListSummary> {
+    if (this.summaryRefresh) return this.summaryRefresh;
+    const result = this.refreshTaskSummary().finally(() => { this.summaryRefresh = undefined; });
+    this.summaryRefresh = result;
+    return result;
   }
   private async createOcr(input:JdOcrTaskCreate,access?:CareerTaskAccess){
     const data=JdOcrTaskCreateSchema.parse(input),id=`ct_${digest([this.opts.ownerId,data.idempotencyKey]).slice(0,32)}`,inputHash=digest(data);
@@ -727,6 +797,8 @@ export class AgentTaskKernel{
           op==="resume"&&!(["paused","interrupted","budget_exhausted","failed",...(t.kind==="project_understanding"?["awaiting_review","completed"]:[])] as string[]).includes(t.status))fail("task_not_runnable");
         if(t.kind!=="project_understanding"&&data.projectTurn)fail("task_kind_not_supported_by_operation",422);
         if(t.kind!=="mock_interview"&&data.interviewAction)fail("task_kind_not_supported_by_operation",422);
+        if(t.kind==="free_chat" && t.responseContract==="resume_replacement_v1" && (op==="answer" || data.message || data.answer))
+          fail("task_kind_not_supported_by_operation",422);
         if(t.kind==="career_inventory" && (op!=="start" || data.answer || data.message || t.usage.modelCalls>0))fail("inventory_single_dispatch_only",422);
         if(t.kind==="jd_match"&&(data.message||data.answer||op==="answer"))fail("task_kind_not_supported_by_operation",422);
         if((t.kind==="career_coach"||t.kind==="jd_intake"||t.kind==="jd_ocr"||t.kind==="studio_analysis"||t.kind==="studio_committee")&&(data.message||data.answer||op==="answer"))fail("task_kind_not_supported_by_operation",422);
@@ -1192,7 +1264,8 @@ export class AgentTaskKernel{
         const task=state.task as ConversationTask;
         const prompt=task.kind==="experience_refine"?experienceRefinePrompt(task,state.recent):freeChatPrompt(task,state.recent);
         const boundSource=task.kind==="free_chat"?resumeCandidateSource(task):undefined;
-        const phase=task.kind==="free_chat"&&task.responseContract&&task.responseContract!=="resume_candidate_v1"?"resume_candidate_bound":task.kind==="free_chat"&&task.responseContract==="resume_candidate_v1"?"resume_candidate":task.kind;
+        const contract=task.kind==="free_chat"?task.responseContract:undefined;
+        const phase=contract==="resume_replacement_v1"?"resume_replacement":contract==="resume_candidate_v1"?"resume_candidate":contract?"resume_candidate_bound":task.kind;
         const response=await a.runtime.reasoner(prompt,a.controller.signal,phase,freeChatImages(task),boundSource),output=modelOutputText(response),finishReason=modelFinishReason(response);
         // Preserve the complete transport output before parsing or rejecting it.
         await this.checkedAny(id,a,async s=>{
@@ -1209,6 +1282,9 @@ export class AgentTaskKernel{
         try{
           if(task.kind==="experience_refine"){
             refinementReply=experienceRefineReply(task,output);decision={kind:"reply",content:JSON.stringify(refinementReply)};
+          }else if(task.responseContract==="resume_replacement_v1"){
+            if(!ResumeReplacementSelectionSchema.safeParse(JSON.parse(output)).success)fail("invalid_resume_replacement",422);
+            decision={kind:"reply",content:output};
           }else if(task.responseContract){
             const schema=task.responseContract==="resume_candidate_v1"?ResumeCandidateSchema:resumeCandidateBoundSchema(boundSource);
             const candidate=JSON.parse(output);
@@ -1231,6 +1307,7 @@ export class AgentTaskKernel{
           const rejected=state.recent.filter(item=>typeof item==="object"&&item!==null&&"kind" in item&&item.kind===`${task.kind}_rejected`&&"turn" in item&&item.turn===task.turn).length;
           const code=error instanceof SyntaxError?"invalid_json":task.kind==="experience_refine"?"invalid_experience_reply":safeCode(error);
           await this.checkedAny(id,a,s=>{s.recent.push({kind:`${task.kind}_rejected`,turn:task.turn,code,...(attribution?.length?{attribution}:{}),...(workCoverage?.missingCurrentGroups.length?{workCoverage}:{}),...(task.kind==="experience_refine"&&error instanceof Error?{validation:error.message}:{})});event(s.task,"decision",`Rejected conversational output: ${code}; complete output retained.`);});
+          if(contract==="resume_replacement_v1")fail("invalid_resume_replacement",422);
           if(rejected>=2)fail("decision_repair_exhausted",422);
           continue;
         }

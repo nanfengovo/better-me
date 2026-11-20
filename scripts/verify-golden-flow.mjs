@@ -307,6 +307,7 @@ async function main() {
     await page.locator('summary[aria-label="应用菜单"]').click();
     await page.locator('nav[aria-label="切换应用"] button:has-text("AI 顾问")').click();
 
+    await page.locator('.cs-advisor-slot .advisor-job-options > summary').click();
     const jdTitle = page.locator('.cs-advisor-slot input[placeholder*="例如：资深前端工程师"]').first();
     await jdTitle.waitFor({ state: "visible", timeout: 10_000 });
     await jdTitle.fill("Senior Fullstack Engineer");

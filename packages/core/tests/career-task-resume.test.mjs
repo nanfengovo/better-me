@@ -160,3 +160,87 @@ test("a restored task receipt must name its owning view and cannot silently turn
   assert.equal(DocumentSchema.safeParse(missingSnapshot).success, false);
   assert.equal(DocumentSchema.safeParse(wrongReceipt).success, false);
 });
+
+function replacementScenario() {
+  const doc = scenario(), view = doc.resumeViews[0];
+  const [work, project] = doc.factBase.experiences;
+  view.experienceSelection = "selected";
+  view.includedExperienceIds = [work.id];
+  project.type = "other";
+  project.projectName = l("合成课程作品", "Fixture coursework");
+  project.url = "https://example.invalid/private-project";
+  project.techStack = ["Unreviewed tool"];
+  work.claims.push({ id: "keep", kind: "action", text: l("保留原句", "Keep this duty"), tags: [] });
+  project.claims[0].text.en = "Built a visible checklist";
+  project.claims.push({ id: "secret-sibling", kind: "action", text: l("未选的项目细节", "Unreviewed detail"), tags: [] });
+  return doc;
+}
+
+const replacement = {
+  remove: { experienceId: "first", claimId: "c-first", text: "Original first" },
+  use: { experienceId: "second", claimId: "c-second", text: "Built a visible checklist" },
+  proposedText: "Built a visible checklist",
+};
+
+test("a cross-experience replacement exports exactly the selected bullet under its own heading after a durable round trip", async () => {
+  const doc = replacementScenario(), original = structuredClone(doc);
+  const approved = await command(doc, { patches: [], replacement });
+  const saved = await core.createCareerTaskResume(doc, approved, later);
+  assert.deepEqual(doc, original);
+  const reloaded = DocumentSchema.parse(JSON.parse(JSON.stringify(saved.document)));
+  const preview = core.projectResume(reloaded.factBase, reloaded.resumeViews.at(-1));
+  assert.deepEqual(preview.experiences.map(exp => [exp.id, exp.claims.map(c => c.id)]), [["first", ["keep"]], ["second", ["c-second"]]]);
+  const markdown = core.projectedResumeToMarkdown(preview);
+  assert.match(markdown, /Work Experience[\s\S]*Keep this duty[\s\S]*Projects & Works[\s\S]*Fixture coursework[\s\S]*Built a visible checklist/);
+  assert.doesNotMatch(markdown, /Original first|Unreviewed|private-project/);
+  assert.equal((markdown.match(/Built a visible checklist/g) || []).length, 1);
+  assert.deepEqual(core.projectResume(reloaded.factBase, reloaded.resumeViews[0]), core.projectResume(original.factBase, original.resumeViews[0]));
+  const retry = await core.createCareerTaskResume(reloaded, approved, later);
+  assert.equal(retry.reused, true);
+  assert.equal(retry.document, reloaded);
+  assert.deepEqual(retry.receipt, saved.receipt);
+  await assert.rejects(core.createCareerTaskResume(reloaded, { ...approved, replacement: { ...replacement, proposedText: "Changed again" } }), { code: "task_conflict" });
+});
+
+test("a visible same-experience candidate takes the earlier slot only once; an in-place edit uses the effective source language", async () => {
+  const doc = replacementScenario(), work = doc.factBase.experiences[0];
+  work.claims.splice(1, 0, { id: "middle", kind: "action", text: l("中间", "Middle bullet"), tags: [] });
+  const promote = { ...replacement, use: { experienceId: "first", claimId: "keep", text: "Keep this duty" }, proposedText: "Keep this duty" };
+  const promoted = await core.createCareerTaskResume(doc, await command(doc, { patches: [], replacement: promote }));
+  assert.deepEqual(core.projectResume(promoted.document.factBase, promoted.document.resumeViews.at(-1)).experiences[0].claims.map(c => c.id), ["keep", "middle"]);
+  const reverse = { ...promote, remove: promote.use, use: promote.remove, proposedText: promote.remove.text };
+  const earlier = await core.createCareerTaskResume(doc, await command(doc, { patches: [], replacement: reverse }));
+  assert.deepEqual(core.projectResume(earlier.document.factBase, earlier.document.resumeViews.at(-1)).experiences[0].claims.map(c => c.id), ["c-first", "middle"]);
+  delete work.claims[0].text.en;
+  const ref = { experienceId: "first", claimId: "c-first", text: "原句-first" };
+  const rewrite = { remove: ref, use: ref, proposedText: "用户确认的补充" };
+  const revised = await core.createCareerTaskResume(doc, await command(doc, { patches: [], replacement: rewrite }));
+  const edition = revised.document.resumeViews.at(-1), actual = edition.isolatedFactBase.experiences[0].claims[0].text;
+  assert.deepEqual(actual, { zh: rewrite.proposedText });
+  assert.equal(core.projectResume(revised.document.factBase, edition).experiences[0].claims[0].text, rewrite.proposedText);
+});
+
+test("replacements reject wrong ownership, stale source, hidden sections, private notes, ambiguous IDs and concurrent selection edits", async () => {
+  for (const [setup, code] of [
+    [doc => { doc.factBase.experiences[1].claims[0].kind = "interview"; }, "target_outside_view"],
+    [doc => { doc.factBase.experiences[1].claims[0].kind = "pitfall"; }, "target_outside_view"],
+    [doc => { doc.factBase.experiences[1].claims[0].metric = { value: 8, unit: "%", confirmed: false }; }, "target_outside_view"],
+    [doc => { doc.resumeViews[0].sectionVisibility = { projects: false }; }, "target_outside_view"],
+    [doc => { doc.resumeViews[0].experienceSelection = "all"; }, "invalid_command"],
+    [doc => { doc.factBase.experiences[1].claims[1].id = "c-first"; }, "target_changed"],
+    [doc => { doc.factBase.experiences[1].claims[1].id = "keep"; }, "target_changed"],
+    [doc => { doc.factBase.experiences[1].claims[0].text.en = "Updated"; }, "target_changed"],
+  ]) {
+    const doc = replacementScenario();
+    setup(doc);
+    const approved = await command(doc, { patches: [], replacement });
+    await assert.rejects(core.createCareerTaskResume(doc, approved), { code });
+    assert.equal(doc.resumeViews.length, 2);
+  }
+  const doc = replacementScenario(), approved = await command(doc, { patches: [], replacement });
+  await assert.rejects(core.createCareerTaskResume(doc, { ...approved, replacement: { ...replacement, use: { ...replacement.use, experienceId: "first" } } }), { code: "target_changed" });
+  await assert.rejects(core.createCareerTaskResume(doc, { ...approved, replacement: { remove: replacement.use, use: replacement.remove, proposedText: "Other" } }), { code: "target_outside_view" });
+  await assert.rejects(core.createCareerTaskResume(doc, { ...approved, patches: (await command(doc)).patches }), { code: "invalid_command" });
+  doc.resumeViews[0].includedExperienceIds = ["second"];
+  await assert.rejects(core.createCareerTaskResume(doc, approved), { code: "source_changed" });
+});

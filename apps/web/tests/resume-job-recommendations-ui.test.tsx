@@ -147,3 +147,23 @@ test("persistence clones and save timestamps do not look stale; changed matching
   // Current edits must not silently replace the snapshot being used to explain existing results.
   assert.ok(!dom.document.querySelector(".rjr-profile")!.textContent!.includes("Python"));
 });
+
+
+test("partial batches reuse visible output and updates arriving after the final snapshot are ignored", async () => {
+  const pending = deferred<RecommendationSource>();
+  let publish: ((value: RecommendationSource) => void) | undefined;
+  await mount((_signal, _profile, options) => { publish = options?.onUpdate; return pending.promise; });
+  const make = (id: string, title: string) => ({ id, title, description: "C#", city: "上海" });
+  await flush(() => publish?.({ ...source, dataset: recommendationDataset([make("old", "初始岗位")]), progress: { completed: 1, total: 3 } }));
+  assert.match(dom.document.querySelector(".rjr-card h3")!.textContent!, /初始岗位/);
+  await flush(() => publish?.({ ...source, dataset: recommendationDataset([make("old", "初始岗位"), make("new", "新增岗位")]), progress: { completed: 2, total: 3 } }));
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 2);
+  // The terminal response can also drop or revise a posting.
+  await flush(() => pending.resolve({ ...source, dataset: recommendationDataset([make("new", "最终岗位")]) }));
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 1);
+  assert.match(dom.document.querySelector(".rjr-card h3")!.textContent!, /最终岗位/);
+  await flush(() => publish?.({ ...source, dataset: recommendationDataset([make("old", "迟到的中间结果")]), progress: { completed: 3, total: 3 } }));
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 1);
+  assert.match(dom.document.querySelector(".rjr-card h3")!.textContent!, /最终岗位/);
+  assert.ok(!dom.document.body.textContent!.includes("继续读取中"));
+});

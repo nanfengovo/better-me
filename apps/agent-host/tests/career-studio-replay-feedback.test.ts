@@ -273,3 +273,76 @@ test("SQLite payload corruption is detected after process-style restart without 
   const reopened = createReplayFeedback({ store: env.open(), ownerId: selected.ownerId, getContext: () => selected, localModel: local });
   await assert.rejects(reopened.replayGet(created.runId, selected.id, access), (error: unknown) => error instanceof StudioError && error.code === "studio_artifact_hash_mismatch");
 });
+
+test("saved interview questions reopen before analysis and retain fact checks and deferred plans across a new scope", async t => {
+  const environment = await setup(t), selected = makeContext();
+  const helper = createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId, getContext: () => selected });
+  const payload = await payloadFor(helper);
+  await helper.feedbackSave({ contextId: selected.id, consent: true, idempotencyKey: "source", payload }, access);
+  const source = (await helper.followUps({ contextId: selected.id }, access)).items[0]!;
+  assert.equal(source.quote, payload.notes[0]!.text);
+  assert.equal(source.plan, null);
+  assert.equal(source.versionId, payload.notes[0]!.resumeVersionId);
+  const cmd = { contextId: selected.id, feedbackId: source.feedbackId, id: source.id, consent: true };
+  const plan = { path: "facts", standard: "找到项目决定原始记录", nextAction: "核对设计文档", dueAt: new Date().toISOString() };
+  const initial = { ...cmd, expectedRevision: 0, decision: { kind: "plan", plan } };
+  const first = await helper.decideFollowUp(initial, access);
+  assert.deepEqual(await helper.decideFollowUp(initial, access), first);
+  await assert.rejects(helper.decideFollowUp({ ...initial, decision: { kind: "plan", plan: { ...plan, path: "defer" } } }, access), /follow_up_changed/);
+  const observed = await helper.decideFollowUp({ ...cmd, expectedRevision: 1, decision: { kind: "observe", observation: "本人提出方案，两人共同实现" } }, access);
+  assert.equal(observed.item.observation, "本人提出方案，两人共同实现");
+  const later = await helper.decideFollowUp({ ...cmd, expectedRevision: 2, decision: { kind: "plan", plan: { ...plan, path: "defer", nextAction: "等下次面试" } } }, access);
+  assert.equal(later.item.history.at(-1)?.previousRound?.observation, observed.item.observation);
+  const recovered = createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId, getContext: () => ({ ...selected, id: "reopened" }) });
+  assert.deepEqual((await recovered.followUps({ contextId: "reopened" }, access)).items, [later.item]);
+  assert.deepEqual((await recovered.followUps({ contextId: "reopened", offset: 1 }, access)).items, []);
+  const differentSelection = (claims: typeof selected.claims) => createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId,
+    getContext: () => ({ ...selected, claims, jobs: [] }) });
+  const additionalClaim = { ...selected.claims[0]!, id: "additional", text: "另外一项" };
+  const expanded = differentSelection([...selected.claims, additionalClaim]);
+  assert.deepEqual((await expanded.followUps({ contextId: selected.id }, access)).items, [later.item]);
+  const omitted = differentSelection([additionalClaim]);
+  assert.deepEqual((await omitted.followUps({ contextId: selected.id }, access)).items, []);
+  await assert.rejects(omitted.decideFollowUp(initial, access), /feedback_unavailable/);
+  const modified = differentSelection([{ ...selected.claims[0]!, text: "哈希不同的条目" }]);
+  assert.deepEqual((await modified.followUps({ contextId: selected.id }, access)).items, []);
+  const wrong = createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId, getContext: () => ({ ...selected, sourceFingerprint: "d".repeat(64) }) });
+  assert.deepEqual((await wrong.followUps({ contextId: selected.id }, access)).items, []);
+  await assert.rejects(wrong.decideFollowUp({ ...cmd, expectedRevision: 3, decision: { kind: "interview", observation: "other version" } }, access), /feedback_unavailable/);
+  const otherVersion = createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId, getContext: () => ({ ...selected, resumeVersionId: "different-version-with-same-text" }) });
+  assert.deepEqual((await otherVersion.followUps({ contextId: selected.id }, access)).items, []);
+  await assert.rejects(otherVersion.decideFollowUp(initial, access), /feedback_unavailable/);
+  await assert.rejects(helper.followUps({ contextId: selected.id }, { ...access, valid: async () => false }), /stale/);
+});
+
+test("training progress and assessment use the owner store's linked version, due date, retest and help evidence", async t => {
+  const environment = await setup(t), selected = makeContext();
+  const kitId = "0159214d-c5ef-4a23-b24c-4222c404116a", version = "1".repeat(64);
+  const goal = "换一个项目独立说明我做的决定";
+  const dueAt = "2026-01-02T00:00:00.000Z", retestAt = "2026-01-03T00:00:00.000Z";
+  let interviewRef = "wrong", stage = 0;
+  const helper = createReplayFeedback({ store: environment.open(), ownerId: selected.ownerId, getContext: () => selected,
+    readInterviewKit: async () => ({ id: kitId, ownerId: selected.ownerId, interviewRef, saved: true, version, goal,
+      dueAt: stage >= 1 ? dueAt : undefined, attempts: stage === 2 ? [{ at: retestAt, round: "retest", usedPreview: false, aids: { preview: false, practiceReference: true } }] : [] }) });
+  await helper.feedbackSave({ contextId: selected.id, consent: true, idempotencyKey: "training-source", payload: await payloadFor(helper) }, access);
+  const source = (await helper.followUps({ contextId: selected.id }, access)).items[0]!;
+  const cmd = { contextId: selected.id, feedbackId: source.feedbackId, id: source.id, consent: true };
+  await helper.decideFollowUp({ ...cmd, expectedRevision: 0, decision: { kind: "plan", plan: { path: "practice", standard: goal, nextAction: "口述决策", dueAt } } }, access);
+  const sync = (expectedRevision: number) => helper.decideFollowUp({ ...cmd, expectedRevision, decision: { kind: "training", kitId, kitVersion: version } }, access);
+  await assert.rejects(sync(1), /training_mismatch/);
+  interviewRef = source.id;
+  assert.equal((await sync(1)).item.retestDueAt, null);
+  const assess = (expectedRevision: number) => helper.decideFollowUp({ ...cmd, expectedRevision, decision: { kind: "assess", assessment: "retry", observation: "还需参考原答", nextAction: "先复述依据再换题" } }, access);
+  await assert.rejects(assess(2), /saved_retest_required/);
+  stage = 1;
+  assert.equal((await sync(2)).item.retestDueAt, dueAt);
+  assert.equal((await sync(3)).item.revision, 3);
+  stage = 2;
+  const result = await sync(3);
+  assert.equal(result.item.retestAt, retestAt);
+  assert.equal(result.item.independent, false);
+  assert.equal((await assess(4)).item.nextAfterAssessment, "先复述依据再换题");
+  const observed = await helper.decideFollowUp({ ...cmd, expectedRevision: 5, decision: { kind: "interview", observation: "下次追问提到了验证方法" } }, access);
+  assert.equal(observed.item.assessment, "retry");
+  assert.equal(observed.item.interviewObservation, "下次追问提到了验证方法");
+});

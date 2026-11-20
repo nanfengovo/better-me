@@ -30,7 +30,9 @@ export async function readIndexRecommendationCandidates(endpoint: string, token:
   signal.throwIfAborted();
   const generic = /^(?:docker|git|linux|sql|kubernetes|k8s)$/i;
   const skills = [...profile.skills.filter(skill => !generic.test(skill)), ...profile.skills.filter(skill => generic.test(skill))];
-  const terms = [...new Set((skills.length ? skills.slice(0, 3) : [...profile.tags, ...profile.roles.map(role => role.split(" / ")[0]!)]).map(term => term.slice(0, 100)))].slice(0, 3);
+  const role = profile.targetRole?.trim().split(" / ")[0];
+  const candidates = skills.length ? skills : [...profile.tags, ...profile.roles.map(item => item.split(" / ")[0]!)];
+  const terms = [...new Set((role ? [role, ...candidates] : candidates).map(term => term.slice(0, 100)))].slice(0, 3);
   if (!terms.length) return { dataset: recommendationPoolFromItems([]), kind: "index", bounded: true };
   const area = profile.locationAliases.length ? { workRegionGroups: [profile.locationAliases], ...(profile.countryCode ? { workCountryCodes: [profile.countryCode] } : {}) } : {};
   const cacheKey = JSON.stringify([endpoint, token, terms, area]);
@@ -67,7 +69,7 @@ export async function readIndexRecommendationCandidates(endpoint: string, token:
   if (!successes.length) throw new Error("Job index unavailable");
   let items = successes.flatMap(reply => reply.items);
   let partial = successes.length !== replies.length;
-  if (new Set(items.map(item => item.job.id)).size < 3 && profile.locationAliases.length) {
+  if (profile.locationAliases.length && (role || new Set(items.map(item => item.job.id)).size < 3)) {
     try { items = [...items, ...(await read(distinctTerms[0]!, false)).items]; }
     catch (error) { if (signal.aborted) throw error; partial = true; }
   }

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { reviewLocalWriting } from "./training-writing-model.js";
 import { recommendLocalTransfer } from "./training-transfer-model.js";
 import {
+  StudioDecisionCondition,
   StudioScene,
   StudioScalar,
   StudioStep,
@@ -140,6 +141,7 @@ function studioDraft(actions: readonly PracticeAction[] | undefined, signature: 
     ...(actions?.includes("quantity") ? { quantityContract: quantityContract.describe("The quantity name and calculation that BOTH practice and transfer must follow.") } : {}),
     ...(actions?.includes("order") ? { orderMode } : {}),
     ...(actions?.includes("code") ? { codeContract } : {}),
+    ...(writingOnly ? { decisionCondition: StudioDecisionCondition.describe("A concrete two-state condition relevant to the learner’s decision. The host states the firstState in practice and its opposite in transfer. Both assignments must make sense under their respective states.").optional() } : {}),
     practice: scene.describe("First task grounded in the learner's goal and current evidence."),
     transfer: scene.describe("An unfamiliar second task for the same skill, with changed material and constraints."),
   }).strict();
@@ -348,7 +350,7 @@ export const localTrainingAuthor: TrainingAuthor = {
       ...(plan.advice.practiceActions?.includes("write") ? ["写作题给独立场景。headingWords 和 fieldWords 各用一至五个完整词组成简短标题或输入栏名称。setting、facts 给齐背景和已知事实，deliverable 用完整短句说明要交的作品。复测提供新的独立材料，不要求重写上次原稿。"] : []),
       ...(plan.advice.practiceActions?.length === 1 && plan.advice.practiceActions[0] === "write" ? [
         "纯写作题的每道题都要给够完成任务所需的材料。facts 中每个 statement 是一项待处理的具体信息，context 给一个能据以分析它的条件、受影响对象、观察或限制。例如目标要求解释原因时，每项都要有具体影响或权衡的依据。setting 只给角色和场景；每个 statement 和 context 都用一个简短的完整句；deliverable 只交代要提交什么，不要要求使用题面未提供的条件。避免重复材料。每道题总共控制在 80 个英文词或 200 个中文字内。",
-        "transfer 换一组新的角色、对象或条件并提供完整材料，学习者不需要看首题的作品就能从空白作答。",
+        "两题要求学习者作出同类判断时，填写 decisionCondition：选取对这一判断有实质影响的同一个资源、事实或许可。首题使用 firstState，复测使用相反状态；两题所有事实和要求都必须与各自的状态相容。程序把条件和对应的判断任务展示给学习者。如果目标不需要这种对照则省略，两题仍可练习。",
         ...(plan.transferFrom?.direction === "extend" ? ["这是已采纳的进阶目标。把新增要求落实成两个具体且不同的判断点，每项都有相应依据，供学习者真正做比较。普通背景放在 setting，facts 优先给新目标所要求判断的内容。"] : []),
         "每道写作题的 followUp 和 extend 都要借用该场景 facts 中的一个具体名词或数字。用六到十二词的完整短句，直接让学习者对那个细节动手。避免“检查清晰度”这种不看材料也能给的建议。用标点收尾。",
       ] : []),
@@ -356,6 +358,9 @@ export const localTrainingAuthor: TrainingAuthor = {
     ].join("\n"), {
       goal: plan.transferFrom?.nextGoal ?? plan.goal,
       ...(plan.transferFrom ? { overallGoal: plan.goal, practiceDirection: plan.transferFrom.direction } : {}),
+      ...(plan.interviewRef ? {
+        materialInstructions: "沿用目标指定的作答语言。中文面试请用中文出题。每题围绕一个决定，通常一到两条具体事实就够。题面给出行动者、约束、可观察的结果，供学习者自己作答。不要代答。每题控制在 80 个英文词或 200 个中文字内。",
+      } : {}),
       evidence: plan.evidence, ...(plan.transferFrom ? {} : { observation: plan.advice.observation }),
       practiceActions: plan.advice.practiceActions, codeSignature: plan.advice.codeSignature,
       nextStep: plan.advice.nextStep, career: teachingContext(plan.career), previousAction: previousAction(plan.followFrom),
@@ -397,7 +402,7 @@ export const localTrainingAuthor: TrainingAuthor = {
         if ("sourceLabel" in scene) scenes[i]!.situation = sourceSituation(scenes[i]!.brief, scenes[i]!.steps);
       });
     }
-    return { kind, title: draft.title, scenes };
+    return { kind, title: draft.title, scenes, ...("decisionCondition" in draft && draft.decisionCondition ? { decisionCondition: draft.decisionCondition } : {}) };
   },
   async program(plan, pin, kind, signal, previous) {
     const visible = fixtures(kind).slice(0, 2);

@@ -967,3 +967,61 @@ test("Enter autosave stays paused after conflicting external changes and further
   assert.equal(await controller.flush(true), true);
   assert.equal((await store.load())!.factBase.profile.phone, "local later");
 });
+
+test("whole-version restore and backup import keep the latest reviews of that document across switches, reloads and history pruning", async t => {
+  const { controller, doc, store, storage, history, repository, data } = await setup(t);
+  const source = { experienceId: "one", claimId: "one", quote: "Design the database", itemId: "req-1", sourceVersion: "1".repeat(64),
+    jobVersion: "2".repeat(64), contribution: "design" as const, assessment: "supports" as const, reviewedAt: "2026-11-01T01:00:00Z" };
+  const a = { ...doc, requirementEvidence: [source] };
+  const withdrawn = { ...a, requirementEvidence: [source, { ...source, assessment: "withdrawn" as const, reviewedAt: "2026-11-03T01:00:00Z" }] };
+  const b = { ...doc, documentId: "document-B", requirementEvidence: [{ ...source, claimId: "only-B" }] };
+  assert.ok(await controller.replace(a, "first version", "checkpoint"));
+  assert.ok(await controller.replace(withdrawn, "withdraw", "checkpoint"));
+  assert.ok(await controller.replace(a, "restore same", "restore"));
+  assert.deepEqual(controller.getState().doc?.requirementEvidence, withdrawn.requirementEvidence);
+  assert.ok(await controller.replace(b, "import B", "import"));
+  assert.deepEqual(controller.getState().doc?.requirementEvidence, b.requirementEvidence);
+  repository.versions = []; // Includes deletion of the newest snapshot reporting the withdrawal.
+  const restarted = new DocumentPersistenceController({ store, storage, history, commitLock: serialCommitLock() });
+  t.after(() => restarted.dispose()); await restarted.load();
+  for (const kind of ["restore", "import"] as const) {
+    assert.ok(await restarted.replace(a, "return to A", kind));
+    assert.deepEqual((await store.load())?.requirementEvidence, withdrawn.requirementEvidence);
+    assert.ok(await restarted.replace(b, "return to B", "restore"));
+    assert.deepEqual((await store.load())?.requirementEvidence, b.requirementEvidence);
+  }
+  const archive = [...data.keys()].find(key => key.endsWith(":" + a.documentId))!;
+  assert.ok(archive); storage.setItem(archive, "{");
+  assert.equal(await restarted.replace(a, "unreadable review archive", "restore"), false);
+  assert.equal((await store.load())?.documentId, b.documentId);
+  assert.match(restarted.getState().status.message, /无法核对/);
+  storage.removeItem(archive);
+  await history.append(withdrawn, "retained older review log", "checkpoint");
+  await history.append(a, "outdated résumé snapshot from a previous release", "restore");
+  assert.ok(await restarted.replace(a, "recover before an archive existed", "restore"));
+  assert.deepEqual((await store.load())?.requirementEvidence, withdrawn.requirementEvidence);
+  const put = storage.setItem;
+  storage.setItem = (key, value) => {
+    if (key === archive) throw new DOMException("Synthetic limit", "QuotaExceededError");
+    put(key, value);
+  };
+  assert.equal(await restarted.replace(b, "outgoing reviews could not be protected", "import"), false);
+  assert.deepEqual((await store.load())?.requirementEvidence, withdrawn.requirementEvidence);
+  storage.setItem = put;
+  assert.ok(await restarted.replace(b, "switch", "import"));
+  storage.removeItem(archive);
+  const started = signal(), resume = signal();
+  const listVersions = history.list.bind(history);
+  history.list = async () => { started.release(); await resume.promise; return listVersions(); };
+  const pending = restarted.replace(a, "slow lookup", "restore");
+  await started.promise;
+  const edited = structuredClone(b); edited.resumeViews[0]!.name = "pending edit wins";
+  restarted.update(edited); resume.release();
+  assert.equal(await pending, false);
+  assert.equal(restarted.getState().doc?.resumeViews[0]!.name, "pending edit wins");
+  assert.equal((await store.load())?.documentId, b.documentId);
+  history.list = listVersions;
+  const legacy = { ...a, documentId: undefined };
+  assert.ok(await restarted.replace(legacy, "older résumé without stable identity", "restore"));
+  assert.equal((await store.load())?.requirementEvidence, undefined);
+});

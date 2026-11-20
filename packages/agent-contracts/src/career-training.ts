@@ -1,11 +1,16 @@
-import { decomposeJdText } from "@better-me/core";
+import { decomposeJdText, JdSourceSpanSchema } from "@better-me/core";
 import hash from "hash.js";
 import { z } from "zod";
-import type { TrainingAttempt } from "./training-kit.js";
+import type { TrainingAttempt, TrainingView } from "./training-kit.js";
+import { trainingTransferInput } from "./training-transfer.js";
 
 const identifier = z.string().min(1).max(100);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const competency = z.string().trim().min(1).max(600);
+const quoteSource = z.object({
+  parserVersion: z.number().int().positive(),
+  sourceSpan: JdSourceSpanSchema,
+}).strict();
 const jobSnapshot = z.object({
   id: z.string().max(400).optional(),
   title: z.string().max(1000),
@@ -25,6 +30,8 @@ export const CoachTrainingTargetSchema = z.object({
   job: jobSnapshot,
   itemId: identifier,
   quote: z.string().min(1).max(2000),
+  quoteSource: quoteSource.optional(),
+  capabilityId: digest.optional(),
   competency,
   criterionIndex: z.number().int().min(0).max(5),
   createdAt: z.string().datetime(),
@@ -45,6 +52,7 @@ export const TrainingCareerContextSchema = TrainingCareerRefSchema.extend({
   planTitle: z.string().min(1).max(400),
   taskId: identifier,
   taskTitle: z.string().min(1).max(400),
+  capabilityId: digest.optional(),
   competency,
   criterion: z.string().min(1).max(4000),
   requirement: z.object({
@@ -56,6 +64,7 @@ export const TrainingCareerContextSchema = TrainingCareerRefSchema.extend({
     snapshotVersion: digest,
     itemId: identifier,
     quote: z.string().min(1).max(2000),
+    quoteSource: quoteSource.optional(),
   }).strict(),
 }).strict();
 export type TrainingCareerContext = z.infer<typeof TrainingCareerContextSchema>;
@@ -89,4 +98,28 @@ export function careerTrainingRequirements(job: CareerTrainingJob) {
 
 export function careerJobSnapshotVersion(job: CareerTrainingJob) {
   return hash.sha256().update(JSON.stringify([job.id ?? null, job.title, job.company, job.description, job.sourcePlatform ?? null, job.sourceUrl ?? null])).digest("hex");
+}
+
+/** Stable identity for one exact requirement, independent of editable competency labels and plan/task IDs. */
+export function careerRequirementCapabilityId(snapshotVersion: string, itemId: string, quote: string) {
+  return hash.sha256().update(JSON.stringify(["career-requirement-capability-v1", snapshotVersion, itemId, quote])).digest("hex");
+}
+
+/** Project only a completed, independently recorded change of scenario from an authenticated Host view. */
+export function independentRetestEvidence(kit: TrainingView) {
+  if (!kit.saved || kit.stage !== "complete" || !kit.career) return undefined;
+  const input = trainingTransferInput(kit.goal, kit.attempts);
+  const change = input?.retest.change;
+  if (!input || !change || input.retest.independence !== "independent") return undefined;
+  const semanticText = (text: string) => text.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{Z}\s]+/gu, "");
+  const before = semanticText(change.before), after = semanticText(change.after);
+  if (!before || !after || before === after) return undefined;
+  const changed = input.evidence.find(entry => entry.phase === "retest" && entry.key === change.key);
+  if (!changed) return undefined;
+  const result = input.evidence.some(entry => entry.phase === "retest" && entry.status === "missed") ? "missed" : changed.status;
+  const completedAt = kit.attempts[1]!.at;
+  const questionVersion = input.retest.questionVersion;
+  const version = hash.sha256().update(JSON.stringify(["career-independent-retest-v1", kit.id, kit.version, questionVersion, change,
+    completedAt, changed.answer, result])).digest("hex");
+  return { version, questionVersion, change, completedAt, title: kit.title, result };
 }

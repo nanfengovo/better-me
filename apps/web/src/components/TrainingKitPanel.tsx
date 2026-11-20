@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Boxes, ChevronRight, FlaskConical } from "lucide-react";
-import { trainingRewriteSourceDetail } from "@better-me/agent-contracts";
+import { trainingRewriteSourceDetail, trainingWritingMaterial } from "@better-me/agent-contracts";
 import type {
   TrainingAnswer,
   TrainingAction,
@@ -44,6 +44,8 @@ const starters = {
   },
 };
 const problems: Record<string, [string, string]> = {
+  training_retest_repeated: ["复测题与首题过于相似。请调整练习描述，重新分析并生成换情境题。", "The retest repeats the first exercise. Adjust the description and generate a new pair."],
+  training_interview_source_changed: ["练习与原面试问题或验收标准不匹配。请从面试复盘重新打开。", "The exercise and the interview criterion do not match. Reopen it from interview feedback."],
   training_career_target_changed: [
     "目标、计划或岗位关联已变化，或尚未保存。请回到当前任务核对后再开始。",
     "The target, plan or job link changed or has not been saved. Review the current task first.",
@@ -132,18 +134,22 @@ function describeAnswer(a: TrainingAnswer, screen?: TrainingScreen) {
     readableStudioAnswer(screen?.fields.find(field => field.key === key), value)).join(" · ");
   return "answer" in a ? a.answer : `+${a.delay} → ${a.prediction}`;
 }
+type InterviewPractice = { followUpId: string; criterion: string; evidence: string; savedKit?: { id: string; version: string } };
+
 export function TrainingKitPanel({
   confirmedGoal,
   career,
+  interview,
   historical = false,
   onReview,
-}: { confirmedGoal?: string; career?: TrainingCareerContext; historical?: boolean; onReview?: (kit: TrainingView, signal: AbortSignal) => Promise<void> } = {}) {
+}: { confirmedGoal?: string; career?: TrainingCareerContext; interview?: InterviewPractice; historical?: boolean; onReview?: (kit: TrainingView, signal: AbortSignal) => Promise<void> } = {}) {
   return (
     <Workshop
-      key={JSON.stringify([currentPrincipal()?.id ?? "guest", career, historical])}
+      key={JSON.stringify([currentPrincipal()?.id ?? "guest", career, interview?.followUpId, interview?.criterion, interview?.savedKit, historical])}
       owner={currentPrincipal()?.id}
       confirmedGoal={confirmedGoal}
       career={career}
+      interview={interview}
       historical={historical}
       onReview={onReview}
     />
@@ -153,19 +159,21 @@ function Workshop({
   owner,
   confirmedGoal,
   career,
+  interview,
   historical,
   onReview,
 }: {
   owner?: string;
   confirmedGoal?: string;
   career?: TrainingCareerContext;
+  interview?: InterviewPractice;
   historical: boolean;
   onReview?: (kit: TrainingView, signal: AbortSignal) => Promise<void>;
 }) {
   const { t, locale } = useUiPreferences(),
     client = defaultLearningClient.training;
-  const [goal, setGoal] = useState(career?.competency ?? ""),
-    [evidence, setEvidence] = useState(""),
+  const [goal, setGoal] = useState(interview?.criterion ?? career?.competency ?? ""),
+    [evidence, setEvidence] = useState(interview?.evidence.slice(0, 800) ?? ""),
     [model, setModel] = useState("gemma4:e2b-it-qat");
   const [plan, setPlan] = useState<TrainingPlan>(),
     [kit, setKit] = useState<TrainingView>(),
@@ -180,9 +188,10 @@ function Workshop({
   const [editedActions, setEditedActions] = useState<TrainingAction[]>();
   const [historyOpened, setHistoryOpened] = useState(false);
   const [continuation, setContinuation] = useState<{
-    ref: NonNullable<TrainingStart["followFrom"]>; source: NonNullable<TrainingPlan["followFrom"]>; career?: TrainingCareerContext;
+    ref: NonNullable<TrainingStart["followFrom"]>; source: NonNullable<TrainingPlan["followFrom"]>; career?: TrainingCareerContext; interviewRef?: string;
   }>();
   const target = career ?? continuation?.career;
+  const interviewRef = interview?.followUpId ?? continuation?.interviewRef;
   function removeContinuation() {
     setContinuation(undefined);
   }
@@ -191,10 +200,11 @@ function Workshop({
     if (continuation && !kit && !plan) notesInput.current?.focus();
   }, [continuation, kit, plan]);
   const current = useRef<AbortController | null>(null);
-  const scopeMatches = (item: { career?: TrainingCareerContext }) =>
-    !career || (item.career?.workspaceKey === career.workspaceKey &&
+  const scopeMatches = (item: { career?: TrainingCareerContext; interviewRef?: string; goal?: string }) =>
+    (!interview || (item.interviewRef === interview.followUpId && (item.goal === undefined || item.goal === interview.criterion))) &&
+    (!career || (item.career?.workspaceKey === career.workspaceKey &&
       item.career.targetId === career.targetId && item.career.planId === career.planId &&
-      item.career.taskId === career.taskId && item.career.requirement.snapshotVersion === career.requirement.snapshotVersion);
+      item.career.taskId === career.taskId && item.career.requirement.snapshotVersion === career.requirement.snapshotVersion));
   useEffect(() => {
     if (!owner) return;
     const ac = new AbortController();
@@ -211,6 +221,23 @@ function Workshop({
       current.current?.abort();
     };
   }, [client, owner]);
+  const linkedId = interview?.savedKit?.id, linkedVersion = interview?.savedKit?.version;
+  const criterion = interview?.criterion;
+  const [openingLinkedKit, setOpeningLinkedKit] = useState(!!linkedId);
+  useEffect(() => {
+    if (!owner || !linkedId) return;
+    const ac = new AbortController();
+    void client.get(linkedId, ac.signal).then(saved => {
+      if (ac.signal.aborted) return;
+      if (saved.ownerId !== owner || !saved.saved || saved.id !== linkedId || saved.version !== linkedVersion ||
+          saved.interviewRef !== interviewRef || saved.goal !== criterion) throw new Error("training_interview_source_changed");
+      setKit(saved);
+      setValues(initialValues(saved));
+    }).catch(e => {
+      if (!ac.signal.aborted) setError(e instanceof Error ? e.message : "training_kit_not_found");
+    }).finally(() => { if (!ac.signal.aborted) setOpeningLinkedKit(false); });
+    return () => ac.abort();
+  }, [owner, client, interviewRef, criterion, linkedId, linkedVersion]);
   async function perform(
     label: string,
     work: (s: AbortSignal) => Promise<() => void | Promise<void>>,
@@ -238,7 +265,7 @@ function Workshop({
   }
   function open(k: TrainingView) {
     if (k.ownerId !== owner || !scopeMatches(k)) {
-      setError("training_career_target_changed");
+      setError(interview ? "training_interview_source_changed" : "training_career_target_changed");
       return;
     }
     removeContinuation();
@@ -269,6 +296,7 @@ function Workshop({
           requestId: crypto.randomUUID(),
           goal: g,
           evidence: e,
+          ...(interviewRef ? { interviewRef } : {}),
           ...(continuation && !example ? { followFrom: continuation.ref } : {}),
           ...(target ? { careerTarget: { workspaceKey: target.workspaceKey, targetId: target.targetId } } : {}),
           consent: true,
@@ -278,6 +306,7 @@ function Workshop({
         },
         signal,
       );
+      if (interview && !scopeMatches(v)) throw new Error("training_interview_source_changed");
       return () => {
         clear();
         setGoal(g);
@@ -363,6 +392,7 @@ function Workshop({
               stage: k.stage,
               origin: k.origin,
               career: k.career,
+              interviewRef: k.interviewRef,
             },
             ...prior.filter((s) => s.id !== k.id),
           ]);
@@ -425,6 +455,7 @@ function Workshop({
       const nextPlan = await client.plan({
         goal: kit.goal, evidence: "", consent: true, requestId: crypto.randomUUID(), transferFrom,
         engine: { type: "local", model: sourceModel },
+        ...(kit.interviewRef ? { interviewRef: kit.interviewRef } : {}),
         ...(sourceCareer ? { careerTarget: { workspaceKey: sourceCareer.workspaceKey, targetId: sourceCareer.targetId } } : {}),
       }, signal);
       if (signal.aborted) throw signal.reason;
@@ -444,7 +475,7 @@ function Workshop({
     if (field?.control !== "write" || original === undefined) return null;
     return <StudioWritingReview key={[kit.id, kit.version, attempt.round, attempt.questionVersion, entry.key].join("/")}
       original={original} review={review} goal={kit.goal} model={kit.model}
-      question={field.label} material={[question.brief, ...question.notes.slice(0, 1)]}
+      question={field.label} material={trainingWritingMaterial(question)}
       target={{revision: kit.revision, round: attempt.round, key: entry.key, questionVersion: attempt.questionVersion}}
       disabled={!!busy} historical={historical} onCommand={command => void reviewCommand(command)} onContinue={() => continueStep(entry, attempt, true)} />;
   }
@@ -461,7 +492,7 @@ function Workshop({
     setGoal(kit.goal);
     setEvidence("");
     if (kit.model) setModel(kit.model);
-    setContinuation({ ref, career: kit.career, source: {
+    setContinuation({ ref, career: kit.career, interviewRef: kit.interviewRef, source: {
       ...ref, kitTitle: kit.title, questionLabel: field.label, questionVersion: attempt.questionVersion,
       answer: review && review.rewrite ? review.rewrite.answer : readableStudioAnswer(field, answer), usedPreview: useRewrite || attempt.usedPreview,
       status: entry.status, detail: review ? trainingRewriteSourceDetail : entry.detail, nextStep: review ? review.revisionPrompt : entry.nextStep,
@@ -513,6 +544,7 @@ function Workshop({
         </p>
       ) : (
         <>
+          {kit?.interviewRef && <p>{t("面试复盘的验收标准", "Interview success criterion")} · {kit.goal}</p>}
           {association && (
             <div className="training-result">
               <p><strong>{association.planTitle} · {association.taskTitle}</strong></p>
@@ -524,7 +556,8 @@ function Workshop({
               <small title={association.requirement.snapshotVersion}>JD v{association.requirement.snapshotVersion.slice(0, 10)} · {association.requirement.itemId}</small>
             </div>
           )}
-          {!kit && !plan && !historical && (
+          {openingLinkedKit && <p role="status">{t("正在读取关联的练习…", "Opening the linked exercise…")}</p>}
+          {!openingLinkedKit && !kit && !plan && !historical && (
             <div className="training-form">
               {continuation && <div>
                 <StudioOrigin source={continuation.source} />
@@ -543,11 +576,11 @@ function Workshop({
                 </button>
               )}
               <label>
-                {t("想提升什么？", "What do you want to improve?")}
+                {interview ? t("面试复盘的验收标准", "Interview success criterion") : t("想提升什么？", "What do you want to improve?")}
                 <input
                   maxLength={600}
                   value={goal}
-                  readOnly={!!target || !!continuation}
+                  readOnly={!!target || !!continuation || !!interview}
                   placeholder={t(
                     "描述你希望能独立完成的一件事",
                     "Describe something you want to do independently",
@@ -596,7 +629,7 @@ function Workshop({
                 {t("同意并分析难点", "Analyze with the local model")}
                 <ChevronRight size={15} />
               </button>
-              {!continuation && <details className="training-demos">
+              {!continuation && !interview && <details className="training-demos">
                 <summary>
                   <FlaskConical size={14} />
                   {t("只体验，不调用模型", "Examples · no model calls")}
@@ -695,6 +728,7 @@ function Workshop({
                               failure instanceof Error &&
                               [
                                 "training_design_invalid",
+                                "training_retest_repeated",
                                 "training_program_rejected",
                                 "training_plan_already_used",
                                 "training_plan_expired",
@@ -894,14 +928,14 @@ function Workshop({
                   ))}
                 </details>
               )}
-              {onReview && career && kit.saved && kit.attempts.length > 0 && (
+              {onReview && kit.saved && (interview || (career && kit.attempts.length > 0)) && (
                 <button disabled={!!busy} onClick={() => void perform(t("核对练习记录…", "Checking exercise record…"), async signal => {
                   const saved = await client.get(kit.id, signal);
                   if (!saved.saved || !scopeMatches(saved) || saved.version !== kit.version)
-                    throw new Error("training_career_target_changed");
+                    throw new Error(interview ? "training_interview_source_changed" : "training_career_target_changed");
                   if (saved.revision !== kit.revision) throw new Error("training_revision_conflict");
                   return () => onReview(saved, signal);
-                })}>{kit.transferDecision ? t("保存复测和推荐依据用于本任务复盘", "Save the retest and recommendation for task review")
+                })}>{interview ? (kit.attempts.length ? t("将练习记录带回面试复盘", "Return these attempts to interview feedback") : t("将此练习关联到面试复盘", "Link this exercise to interview feedback")) : kit.transferDecision ? t("保存复测和推荐依据用于本任务复盘", "Save the retest and recommendation for task review")
                   : kit.attempts.some(attempt => attempt.writingReviews?.length)
                   ? t("保存原答和点评记录用于本任务复盘", "Save answers and writing feedback for task review")
                   : t("保存这些原答用于本任务复盘", "Save these attempts for task review")}</button>
@@ -977,7 +1011,7 @@ function Workshop({
             </>
           )}
           {!kit && !plan && historical && matchingShelf.length === 0 && <p>{t("此目标暂无已保留的练习版本。", "No saved exercises for this target.")}</p>}
-          {!kit && !plan && matchingShelf.length > 0 && (
+          {!openingLinkedKit && !kit && !plan && matchingShelf.length > 0 && (
             <div className="training-library">
               <h3>
                 <BookOpen size={16} />

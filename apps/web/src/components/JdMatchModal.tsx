@@ -78,7 +78,11 @@ async function closeTrackedBrowserSession(sessionId: string): Promise<void> {
   }
 }
 
+import { RequirementEvidencePanel } from "./RequirementEvidencePanel";
+import type { EvidenceWorkspace } from "../lib/requirement-evidence";
+
 type Props = {
+  evidenceWorkspace?: EvidenceWorkspace;
   workspaceKey?:string;
   isOpen: boolean;
   onClose: () => void;
@@ -90,8 +94,8 @@ type Props = {
   onEditResume?: () => void;
   initialText?: string;
   initialSource?: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
-  onSaveOpportunity?: (draft: { text: string; provenance: JdProvenance | null }) => void;
-  onGrowthRequirement?: (job: DrawerJobContext, quote: string) => void;
+  onSaveOpportunity?: (draft: { text: string; provenance: JdProvenance | null; job?: DrawerJobContext }) => void;
+  onGrowthRequirement?: (job: DrawerJobContext, quote: string, itemId: string) => void;
 };
 
 const SAMPLE_JD = `【外企/高端智能装备】高级工业软件研发工程师 (.NET / C#)
@@ -109,6 +113,7 @@ const SAMPLE_JD = `【外企/高端智能装备】高级工业软件研发工程
 
 export function JdMatchModal({
   workspaceKey="active-resume",
+  evidenceWorkspace,
   isOpen,
   onClose,
   resume,
@@ -1028,7 +1033,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
                 {t("当前简历投影条数：", "Current resume projection:")}{resume.experiences.length} {t("段经历，语言：", "experiences, language:")}
                 {resume.locale}
               </span>
-              {onSaveOpportunity && <button type="button" disabled={!jdText.trim() || isJdLinkOnly(jdText) || !!pending || !!acquiring} onClick={() => onSaveOpportunity({ text: jdText, provenance })} className="studio-button"><Check className="h-3.5 w-3.5" />{t("收藏到机会库", "Save to opportunity library")}</button>}
+              {onSaveOpportunity && <button type="button" disabled={!jdText.trim() || isJdLinkOnly(jdText) || !!pending || !!acquiring} onClick={() => onSaveOpportunity({ text: jdText, provenance, job: trainingSource?.job })} className="studio-button"><Check className="h-3.5 w-3.5" />{t("收藏到机会库", "Save to opportunity library")}</button>}
               <button
                 type="button"
                 onClick={() => void handleStartAnalysis()}
@@ -1079,15 +1084,19 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
 
           {/* Report Results */}
           {restoredReport&&report&&<p role="status" aria-label="报告恢复状态" className="text-xs text-slate-500">{t("已读取本机已有报告 · 未重新请求模型", "Loaded the existing local report · No new model request")}</p>}
-          {onGrowthRequirement && trainingSource && trainingSource.items.length > 0 && (
+          {evidenceWorkspace && trainingSource && trainingSource.items.length > 0 && <RequirementEvidencePanel
+            job={trainingSource.job} workspace={evidenceWorkspace} onTrain={onGrowthRequirement && ((quote, id) => {
+              invalidateAcquisition(); onGrowthRequirement(trainingSource.job, quote, id);
+            })}/>}
+          {onGrowthRequirement && !evidenceWorkspace && trainingSource && trainingSource.items.length > 0 && (
                 <details className="rounded-xl border border-slate-200 p-4">
                   <summary className="cursor-pointer text-sm font-medium">{t("按岗位原句选择成长任务", "Choose a requirement for your growth plan")}</summary>
                   <ul className="mt-3 space-y-3">
                     {trainingSource.items.map(item => <li key={item.id} className="flex flex-wrap items-start justify-between gap-2 text-sm">
-                      <span className="min-w-0 flex-1">{item.originalQuote}</span>
+                      <span className="min-w-0 flex-1">{t(`原文第 ${item.sourceSpan?.line} 行`, `Source line ${item.sourceSpan?.line}`)} · {item.originalQuote}</span>
                       <button type="button" className="studio-button shrink-0" disabled={loading || closingBrowser} onClick={() => {
                         invalidateAcquisition();
-                        onGrowthRequirement(trainingSource.job, item.originalQuote);
+                        onGrowthRequirement(trainingSource.job, item.originalQuote, item.id);
                       }}>{t("加入成长计划", "Link to growth plan")}</button>
                     </li>)}
                   </ul>

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { StudioDesign, TrainingStart, TrainingAnswer, TrainingFeedback, TrainingScreen, type StudioStep } from "@better-me/agent-contracts";
 import {
-  studioScreen, studioFeedback, studioSource, validateStudio, studioFixtures, studioAuthoredCases,
+  studioScreen, studioFeedback, studioSource, studioRetestChange, validateStudio, studioFixtures, studioAuthoredCases,
 } from "../src/growth/training-studio.js";
 import { executeTransform } from "../src/capabilities/sandbox.js";
 
@@ -91,6 +91,16 @@ test("studio accepts open-response participation without certifying the authored
   assert.equal(result.evidence![0]!.status, "recorded");
   assert.match(result.detail, /开放作答已记录/);
   assert.doesNotMatch(result.detail, /符合/);
+});
+
+test("a writing retest must change the material beyond the title and sentence endings", () => {
+  const writing = design.scenes[0]!.steps[2]!;
+  const practice = { brief: "原题", situation: "预算 3.5 万元。\n只能选择一个试点。", steps: [writing] };
+  const transfer = { ...practice, brief: "第二个项目", situation: "预算 3.5 万元！\n只能选择一个试点？" };
+  const open = { ...design, scenes: [practice, transfer] };
+  assert.throws(() => validateStudio(open), /training_retest_repeated/);
+  transfer.situation = "预算 35 万元！\n只能选择一个试点？";
+  validateStudio(open);
 });
 
 test("studio preserves input integrity and independently detects a disagreeing guest", async () => {
@@ -201,4 +211,21 @@ test("a Boolean-only domain keeps one real input for transfer and reports the ac
   assert.throws(() => validateStudio(binary), /training_design_invalid/);
   first.cases = [{ input: 1, expected: true }];
   assert.equal(StudioDesign.safeParse(binary).success, false);
+});
+
+
+test("a change of names or punctuation cannot provide an observed writing condition; an actual constraint is shown in both prompts", () => {
+  const writing = structuredClone(design);
+  const step = design.scenes[0]!.steps[2]!;
+  writing.scenes = ["请小王核对合同。", "请小王核对合同！"].map(situation => ({ brief: "合同", situation, steps: [step] }));
+  assert.throws(() => validateStudio(writing), /training_retest_repeated/);
+  writing.scenes[1]!.situation = "请小李核对合同。";
+  assert.equal(studioRetestChange(writing), undefined);
+  writing.decisionCondition = { subject: "对方签字", firstState: "confirmed" };
+  validateStudio(writing);
+  const change = studioRetestChange(writing)!;
+  assert.equal(change.key, "part1");
+  assert.deepEqual(studioScreen(writing, 0).notes.slice(-2), [change.before, change.criterion]);
+  assert.deepEqual(studioScreen(writing, 1).notes.slice(-2), [change.after, change.criterion]);
+  assert.notEqual(change.before, change.after);
 });

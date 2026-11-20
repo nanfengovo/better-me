@@ -9,7 +9,8 @@ import { mockLocalGeneration } from "./fixtures/training-ollama.js";
 const model = "transfer-fixture", pin = "a".repeat(64);
 const practice = { brief: "阶段汇报", material: ["尚未取得批准。"], questionVersion: "1".repeat(64), usedPreview: false };
 const retest = { ...practice, brief: "核对发布日期", questionVersion: "2".repeat(64), independence: "independent" as const,
-  aids: { preview: false, practiceReference: false } };
+  aids: { preview: false, practiceReference: false },
+  change: { key: "part1" as const, before: "签字已确认", after: "签字待确认", criterion: "说明签字状态如何影响发版决定。" } };
 const input: TrainingTransferInput = { goal: "汇报实际进度", practice, retest, evidence: [
   { id: "practice.part1", phase: "practice", key: "part1", control: "write", question: "情况如何？", answer: "周五肯定完成。", usedPreview: false, status: "recorded", detail: "已记录" },
   { id: "retest.part1", phase: "retest", key: "part1", control: "write", question: "发布日期确定了吗？", answer: "需要批准后才能确定发布日期。", usedPreview: false, status: "recorded", detail: "已记录" },
@@ -47,6 +48,8 @@ test("transfer advice binds actual citations, rejects invented references and gu
   const decision = await recommend(input);
   assert.equal(decision.direction, "extend");
   assert.equal(decision.nextGoal, reply.extendTask);
+  assert.equal(decision.reasons.at(-1)?.answerQuote, input.evidence[1]!.answer);
+  assert.equal((await recommend({ ...input, retest: { ...input.retest, change: undefined } })).direction, "verify");
   assert.deepEqual(decision.reasons.map(item => item.evidenceId), ["practice.part1", "retest.part1"]);
   assert.match(decision.reasons[0]!.reason, /周五肯定完成/);
   const assisted = await recommend({ ...input, retest: { ...retest, usedPreview: true, independence: "assisted",
@@ -63,7 +66,7 @@ test("transfer advice binds actual citations, rejects invented references and gu
   response = structuredClone(reply);
   const missed: TrainingTransferInput = { ...input, evidence: [input.evidence[0]!, { ...input.evidence[1]!, status: "missed", control: "code" }] };
   assert.equal((await recommend(missed)).direction, "verify", "a new task with missed public checks cannot be used to justify extending");
-  assert.equal(meter.snapshot().models[0]!.calls, 6);
+  assert.equal(meter.snapshot().models[0]!.calls, 7);
   assert.equal(meter.snapshot().models[0]!.failures, 1);
   assert.equal(meteredTrainingAuthor(meter, { ...localTrainingAuthor, recommendTransfer: undefined }).recommendTransfer, undefined);
 });

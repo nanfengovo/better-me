@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import os from "node:os";
 import path from "node:path";
-import {mkdtemp,readFile,rm,writeFile} from "node:fs/promises";
+import fs, {mkdtemp,readFile,rm,writeFile} from "node:fs/promises";
 import {setTimeout as delay} from "node:timers/promises";
 import {careerRuntimeBinding,type FreeChatTaskCreate} from "@better-me/agent-contracts";
 import {AgentTaskKernel} from "../src/kernel/service.js";
@@ -71,6 +71,17 @@ test("task summary stays bounded and reports abandoned work without rewriting pr
   const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-task-summary-"));
   const kernel = new AgentTaskKernel({ ownerId: "synthetic-owner", directory });
   t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
+  const older = await kernel.createTask({
+    kind: "project_understanding", workspaceKey: "summary-project", rootScopeKey: "summary-project",
+    objective: "PRIVATE_SUMMARY_FIXTURE", project: { projectKey: "summary", label: "Synthetic", sourceText: "Synthetic project" },
+    runtimeBinding, consent: true, idempotencyKey: "summary-project-fixture",
+  }, access);
+  const olderFile = path.join(directory, older.id + ".json");
+  const olderArchive = JSON.parse(await readFile(olderFile, "utf8"));
+  olderArchive.task.updatedAt = "2020-01-01T00:00:00.000Z";
+  olderArchive.task.project.updatedAt = olderArchive.task.updatedAt;
+  await writeFile(olderFile, JSON.stringify(olderArchive), { mode: 0o600 });
+
   const tasks = [];
   for (let index = 0; index < 8; index++) {
     tasks.push(await kernel.createTask({ ...chat(`summary-${index}`), objective: "PRIVATE_SUMMARY_FIXTURE" }, access));
@@ -84,8 +95,12 @@ test("task summary stays bounded and reports abandoned work without rewriting pr
   await writeFile(file, before, { mode: 0o600 });
 
   const summary = await kernel.listTaskSummary();
-  assert.equal(summary.totalTasks, 8);
-  assert.equal(summary.runningCount, 7);
+  assert.equal(summary.totalTasks, 9);
+  assert.equal(summary.readyCount, 8);
+  assert.equal(summary.runningCount, 0);
+  assert.equal(summary.recentByKind.length, 4);
+  assert.ok(!summary.tasks.some(task => task.id === older.id));
+  assert.ok(summary.recentByKind.some(task => task.id === older.id && task.kind === "project_understanding"));
   assert.equal(summary.failedCount, 1);
   assert.equal(summary.tasks.length, 6);
   assert.equal(summary.tasks[0]!.id, latest.id);
@@ -102,7 +117,89 @@ test("manual group pause stops a pending descendant without overwriting its wait
   await kernel.run(root.id,"start",command(root),{runtimeFingerprint:"one-scope-runtime",reasoner:async()=>JSON.stringify({kind:"reply",content:"已完成根首问"})},access);
   for(let i=0;i<200;i++){root=await kernel.readTask(root.id) as typeof root;if(root.status!=="running")break;await delay(5);}assert.equal(root.status,"awaiting_answer");
   const child=await kernel.createTask(chat("pending-child"),access);await kernel.run(child.id,"start",command(child),{runtimeFingerprint:"one-scope-runtime",reasoner:async()=>{entered.resolve();return finish.promise;}},access);await entered.promise;
+  const runningSummary=await kernel.listTaskSummary();assert.equal(runningSummary.runningCount,1);assert.equal(runningSummary.awaitingCount,1);assert.equal(runningSummary.readyCount,0);
   await assert.rejects(kernel.pauseGroup(child.id,child.revision+1,access),/root_task_required|task_revision_conflict/);
   root=await kernel.readTask(root.id) as typeof root;const paused=await kernel.pauseGroup(root.id,root.revision,access);assert.equal(paused.status,"awaiting_answer");assert.equal((paused as typeof root).reply?.content,"已完成根首问");assert.equal(paused.rootLedger!.usage.modelCalls,2);
   finish.resolve(JSON.stringify({kind:"reply",content:"迟到输出"}));await delay(20);const result=await kernel.readTask(child.id);assert.equal(result.status,"paused");assert.equal((result as typeof root).reply,undefined);
+});
+
+test("a cold many-task summary does not hold back pause and cannot overwrite its committed status", async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-task-summary-pause-"));
+  const kernel = new AgentTaskKernel({ ownerId: "synthetic-owner", directory });
+  const entered = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<string>();
+  const summaryEntered = Promise.withResolvers<void>();
+  const summaryRelease = Promise.withResolvers<void>();
+  t.after(async () => {
+    summaryRelease.resolve();
+    finish.resolve(JSON.stringify({ kind: "reply", content: "Late reply" }));
+    await kernel.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const task = await kernel.createTask({ ...chat("summary-pause"), rootScopeKey: undefined }, access);
+  const seed = JSON.parse(await readFile(path.join(directory, task.id + ".json"), "utf8"));
+  const fixtureFiles = [];
+  for (let index = 0; index < 100; index++) {
+    const archive = structuredClone(seed);
+    archive.task.id = "ct_" + index.toString(16).padStart(32, "0");
+    archive.task.rootTaskId = archive.task.id;
+    archive.task.updatedAt = "2020-01-01T00:00:00.000Z";
+    const filename = path.join(directory, archive.task.id + ".json");
+    fixtureFiles.push(filename);
+    await writeFile(filename, JSON.stringify(archive), { mode: 0o600 });
+  }
+  await kernel.run(task.id, "start", {
+    expectedRevision: task.revision, sourceFingerprint: task.sourceFingerprint, runtimeBinding, consent: true,
+  }, { runtimeFingerprint: "summary-pause-runtime", reasoner: async () => {
+    entered.resolve();
+    return finish.promise;
+  } }, access);
+  await entered.promise;
+  const current = await kernel.readTask(task.id);
+  assert.equal(current.status, "running");
+
+  const reads = new Set(fixtureFiles);
+  const originalRead = fs.readFile;
+  let enteredScan = false;
+  let archivedReads = 0;
+  t.mock.method(fs, "readFile", (async (filename: string, ...args: unknown[]) => {
+    if (reads.has(filename)) {
+      archivedReads++;
+      if (!enteredScan) {
+        enteredScan = true;
+        summaryEntered.resolve();
+        await summaryRelease.promise;
+      }
+    }
+    return Reflect.apply(originalRead, fs, [filename, ...args]);
+  }) as typeof fs.readFile);
+  const scan = kernel.listTaskSummary();
+  await summaryEntered.promise;
+  assert.equal(kernel.listTaskSummary(), scan, "concurrent status requests share a scan");
+
+  const timeout = new AbortController();
+  try {
+    const paused = await Promise.race([
+      kernel.stop(task.id, current.revision, false, access),
+      delay(10000, undefined, { signal: timeout.signal }).then(() => assert.fail("summary blocked task pause")),
+    ]);
+    assert.equal(paused.status, "paused");
+  } finally {
+    timeout.abort();
+    summaryRelease.resolve();
+  }
+  const summary = await scan;
+  assert.equal(summary.totalTasks, 101);
+  assert.equal(summary.readyCount, 100);
+  assert.equal(summary.runningCount, 0);
+  assert.equal(summary.pausedCount, 1);
+  assert.equal(summary.tasks[0]?.id, task.id);
+  assert.equal(summary.tasks[0]?.status, "paused");
+  assert.ok(archivedReads >= 100);
+  archivedReads = 0;
+  assert.deepEqual(await kernel.listTaskSummary(), summary);
+  assert.equal(archivedReads, 0, "unchanged archives reuse validated summary metadata");
+  finish.resolve(JSON.stringify({ kind: "reply", content: "Late reply" }));
+  await delay(20);
+  assert.equal((await kernel.readTask(task.id)).status, "paused");
 });

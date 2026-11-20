@@ -17,6 +17,15 @@ export function AgentTaskNavigation({ active, onSelect, jobTitle, onBack, onEdit
     <h1 className="sr-only">{t("AI 顾问工作台", "AI Career Workspace")}</h1>
     <div className="advisor-nav-shell">
       {onBack && <button type="button" className="advisor-back" onClick={onBack} title={t("返回简历", "Back to resume")} aria-label={t("返回简历", "Back to resume")}><ArrowLeft size={15} /></button>}
+      <select className="advisor-task-picker" aria-label={t("选择顾问任务", "Select advisor task")} value={active} onChange={event => {
+        const view = event.target.value as typeof active;
+        if (view === "growth" || view === "studio") onOpenArea?.(view);
+        else onSelect(view);
+      }}>
+        {tasks.map(task => <option key={task.id} value={task.id}>{task.label}</option>)}
+        {onOpenArea && <><option value="growth">{t("资料与练习", "Materials & exercises")}</option><option value="studio">{t("演练与证据", "Practice & evidence")}</option></>}
+        <option value="handoff">{t("外部协作", "External collaboration")}</option>
+      </select>
       <nav className="advisor-tasks" aria-label={t("顾问任务", "Advisor tasks")}>
         {tasks.map(({ id, icon: Icon, label }) => <button type="button" key={id} aria-current={active === id ? "page" : undefined} onClick={() => onSelect(id)}><Icon size={16} /><strong>{label}</strong></button>)}
         {onOpenArea && <><button type="button" aria-current={active === "growth" ? "page" : undefined} onClick={() => onOpenArea("growth")}><BookOpen size={16} /><strong>{t("资料与练习", "Materials & exercises")}</strong></button><button type="button" aria-current={active === "studio" ? "page" : undefined} onClick={() => onOpenArea("studio")}><FileCheck2 size={16} /><strong>{t("演练与证据", "Practice & evidence")}</strong></button></>}

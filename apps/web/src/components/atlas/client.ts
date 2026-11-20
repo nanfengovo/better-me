@@ -56,7 +56,7 @@ export async function queryAtlasPageDirect(data: AtlasDataset, query: JobQueryIn
   return queryJobPage(data, query, options, { cursor, pageIndex, selectedJobIds, signal });
 }
 
-export type AtlasJobAction = { title: string; text: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
+export type AtlasJobAction = { title: string; jobTitle: string; company: string; text: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
 
 /** A record update or a failed read never becomes a source capture timestamp. */
 export function buildAtlasJobAction(data: AtlasDataset, item: JobSearchItem): AtlasJobAction {
@@ -73,8 +73,10 @@ export function buildAtlasJobAction(data: AtlasDataset, item: JobSearchItem): At
       && (!entry.snapshotId || entry.snapshotId === snapshot.id))))
     .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt) || a.id.localeCompare(b.id))[0] : undefined;
   const url = primary ? snapshot?.sourceUrl ?? primary.listing?.canonicalUrl : undefined;
+  const company = item.company.names[0] || "目标企业";
+  const jobTitle = item.job.title.value || "目标岗位";
   return {
-    title: `${item.company.names[0]} · ${item.job.title.value}`, text: item.job.description,
+    title: `${company} · ${jobTitle}`, jobTitle, company, text: item.job.description,
     ...(url ? { url } : {}), platform: primary?.source.label ?? "来源待核实",
     ...(observation ? { observedAt: observation.fetchedAt } : {}),
     ...(observation?.sourcePublishedAt ? { sourcePublishedAt: observation.sourcePublishedAt } : {}),

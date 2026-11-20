@@ -52,6 +52,7 @@ export function ApplicationCommunicationLog({ job, disabled, onDirtyChange, onRe
   const [direction, setDirection] = useState<ApplicationCommunication["direction"]>("outbound");
   const [method, setMethod] = useState<ApplicationCommunication["method"]>("platform");
   const [occurredAt, setOccurredAt] = useState("");
+  const [originalOccurredAt, setOriginalOccurredAt] = useState("");
   const [contact, setContact] = useState("");
   const [summary, setSummary] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -59,14 +60,15 @@ export function ApplicationCommunicationLog({ job, disabled, onDirtyChange, onRe
   useEffect(() => { onDirtyChange(composing); return () => onDirtyChange(false); }, [composing, onDirtyChange]);
   const entries = [...job.application.communications].sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
   function begin() {
-    setDirection("outbound"); setMethod("platform"); setOccurredAt(opportunityDateTimeInput(new Date().toISOString()));
+    const now = new Date().toISOString();
+    setDirection("outbound"); setMethod("platform"); setOriginalOccurredAt(now); setOccurredAt(opportunityDateTimeInput(now, "second"));
     setContact(job.application.contactName); setSummary(""); setConfirmed(false); setError(""); setComposing(true);
   }
   function submit(event: React.FormEvent) {
     event.preventDefault(); setError("");
     if (!confirmed) { setError(t("请确认这次沟通已实际发生。待发送内容可写入下一步。", "Confirm that this communication actually happened. Put unsent drafts in Next step.")); return; }
     try {
-      const at = parseOpportunityDateTimeInput(occurredAt);
+      const at = parseOpportunityDateTimeInput(occurredAt, originalOccurredAt);
       if (!at) throw new Error(t("请填写实际发生时间。", "Enter when the communication actually happened."));
       if (onRecord({ direction, method, occurredAt: at, contact, summary })) setComposing(false);
     } catch (err) { setError(err instanceof Error ? err.message : t("沟通记录保存失败。", "Could not save the communication record.")); }
@@ -76,7 +78,7 @@ export function ApplicationCommunicationLog({ job, disabled, onDirtyChange, onRe
     {composing && <form className="application-communication-form" onSubmit={submit}>
       <div className="opportunity-form-grid"><label>{t("沟通方向", "Direction")}<select value={direction} onChange={(event) => setDirection(event.target.value as typeof direction)}><option value="outbound">{t("我发出", "Sent by me")}</option><option value="inbound">{t("对方发来", "Received")}</option></select></label>
         <label>{t("沟通方式", "Method")}<select value={method} onChange={(event) => setMethod(event.target.value as typeof method)}>{Object.entries(METHODS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>{t("实际发生时间（北京时间）", "Actual time (Beijing time)")}<input type="datetime-local" required value={occurredAt} max={opportunityDateTimeInput(new Date().toISOString())} onChange={(event) => setOccurredAt(event.target.value)} /></label>
+        <label>{t("实际发生时间（北京时间）", "Actual time (Beijing time)")}<input type="datetime-local" step={1} required value={occurredAt} max={opportunityDateTimeInput(new Date().toISOString(), "second")} onChange={(event) => setOccurredAt(event.target.value)} /></label>
         <label>{t("本次沟通对象", "Contact for this communication")}<input maxLength={500} value={contact} placeholder={t("例如：招聘负责人 / 面试官", "For example: hiring manager / interviewer")} onChange={(event) => setContact(event.target.value)} /></label></div>
       <label>{t("实际沟通摘要", "Communication summary")}<textarea required maxLength={10_000} rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder={t("记录实际发生的内容、结论与约定，不必存放敏感信息。", "Record what happened, the outcome and agreements. Sensitive information is not required.")} /></label>
       <label className="application-communication-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{t("我确认这次沟通已经实际发生", "I confirm this communication actually happened")}</label>

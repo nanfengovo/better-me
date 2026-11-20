@@ -19,10 +19,20 @@ export const DecomposedJdSectionSchema = z.enum([
 ]);
 export type DecomposedJdSection = z.infer<typeof DecomposedJdSectionSchema>;
 
+export const JD_PARSER_VERSION = 2;
+export const JdSourceSpanSchema = z.object({
+  start: z.number().int().nonnegative(),
+  end: z.number().int().positive(),
+  line: z.number().int().positive().optional(),
+}).refine(span => span.end > span.start);
+
 export const DecomposedJdItemSchema = z.object({
   id: z.string(),
   section: DecomposedJdSectionSchema,
   originalQuote: z.string().min(1),
+  // UTF-16 offsets into the exact JD snapshot, with an exclusive end.
+  sourceSpan: JdSourceSpanSchema.optional(),
+  parserVersion: z.number().int().positive().optional(),
   summary: z.string().min(1),
   keywords: z.array(z.string()).default([]),
   category: DecomposedJdItemCategorySchema.default("other"),
@@ -131,6 +141,48 @@ function cleanBullet(text: string): string {
   return text.replace(/^(\d+[.、)]|[-•*★◆◇■□○●—]\s*)/, "").trim();
 }
 
+const sectionHeadings = [
+  ["responsibility", /^(?:【|\[)?\s*(?:岗位职责|工作职责|职位职责|主要职责|职责描述|Responsibilities|What you'll do)/i],
+  ["requirement", /^(?:【|\[)?\s*(?:任职要求|任职资格|职位要求|基本要求|岗位要求|Qualifications|Requirements|What you'll need)/i],
+  ["preference", /^(?:【|\[)?\s*(?:加分项|优先条件|优先考虑|优选条件|Preferred(?: qualifications| skills)?|Bonus(?: points)?)/i],
+  ["constraint", /^(?:【|\[)?\s*(?:工作地点|工作时间|薪资待遇|福利待遇|学历要求|经验要求|Constraints|Location)/i],
+] as const;
+
+function readSectionHeading(line: string) {
+  for (const [section, pattern] of sectionHeadings) {
+    const match = pattern.exec(line);
+    if (!match) continue;
+    const tail = line.slice(match[0].length);
+    // A bracket or colon introduces literal inline text. A bare section title
+    // (including a longer title previously recognized by prefix) has no item.
+    const separator = /^\s*(?:[】\]]\s*[:：]?|[:：]\s*[】\]]?)\s*/u.exec(tail);
+    return { section, body: separator ? tail.slice(separator[0].length) : "" };
+  }
+  return undefined;
+}
+
+function* jdSourceLines(rawText: string) {
+  let lineOffset = 0;
+  for (const [lineIndex, raw] of rawText.split("\n").entries()) {
+    const line = raw.trim();
+    const offset = lineOffset + raw.indexOf(line);
+    lineOffset += raw.length + 1;
+    if (!line) continue;
+    let start = 0;
+    if (readSectionHeading(line)?.body) {
+      // Some copy/paste sources put several explicit sections on one line.
+      // A legacy non-heading line retains its original position and identity.
+      for (const match of line.matchAll(/[。；;!?！？]\s*|\.\s+/gu)) {
+        const end = match.index! + match[0].length;
+        if (!readSectionHeading(line.slice(end))?.body) continue;
+        yield { text: line.slice(start, match.index).trimEnd(), offset: offset + start, lineIndex, startsLine: start === 0 };
+        start = end;
+      }
+    }
+    yield { text: line.slice(start), offset: offset + start, lineIndex, startsLine: start === 0 };
+  }
+}
+
 /**
  * Deterministically parse raw JD text into categorized items with original quotes.
  */
@@ -138,45 +190,23 @@ export function decomposeJdText(
   rawText: string,
   metadata?: { title?: string; company?: string; location?: string }
 ): DecomposedJd {
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-
   let currentSection: DecomposedJdSection = "requirement";
-  const responsibilities: DecomposedJdItem[] = [];
-  const hardRequirements: DecomposedJdItem[] = [];
-  const preferredQualifications: DecomposedJdItem[] = [];
-  const constraints: DecomposedJdItem[] = [];
+  const sections = {
+    responsibility: { items: [] as DecomposedJdItem[], prefix: "resp", nextLegacyId: 1 },
+    requirement: { items: [] as DecomposedJdItem[], prefix: "req", nextLegacyId: 1 },
+    preference: { items: [] as DecomposedJdItem[], prefix: "pref", nextLegacyId: 1 },
+    constraint: { items: [] as DecomposedJdItem[], prefix: "constr", nextLegacyId: 1 },
+  };
 
-  let respIndex = 1;
-  let reqIndex = 1;
-  let prefIndex = 1;
-  let constrIndex = 1;
-
-  for (const line of lines) {
-    const isHeading =
-      /^(【|\[)?\s*(岗位职责|工作职责|职位职责|主要职责|职责描述|Responsibilities|What you'll do)/i.test(line);
-    const isRequirement =
-      /^(【|\[)?\s*(任职要求|任职资格|职位要求|基本要求|岗位要求|Qualifications|Requirements|What you'll need)/i.test(line);
-    const isPreferenceHeading =
-      /^(【|\[)?\s*(加分项|优先条件|优先考虑|优选条件|Preferred|Bonus)/i.test(line);
-    const isConstraintHeading =
-      /^(【|\[)?\s*(工作地点|工作时间|薪资待遇|福利待遇|学历要求|经验要求|Constraints|Location)/i.test(line);
-
-    if (isHeading) {
-      currentSection = "responsibility";
-      continue;
-    } else if (isRequirement) {
-      currentSection = "requirement";
-      continue;
-    } else if (isPreferenceHeading) {
-      currentSection = "preference";
-      continue;
-    } else if (isConstraintHeading) {
-      currentSection = "constraint";
-      continue;
-    }
-
+  for (const { text: sourceLine, offset: lineOffset, lineIndex, startsLine } of jdSourceLines(rawText)) {
+    const heading = readSectionHeading(sourceLine);
+    // Extra inline sections get their own category without changing how the
+    // original parser classified following physical lines and their old IDs.
+    if (heading && startsLine) currentSection = heading.section;
+    const line = heading?.body ?? sourceLine;
     const summary = cleanBullet(line);
-    if (!summary || summary.length < 3) continue;
+    const shortItem = summary.length < 3;
+    if (!summary || (shortItem && !/[\p{L}]/u.test(summary))) continue;
 
     // Filter out common sub-headers that do not contain actual criteria
     const isSubHeader =
@@ -197,39 +227,37 @@ export function decomposeJdText(
     }
 
     // Determine actual section: check inline priority/preference
-    let itemSection = currentSection;
+    let itemSection = heading?.section ?? currentSection;
     if (
-      currentSection === "requirement" &&
+      itemSection === "requirement" &&
       (/(优先考虑|者优先|优先录取|有.*优先)/.test(line) || line.endsWith("优先"))
     ) {
       itemSection = "preference";
     }
 
-    const item: DecomposedJdItem = {
-      id: "",
+    const offset = lineOffset + sourceLine.length - line.length;
+    const section = sections[itemSection];
+    // Existing targets store section-relative IDs. Give items skipped by the
+    // earlier parser their own ID space so none can renumber an old target.
+    const id = heading || shortItem
+      ? `${section.prefix}-at-${offset}` : `${section.prefix}-${section.nextLegacyId++}`;
+    section.items.push({
+      id,
       section: itemSection,
       originalQuote: line,
+      sourceSpan: { start: offset, end: offset + line.length, line: lineIndex + 1 },
+      parserVersion: JD_PARSER_VERSION,
       summary,
       keywords,
       category,
       required: itemSection !== "preference",
-    };
-
-    if (itemSection === "responsibility") {
-      item.id = `resp-${respIndex++}`;
-      responsibilities.push(item);
-    } else if (itemSection === "preference") {
-      item.id = `pref-${prefIndex++}`;
-      preferredQualifications.push(item);
-    } else if (itemSection === "constraint") {
-      item.id = `constr-${constrIndex++}`;
-      constraints.push(item);
-    } else {
-      item.id = `req-${reqIndex++}`;
-      hardRequirements.push(item);
-    }
+    });
   }
 
+  const responsibilities = sections.responsibility.items;
+  const hardRequirements = sections.requirement.items;
+  const preferredQualifications = sections.preference.items;
+  const constraints = sections.constraint.items;
   const allTechStack = Array.from(
     new Set([
       ...responsibilities.flatMap((r) => r.keywords),

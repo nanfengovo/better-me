@@ -6,6 +6,7 @@ import {
   validateReplayCheckpoint, validatePersonalRuleSidecar, hashCommitteeText, PERSONAL_RULE_TEXT,
   type EvolutionPatch, type OutcomeFeedbackReport, type PersonalRuleSidecar, type ReplayCheckpoint, type RuleEvolutionProposal,
 } from "@better-me/core/career-intelligence";
+import { InterviewFollowUpPanel } from "./InterviewFollowUpPanel";
 import "./CareerReplayFeedbackPanel.css";
 
 export interface CareerReplayFeedbackPanelProps {
@@ -276,7 +277,7 @@ function ReplayFeedbackSession({ contextId, runtime, request }: CareerReplayFeed
           <p className="crfp-muted">只展示公开动作、观察和产物，不展示模型私有思维。旧成功/未知外部动作绝不会自动重放。</p>
         </>}
       </section>
-      <section className="crfp-card" aria-label="投递与面试反馈"><h3>02 / 真实战场的观察</h3>
+      <section className="crfp-card" aria-label="投递与面试反馈"><h3>投递与面试反馈</h3>
         <fieldset disabled={!!busy}><legend>投递事件（不等于平台核验）</legend><label>投递记录标识<input value={applicationId} maxLength={240} onChange={event => { setApplicationId(event.target.value); feedbackChanged(); }} placeholder="例如：目标岗位卡编号 / 公司与日期" /></label>
           <div className="crfp-fields"><label>观察到的结果<select value={eventKind} onChange={event => setEventKind(event.target.value as keyof typeof eventKinds)}>{Object.entries(eventKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>观察时间（UTC）<input type="datetime-local" value={eventDate} onChange={event => setEventDate(event.target.value)} /></label></div>
           <label>记录来源<select value={origin} onChange={event => setOrigin(event.target.value as typeof origin)}><option value="self_report">本人记录</option><option value="platform_receipt">平台记录/截图的本人导入（未核验）</option></select></label>
@@ -299,6 +300,7 @@ function ReplayFeedbackSession({ contextId, runtime, request }: CareerReplayFeed
         </div>}
       </section>
     </div>
+    <InterviewFollowUpPanel contextId={contextId} request={request} savedFeedbackId={note.trim() ? feedbackId : ""} />
     <section className="crfp-card crfp-rules" aria-label="个人规则审核"><div><h3>03 / 审查个人规则，不自动演化事实</h3><p className="crfp-muted">补丁只追加边界与证据核对规则，不新增经历、指标或成果。采用、回退与导出分别确认。</p></div>
       <fieldset disabled={!!busy}><legend>形成待审核补丁</legend><label>规则目标<select value={target} onChange={event => { setTarget(event.target.value as typeof target); setProposal(undefined); setRule(undefined); setPreview(""); }}><option value="guideline">私有简历Guidelines侧写</option><option value="skill">私有Career Skill侧写（不安装全局Skill）</option></select></label><label>已有规则的副本（可选，不读取或覆盖原文件）<textarea rows={2} value={initialRules} onChange={event => { setInitialRules(event.target.value); setProposal(undefined); }} maxLength={64000} /></label>
         <button type="button" disabled={!report || selectedPatchCount === 0} onClick={() => void proposeRules()}>预览{selectedPatchCount || "所选"}条规则建议</button></fieldset>

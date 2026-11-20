@@ -21,7 +21,7 @@ const directions: Record<TrainingTransferAdvice["direction"], [string, string]> 
   verify: ["再做一次独立验证", "Check independently again"],
 };
 
-type Retest = Pick<TrainingTransferInput["retest"], "independence" | "aids">;
+type Retest = Pick<TrainingTransferInput["retest"], "independence" | "aids" | "change">;
 type Translate = (zh: string, en: string) => string;
 export function retestLabel({ independence, aids }: Retest, t: Translate) {
   if (independence === "untracked") return t("独立性未记录", "Assistance not tracked");
@@ -29,6 +29,20 @@ export function retestLabel({ independence, aids }: Retest, t: Translate) {
   if (aids?.practiceReference && aids.preview) return t("已参考首练并试算", "Used the first attempt and preview feedback");
   if (aids?.practiceReference) return t("已参考首练", "Consulted the first attempt");
   return t("提交前看过试算反馈", "Used preview feedback before submitting");
+}
+
+export function RetestConditions({ retest }: { retest: Retest }) {
+  const { t } = useUiPreferences();
+  const change = retest.change;
+  return <div className="training-transfer-source">
+    <strong>{t("两轮条件对照", "Conditions across the two rounds")}</strong>
+    {change ? <dl>
+      <dt>{t("首练条件", "First condition")}</dt><dd>{change.before}</dd>
+      <dt>{t("复测条件", "Retest condition")}</dt><dd>{change.after}</dd>
+      <dt>{t("本次核对", "What this checks")}</dt><dd>{change.criterion}</dd>
+    </dl> : <p>{t("这两轮没有可核对的条件变化记录，需换题再验证。", "A change in the tested condition was not recorded. Use a new exercise to verify transfer.")}</p>}
+    <small>{t("作答时的帮助", "Assistance during the retest")} · {retestLabel(retest, t)}</small>
+  </div>;
 }
 
 function evidenceLabel(item: TrainingTransferEvidence, retest: Retest, t: Translate) {
@@ -77,13 +91,15 @@ function TransferEvidence({ input }: { input: TrainingTransferInput }) {
 export function TransferReport({ decision, evidence, retest }: { decision: TrainingTransferAdvice; evidence: TrainingTransferEvidence[]; retest: Retest }) {
   const { t } = useUiPreferences();
   return <div className="training-transfer-report">
+      <RetestConditions retest={retest} />
       <p className="training-transfer-goal">{decision.nextGoal}</p>
       <p>{t(...directions[decision.direction])} · {decision.actions.map(action => t(...trainingActionLabels[action])).join(" → ")}</p>
       <h4>{t("为什么这样练", "Why this exercise")}</h4>
-      <ul className="training-transfer-reasons">{decision.reasons.map(({ evidenceId, reason }) => {
+      <ul className="training-transfer-reasons">{decision.reasons.map(({ evidenceId, reason, answerQuote }) => {
         const item = evidence.find(entry => entry.id === evidenceId);
         return item && <li key={evidenceId}><strong>{t(...phaseLabels[item.phase])}</strong> · {evidenceLabel(item, retest, t)}
           <p>{reason}</p>
+          {answerQuote && item.phase === "retest" && <><small>{t("本人作答原句", "Passage from your response")}</small><blockquote>{answerQuote}</blockquote></>}
           <details><summary>{t("核对这条作答", "Check this response")}</summary><SourceItem item={item} retest={retest} /></details>
         </li>;
       })}</ul>
@@ -98,14 +114,16 @@ export function TrainingTransferPanel({ kit, historical, disabled, onRecommend, 
   const input = trainingTransferInput(kit.goal, kit.attempts, kit.transferFrom?.nextGoal);
   if (!input) return <p>{t("这份记录缺少可对照的原题或作答，可以从工坊开始一份新练习。", "This record lacks a comparable question or answer. You can start a new exercise in the workshop.")}</p>;
   const decision = kit.transferDecision;
+  const currentAdvice = !decision || decision.direction !== "extend" || !!input.retest.change;
   if (historical && !decision) return null;
   return <section className="training-transfer" aria-label={t("复测后的下一步", "After your retest")}>
     <h3>{t("复测后的下一步", "After your retest")}</h3>
     {decision ? <TransferReport decision={decision} evidence={input.evidence} retest={input.retest} /> : <p>{input.retest.independence !== "independent"
       ? retestLabel(input.retest, t) + " · " + t("可以请 Agent 对照两轮作答，安排独立验证。", "Ask the Agent to compare both rounds and plan an independent check.")
       : t("把首答、已提交的改写和这次复测放在一起，请 Agent 找出下一项值得练的能力。", "Ask the Agent to compare your first attempt, any revision and this retest to suggest the next skill to practice.")}</p>}
+    {!decision && <RetestConditions retest={input.retest} />}
     <TransferEvidence input={input} />
-    {!historical && (decision ? <>
+    {!historical && currentAdvice && (decision ? <>
       <small>{t("开始后，本机模型会按这项目标和练法生成新题。", "Starting creates a new exercise with the recommended goal and activity using your local model.")} {decision.model}</small>
       <button className="training-primary" type="button" disabled={disabled} onClick={onAdopt}>{t("按建议开始下一练", "Start the recommended exercise")}</button>
     </> : <>
@@ -119,6 +137,6 @@ export function TransferOrigin({ source }: { source: NonNullable<TrainingView["t
   const { t } = useUiPreferences();
   return <details className="training-origin">
     <summary>{t("本次练习的推荐依据", "Why this practice was recommended")} · {source.kitTitle}</summary>
-    <TransferReport decision={source} evidence={source.citations} retest={{independence: source.retestIndependence, aids: source.retestAids}} />
+    <TransferReport decision={source} evidence={source.citations} retest={{independence: source.retestIndependence, aids: source.retestAids, change: source.retestChange}} />
   </details>;
 }

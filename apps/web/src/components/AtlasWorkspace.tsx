@@ -1394,7 +1394,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     if (selectedEvidence.loading || selectedEvidence.error || !selectedEvidence.data) return;
     const input = buildAtlasJobAction(selectedEvidence.data, item);
     if (analyze) onAnalyze(input);
-    else onSaveOpportunity({ token: crypto.randomUUID(), title: item.job.title.value, description: item.job.description, sourceUrl: input.url, sourcePlatform: input.platform, collectedAt: input.observedAt, sourcePublishedAt: input.sourcePublishedAt, sourcePublishedText: input.sourcePublishedText });
+    else onSaveOpportunity({ token: crypto.randomUUID(), title: input.jobTitle, company: input.company, description: input.text, sourceUrl: input.url, sourcePlatform: input.platform, collectedAt: input.observedAt, sourcePublishedAt: input.sourcePublishedAt, sourcePublishedText: input.sourcePublishedText });
   }
   function deriveStreetHintsFromLocation(opts: {
     road?: string;

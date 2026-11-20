@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { TransferReport, TransferOrigin, trainingActionLabels, retestLabel } from "./TrainingTransferPanel";
+import { RetestConditions, TransferReport, TransferOrigin, trainingActionLabels, retestLabel } from "./TrainingTransferPanel";
 import { WritingReviewRecord } from "./StudioWritingReview";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { TrainingAction, TrainingAttempt, TrainingFollowSource, TrainingTransferSource, TrainingTransferDecision, trainingTransferInput, type StudioEvidence, type TrainingPlan, type TrainingScreen, type TrainingWritingReview } from "@better-me/agent-contracts";
@@ -27,7 +27,7 @@ export function SavedTrainingEvidence({ text }: { text: string }) {
   const input = goal && trainingTransferInput(goal, attempts, transferFrom?.nextGoal);
   return <div className="training-studio-results">
     {transferFrom && <TransferOrigin source={transferFrom} />}
-    {input && transferDecision && <TransferReport decision={transferDecision} evidence={input.evidence} retest={input.retest} />}
+    {input && (transferDecision ? <TransferReport decision={transferDecision} evidence={input.evidence} retest={input.retest} /> : <RetestConditions retest={input.retest} />)}
     {parsed.data.followFrom && <StudioOrigin source={parsed.data.followFrom} />}
     {parsed.data.attempts.map(attempt => <section key={attempt.round}>
       <strong>{attempt.round === "practice" ? t("首练", "Practice") : t("换情境复测", "Transfer practice")}

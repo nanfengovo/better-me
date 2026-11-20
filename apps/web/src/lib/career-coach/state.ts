@@ -1,6 +1,6 @@
 import { CoachRecordSchema, CoachStateSchema, CoachSubmissionSchema, DEFAULT_COACH_SETTINGS,
   resolveCareerTrainingTarget, type CoachContext, type CoachGeneration, type CoachRecord, type CoachRequest, type CoachState, type CoachTaskStatus, type CoachSettings, type PracticeReceipt } from "./types";
-import { careerWritingEvidenceVersion, CoachTrainingTargetSchema, type CoachTrainingTarget, type TrainingView } from "@better-me/agent-contracts";
+import { careerJobSnapshotVersion, careerRequirementCapabilityId, careerWritingEvidenceVersion, CoachTrainingTargetSchema, type CoachTrainingTarget, type TrainingView } from "@better-me/agent-contracts";
 
 export function createCoachState(workspaceKey: string, now = new Date().toISOString()): CoachState {
   return CoachStateSchema.parse({ schemaVersion: 1, workspaceKey, revision: 0, updatedAt: now,
@@ -83,7 +83,8 @@ export function addCoachSubmission(state: CoachState, input: { taskId: string; e
 }
 
 export function addCareerTrainingTarget(state: CoachState, input: CoachTrainingTarget): CoachState {
-  const target = CoachTrainingTargetSchema.parse(input);
+  const target = CoachTrainingTargetSchema.parse({ ...input,
+    capabilityId: careerRequirementCapabilityId(careerJobSnapshotVersion(input.job), input.itemId, input.quote) });
   if (state.trainingTargets?.some(item => item.id === target.id)) throw new Error("此能力目标已存在。");
   const next = { ...state, trainingTargets: [...(state.trainingTargets ?? []), target] };
   if (!resolveCareerTrainingTarget(next, { workspaceKey: state.workspaceKey, targetId: target.id }))

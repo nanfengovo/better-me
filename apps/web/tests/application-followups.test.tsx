@@ -199,3 +199,15 @@ test("CSV保留截止原文/联系人/实际事件，用户字段公式前缀继
   assert.ok(csv.includes("已发送项目说明"));
   assert.ok(csv.includes('""occurredAt""'));
 });
+
+
+test("actual events preserve seconds and milliseconds when a communication is recorded in the same minute as an action", () => {
+  const actualAction = "2026-10-17T02:00:25.123Z";
+  const actualFeedback = "2026-10-17T02:00:45.789Z";
+  const input = opportunityDateTimeInput(actualFeedback, "second");
+  assert.equal(input, "2026-10-17T10:00:45");
+  assert.equal(parseOpportunityDateTimeInput(input, actualFeedback), actualFeedback);
+  assert.equal(parseOpportunityDateTimeInput("2026-10-17T10:00:46", actualFeedback), "2026-10-17T02:00:46.000Z");
+  assert.ok(Date.parse(parseOpportunityDateTimeInput(input, actualFeedback)!) > Date.parse(actualAction));
+  assert.throws(() => parseOpportunityDateTimeInput("2026-10-17T10:00:60"), /北京时间/);
+});

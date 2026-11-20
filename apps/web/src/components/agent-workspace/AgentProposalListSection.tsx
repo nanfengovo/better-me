@@ -29,7 +29,7 @@ export interface AgentProposalListSectionProps {
   showGapsSummary: boolean;
   onToggleGapsSummary: () => void;
   onAskGap: (jdItem: string) => void;
-  linkableRequirements?: ReadonlySet<string>;
+  linkableRequirements?: Pick<ReadonlySet<string>, "has">;
   onLinkRequirement?: (jdItem: string) => void;
   onSetActiveDiffProposalId: (id: string | null) => void;
   onDecision: (proposalId: string, status: "accepted" | "rejected") => void;

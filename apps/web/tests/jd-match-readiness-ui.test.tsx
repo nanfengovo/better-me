@@ -131,8 +131,8 @@ async function mount(
   const calls: Request[] = [];
   activeModelCalls=calls;
   const wire:{path:string;method:string;body?:Record<string,unknown>}[]=[];
-  const saved: { text: string; provenance: unknown }[] = [];
-  const growth: { job: DrawerJobContext; quote: string }[] = [];
+  const saved: { text: string; provenance: unknown; job?: { title: string; company: string; description: string } }[] = [];
+  const growth: { job: DrawerJobContext; quote: string; itemId: string }[] = [];
   const copied: string[] = [];
   const callbacks = { imported: 0, edited: 0, closed: 0 };
   let currentResume = initialResume;
@@ -170,7 +170,7 @@ async function mount(
       onClose() { callbacks.closed += 1; }, onOpenConfig() {}, onOpenNetworkSettings() {},
       onImportResume() { callbacks.imported += 1; }, onEditResume() { callbacks.edited += 1; },
       onSaveOpportunity(draft) { saved.push(draft); },
-      onGrowthRequirement(job, quote) { growth.push({ job, quote }); },
+      onGrowthRequirement(job, quote, itemId) { growth.push({ job, quote, itemId }); },
     })));
   };
   await render();
@@ -199,10 +199,12 @@ after(async () => {
 
 test("an exact selected JD requirement opens growth from the original draft without a model request", async () => {
   const { calls, growth } = await mount();
-  const description = "任职要求：\n熟悉 C# 和接口开发\n能处理 EF Core 并发更新冲突";
+  const description = "任职要求：能处理 EF Core 并发更新冲突\n熟悉 C# 和接口开发\n能处理 EF Core 并发更新冲突";
   await editJd(description);
   const choices = [...dom.document.querySelectorAll("li")];
-  const row = choices.find(item => item.textContent?.includes("能处理 EF Core 并发更新冲突"));
+  const matching = choices.filter(item => item.textContent?.includes("能处理 EF Core 并发更新冲突"));
+  assert.equal(matching.length, 2);
+  const row = matching[1];
   assert.ok(row);
   const link = row.querySelector("button");
   assert.equal(link?.textContent?.trim(), "加入成长计划");
@@ -210,6 +212,7 @@ test("an exact selected JD requirement opens growth from the original draft with
   assert.equal(growth.length, 1);
   assert.equal(growth[0]!.job.description, description);
   assert.equal(growth[0]!.quote, "能处理 EF Core 并发更新冲突");
+  assert.equal(growth[0]!.itemId, "req-2");
   assert.equal(calls.length, 0);
 });
 
@@ -286,6 +289,8 @@ test("示例阻挡个人分析期间仍能编辑和收藏 JD，切换简历不�
   await click("收藏到机会库");
   assert.equal(saved.length, 1);
   assert.equal(saved[0]!.text, edited);
+  assert.equal(saved[0]!.job?.description, edited);
+  assert.ok(saved[0]!.job?.title);
   assert.equal(calls.length, 0);
   assert.equal(button("授权当前简历并生成报告").disabled, true);
   await render(personalResume);

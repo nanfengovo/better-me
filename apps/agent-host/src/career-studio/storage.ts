@@ -7,6 +7,9 @@ import { z } from "zod";
 export class StudioError extends Error { constructor(readonly code: string, readonly status = 409) { super(code); this.name = "StudioError"; } }
 export const studioHash = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const keySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,239}$/);
+export type InterviewSourceScope = {
+  workspaceKey: string; resumeId: string; versionId: string; contentHash: string; claims: Array<{ id: string; hash: string }>;
+};
 export type StudioRecord<T = unknown> = { kind: string; id: string; revision: number; hash: string; value: T; updatedAt: string };
 
 /** Private, owner-bound derived artifacts. This is not a second Fact/Resume/Job
@@ -47,6 +50,26 @@ export class StudioArtifactStore {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new StudioError("invalid_studio_list_limit", 400);
     const rows = this.db.prepare("SELECT id FROM artifacts WHERE kind=? ORDER BY updated_at DESC,id LIMIT ?").all(kind, limit);
     return rows.map(row => this.get<T>(kind, String(row["id"]))!);
+  }
+  interviewSources(scope: InterviewSourceScope, limit: number, offset: number) {
+    if (this.closed) throw new StudioError("studio_store_closed", 503);
+    return this.db.prepare(`WITH allowed AS MATERIALIZED (
+        SELECT json_extract(value,'$.id') id,json_extract(value,'$.hash') hash FROM json_each(?))
+      SELECT a.id AS feedbackId, n.key AS noteIndex, s.key AS segmentIndex
+      FROM artifacts a, json_each(a.payload, '$.snapshot.notes') n, json_each(n.value, '$.segments') s
+      WHERE a.kind='outcome-feedback' AND json_extract(a.payload, '$.snapshot.binding.workspaceId')=?
+        AND EXISTS (SELECT 1 FROM json_each(a.payload,'$.snapshot.resumes') r
+          WHERE json_extract(r.value,'$.resumeId')=? AND json_extract(r.value,'$.versionId')=? AND json_extract(r.value,'$.contentHash')=?)
+        AND json_extract(n.value, '$.resumeVersionId')=? AND json_extract(n.value, '$.resumeContentHash')=?
+        AND EXISTS (SELECT 1 FROM json_each(n.value, '$.claimLinks') l
+          WHERE json_extract(l.value, '$.segmentId')=json_extract(s.value, '$.id')
+          AND json_extract(l.value, '$.confirmedByUser')=1 AND json_extract(l.value, '$.kind') IN ('questioned','clarify'))
+        AND NOT EXISTS (SELECT 1 FROM json_each(n.value, '$.claimLinks') l
+          WHERE json_extract(l.value, '$.segmentId')=json_extract(s.value, '$.id')
+          AND NOT EXISTS (SELECT 1 FROM allowed WHERE allowed.id=json_extract(l.value,'$.claimId') AND allowed.hash=json_extract(l.value,'$.claimHash')))
+      ORDER BY json_extract(n.value, '$.happenedAt') DESC, a.id, n.key, s.key LIMIT ? OFFSET ?`)
+      .all(JSON.stringify(scope.claims), scope.workspaceKey, scope.resumeId, scope.versionId, scope.contentHash, scope.versionId, scope.contentHash, limit, offset)
+      .map(row => ({ feedbackId: String(row.feedbackId), noteIndex: Number(row.noteIndex), segmentIndex: Number(row.segmentIndex) }));
   }
   /** Monotone within a kind (artifacts are never deleted). Read under a write
    * transaction when it guards a cross-record publication decision. */

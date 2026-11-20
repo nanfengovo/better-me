@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RecoveryDocument } from "../schema/document.js";
 import type { FactBase } from "../schema/fact.js";
+import { pickLocale } from "../schema/locale.js";
 import { CareerTaskJobSchema, type CareerTaskResumeReceipt, type ResumeView } from "../schema/resume.js";
 import { projectResume, rebaseTextStyles, resolveResumeFactBase, snapshotResumeFacts } from "./resume-projection.js";
 
@@ -11,8 +12,16 @@ const target = z.discriminatedUnion("kind", [
 ]);
 const patch = z.object({ targetRef: target, originalText: z.string().min(1).max(12000), proposedText: z.string().min(1).max(12000),
   evidenceIds: z.array(id).min(1).max(100) }).strict();
+const selectedClaim = z.object({ experienceId: id, claimId: id, text: z.string().min(1).max(12000) }).strict();
+const replacementSchema = z.object({
+  remove: selectedClaim,
+  use: selectedClaim,
+  proposedText: z.string().trim().min(1).max(12000),
+}).strict();
+export type CareerTaskResumeReplacement = z.infer<typeof replacementSchema>;
+
 const commandSchema = z.object({ taskId: id, sourceResumeId: id, sourceFingerprint: hash, approvalHash: hash.optional(),
-  name: z.string().trim().min(1).max(500), job: CareerTaskJobSchema, patches: z.array(patch).min(1).max(100),
+  name: z.string().trim().min(1).max(500), job: CareerTaskJobSchema, patches: z.array(patch).max(100), replacement: replacementSchema.optional(),
   approvedPatchIds: z.array(id).min(1).max(100).optional() }).strict();
 export type CareerTaskResumePatch = z.infer<typeof patch>;
 export type CareerTaskResumeCommand = z.infer<typeof commandSchema>;
@@ -50,6 +59,7 @@ function commandParts(input: CareerTaskResumeCommand) {
   const parsed = commandSchema.safeParse(input);
   if (!parsed.success) fail("invalid_command");
   const { approvalHash: supplied, approvedPatchIds, ...command } = parsed.data;
+  if (command.replacement ? (command.patches.length > 0 || approvedPatchIds) : !command.patches.length) fail("invalid_command");
   if (approvedPatchIds && (approvedPatchIds.length !== command.patches.length || new Set(approvedPatchIds).size !== approvedPatchIds.length)) fail("invalid_command");
   // Preserve compatibility with pre-selection-metadata receipts. The host draft hash binds
   // the patch IDs; this hash independently binds each selected target, text and evidence.
@@ -57,6 +67,63 @@ function commandParts(input: CareerTaskResumeCommand) {
 }
 export async function careerTaskCommandFingerprint(input: CareerTaskResumeCommand): Promise<string> {
   return commandParts(input).hash;
+}
+
+/** A selection is local to this frozen edition. A new bullet keeps its own project, dates and section. */
+function applyReplacement(frozen: FactBase, source: ResumeView, replacement: CareerTaskResumeReplacement, displayed: ReturnType<typeof projectResume>) {
+  const { remove, use, proposedText } = replacement;
+  const matches = (ref: typeof use) => {
+    const owners = frozen.experiences.filter(experience => experience.id === ref.experienceId);
+    const owner = owners[0];
+    if (owners.length !== 1 || !owner) fail("target_changed");
+    // Selection and inline style keys are claim IDs, so duplicate IDs make an edit ambiguous.
+    const entries = frozen.experiences.flatMap(experience => experience.claims.filter(claim => claim.id === ref.claimId));
+    const claim = owner.claims.find(item => item.id === ref.claimId);
+    if (entries.length !== 1 || !claim || pickLocale(claim.text, source.locale) !== ref.text) fail("target_changed");
+    return { owner, claim };
+  };
+  const previous = matches(remove);
+  const chosen = matches(use);
+  const visibleClaims = displayed.experiences.flatMap(experience => experience.claims.map(claim => claim.id));
+  if (!visibleClaims.includes(remove.claimId)) fail("target_outside_view");
+
+  // Reuse publication eligibility, including private notes, metrics and section visibility.
+  const eligible = projectResume(frozen, { ...source, experienceSelection: "all", claimSelection: "all" });
+  if (!eligible.experiences.find(exp => exp.id === use.experienceId)?.claims.some(claim => claim.id === use.claimId)) fail("target_outside_view");
+  if (remove.claimId === use.claimId && proposedText === use.text) fail("invalid_command");
+  const sameOwner = previous.owner === chosen.owner;
+  if (!sameOwner && visibleClaims.includes(use.claimId)) fail("invalid_command");
+
+  const effectiveLocale = source.locale === "en" && chosen.claim.text.en?.trim() ? "en" : "zh";
+  chosen.claim.text[effectiveLocale] = proposedText;
+  const styleKey = `claim:${use.claimId}:${effectiveLocale}`;
+  const ranges = source.textStyles?.[styleKey];
+  if (source.textStyles && ranges) {
+    const next = rebaseTextStyles(use.text, proposedText, ranges);
+    if (next.length) source.textStyles[styleKey] = next;
+    else delete source.textStyles[styleKey];
+  }
+  if (remove.claimId === use.claimId) return;
+
+  const visibleOwners = displayed.experiences.map(experience => experience.id);
+  if (!visibleOwners.includes(use.experienceId)) {
+    if (chosen.owner.claims.some(claim => visibleClaims.includes(claim.id))) fail("target_changed");
+    // Adding a previously hidden group only reveals its identifying heading and the approved bullet.
+    // Its unselected siblings, external link and unrelated skills must not enter the export.
+    chosen.owner.techStack = [];
+    delete chosen.owner.url;
+  }
+  source.experienceSelection = "selected";
+  source.includedExperienceIds = [...new Set([...visibleOwners, use.experienceId])];
+  source.claimSelection = "selected";
+  source.includedClaimIds = [...new Set([...visibleClaims.filter(claimId => claimId !== remove.claimId), use.claimId])];
+
+  const ordered = chosen.owner.claims;
+  const previousPosition = ordered.indexOf(chosen.claim);
+  const targetPosition = sameOwner ? ordered.indexOf(previous.claim) : 0;
+  if (sameOwner && visibleClaims.includes(use.claimId) && previousPosition < targetPosition) return;
+  ordered.splice(previousPosition, 1);
+  ordered.splice(sameOwner ? ordered.indexOf(previous.claim) : 0, 0, chosen.claim);
 }
 
 /** Returns an atomic local document change; a persisted business receipt is not acknowledged until read-back. */
@@ -84,6 +151,7 @@ export async function createCareerTaskResume(document: RecoveryDocument, input: 
   const source: ResumeView = { ...styleAndSelection, isolatedFactBase: frozen };
   if (await viewFingerprint(document.documentId, frozen, source) !== command.sourceFingerprint) fail("source_changed");
   const displayed = projectResume(frozen, source);
+  if (command.replacement) applyReplacement(frozen, source, command.replacement, displayed);
   const textStyles = source.textStyles;
   const seen = new Set<string>();
   for (const p of command.patches) {
@@ -111,7 +179,7 @@ export async function createCareerTaskResume(document: RecoveryDocument, input: 
   }
   const resumeId = `career-${command.taskId.length <= 160 ? command.taskId : await digest(command.taskId)}`;
   if (document.resumeViews.some(v => v.id === resumeId)) fail("task_conflict");
-  const view: ResumeView = { ...styleAndSelection, id: resumeId, name: command.name, targetJdId: command.job.id,
+  const view: ResumeView = { ...source, id: resumeId, name: command.name, targetJdId: command.job.id,
     ...(textStyles && { textStyles }), isolatedFactBase: frozen, updatedAt: now };
   const snapshotHash = await viewFingerprint(document.documentId, document.factBase, view);
   const receipt: CareerTaskResumeReceipt = { id: `resume-receipt:${command.taskId}`, taskId: command.taskId, resumeId, sourceResumeId: source.id,

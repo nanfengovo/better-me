@@ -295,7 +295,7 @@ test("a selected JD requirement binds an adopted task to the workshop and return
   const { activatePrincipal } = await import("../src/lib/identity");
   const { defaultLearningClient } = await import("../src/services/learning-client");
   const ownerId = "11111111-1111-4111-8111-111111111111";
-  const selectedJob = { id: "jd-fixture", title: ".NET 后端", company: "合成企业", description: "任职要求：\n熟悉 API 开发\n能处理 EF Core 并发更新冲突" };
+  const selectedJob = { id: "jd-fixture", title: ".NET 后端", company: "合成企业", description: "任职要求：能处理 EF Core 并发更新冲突\n熟悉 API 开发\n能处理 EF Core 并发更新冲突" };
   const quote = "能处理 EF Core 并发更新冲突";
   const repository = await configuredRepository(state => {
     const adopted = withPlan(state, true);
@@ -320,6 +320,9 @@ test("a selected JD requirement binds an adopted task to the workshop and return
       assert.ok(input.careerTarget);
       linked = resolveCareerTrainingTarget(saved, input.careerTarget!);
       assert.equal(linked?.requirement.quote, quote);
+      assert.equal(linked?.requirement.itemId, "req-2");
+      const start = selectedJob.description.lastIndexOf(quote);
+      assert.deepEqual(linked?.requirement.quoteSource, { parserVersion: 2, sourceSpan: { start, end: start + quote.length, line: 3 } });
       assert.equal(linked?.taskId, "task-1");
       assert.equal(input.goal, linked?.competency);
       return { id: "22222222-2222-4222-8222-222222222222", goal: input.goal, evidence: input.evidence,
@@ -351,7 +354,7 @@ test("a selected JD requirement binds an adopted task to the workshop and return
       return { kit };
     });
     t.mock.method(defaultLearningClient.training, "get", async () => kit!);
-    await mount({ repository, job: selectedJob, modeRequest: { mode: "plan", id: 1, trainingRequirement: {quote, snapshotVersion: careerJobSnapshotVersion(selectedJob)} },
+    await mount({ repository, job: selectedJob, modeRequest: { mode: "plan", id: 1, trainingRequirement: {quote, itemId: "req-2", snapshotVersion: careerJobSnapshotVersion(selectedJob)} },
       generate: async request => { requests.push(request); return generated(request.mode); } });
     assert.match(body().textContent ?? "", new RegExp(quote));
     await click(/确认能力目标并打开工坊/);
@@ -412,6 +415,33 @@ test("a selected JD requirement binds an adopted task to the workshop and return
     root = undefined;
     activatePrincipal(undefined);
   }
+});
+
+test("an older quote-only request with duplicate source lines asks which one before binding", async () => {
+  const job = { id: "duplicate-job", title: "技术写作", company: "合成企业", description: "Qualifications: Review changes\nReview changes" };
+  const repository = await configuredRepository(state => withPlan(state, true));
+  await mount({ repository, job, modeRequest: { mode: "plan", id: 1, trainingRequirement: {
+    quote: "Review changes", snapshotVersion: careerJobSnapshotVersion(job),
+  } } });
+  const label = [...body().querySelectorAll("label")].find(element => element.textContent?.includes("原句出现了多次"));
+  const choice = label?.querySelector("select");
+  assert.ok(choice);
+  assert.equal(choice.value, "");
+  assert.ok(![...body().querySelectorAll("button")].some(button => button.textContent?.includes("确认能力目标并打开工坊")));
+  await flush(() => { choice.value = "req-1"; choice.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await click(/确认能力目标并打开工坊/);
+  const saved = (await repository.load(fixtureKey))!;
+  const bound = saved.trainingTargets![0]!;
+  const ref = { workspaceKey: saved.workspaceKey, targetId: bound.id };
+  assert.equal(bound.itemId, "req-1");
+  const { quoteSource, ...legacy } = bound;
+  const historical = resolveCareerTrainingTarget({ ...saved, trainingTargets: [legacy] }, ref);
+  assert.equal(historical?.requirement.quote, "Review changes");
+  assert.equal(historical?.requirement.itemId, "req-1");
+  assert.equal(Object.hasOwn(historical!.requirement, "quoteSource"), false);
+  assert.ok(quoteSource);
+  const forged = { ...bound, quoteSource: { ...quoteSource, sourceSpan: { ...quoteSource.sourceSpan, start: 0 } } };
+  assert.equal(resolveCareerTrainingTarget({ ...saved, trainingTargets: [forged] }, ref), undefined);
 });
 
 test("requesting a career snapshot after feedback or rewriting preserves earlier evidence and its review", async () => {

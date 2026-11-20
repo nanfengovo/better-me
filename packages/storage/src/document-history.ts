@@ -54,6 +54,10 @@ export const DraftDocumentSchema = editingSchema(DocumentSchema).refine((value: 
   "草稿中的当前简历视图不存在。",
 );
 const DraftEnvelopeSchema = z.object({ schemaVersion: z.literal(1), savedAt: z.string().datetime(), document: DraftDocumentSchema });
+// A document can outlive the bounded list of résumé versions or its named checkpoints.
+const evidenceArchiveKey = (documentId: string) => `${STORAGE_KEY}:requirement-evidence:v1:${documentId}`;
+class EvidenceArchiveError extends Error {}
+
 const VersionSchema = z.object({ id: z.string().min(1), createdAt: z.string().datetime(), label: z.string(), kind: z.enum(["automatic", "checkpoint", "restore", "import"]), coalesceStartedAt: z.string().datetime().optional(), document: DocumentSchema });
 
 function encodeDraft(value: unknown): string {
@@ -637,7 +641,47 @@ export class DocumentPersistenceController {
     this.emit({ doc: next, status: conflict ? { ...status, kind: "error", hasPendingChanges: true, externalConflict: true, message: "另一窗口修改了这份简历。当前编辑草稿已保护；自动保存仍暂停，请手动保存以采用当前窗口内容。" } : unchanged ? { ...status, kind: "saved", message: "内容与已保存版本一致" } : status });
     this.scheduleAutoSave();
   }
-  private async writeOfficial(document: BetterMeDocument, operation: number, autoSaveRevision?: number, review?: ReviewedWrite, recoverCorrupt = false): Promise<boolean> {
+  /** Called inside the official write lock, after comparing the current stored document. */
+  private async retainRequirementReviews(target: BetterMeDocument, previous: BetterMeDocument | null, current: () => boolean) {
+    try {
+      if (target.documentId && previous?.documentId === target.documentId && previous.requirementEvidence !== undefined) {
+        target.requirementEvidence = previous.requirementEvidence;
+        return;
+      }
+      // Keep the outgoing document's last decisions even if the user later removes
+      // its last history entry. The storage adapter scopes each key by owner and space.
+      if (previous?.documentId && previous.requirementEvidence !== undefined)
+        this.storage.setItem(evidenceArchiveKey(previous.documentId), JSON.stringify(previous.requirementEvidence));
+      if (!target.documentId) {
+        // Old résumé versions without an identity can restore their text; their
+        // evidence cannot safely be attributed to the active or a different document.
+        delete target.requirementEvidence;
+        return;
+      }
+      const archived = this.storage.getItem(evidenceArchiveKey(target.documentId));
+      if (archived !== null) {
+        target.requirementEvidence = DocumentSchema.shape.requirementEvidence.unwrap().parse(JSON.parse(archived));
+        return;
+      }
+      // An existing installation may have switched away before this archive existed.
+      const history = await this.history.list();
+      if (!current()) return;
+      const known = history.reverse().filter(version => version.document.documentId === target.documentId && version.document.requirementEvidence !== undefined);
+      if (known.length) {
+        // Older releases could have appended a restored copy of an earlier decision.
+        // Seeing the identical event twice does not make it a new review.
+        const unique = new Map<string, NonNullable<BetterMeDocument["requirementEvidence"]>[number]>();
+        for (const version of known) for (const event of version.document.requirementEvidence!) {
+          unique.set(JSON.stringify(event), event);
+        }
+        target.requirementEvidence = DocumentSchema.shape.requirementEvidence.unwrap().parse([...unique.values()]);
+      }
+    } catch (cause) {
+      throw new EvidenceArchiveError("无法核对这份简历最新的岗位证据记录，当前简历已保留。请检查浏览器存储后重试。", { cause });
+    }
+  }
+  private async writeOfficial(document: BetterMeDocument, operation: number, autoSaveRevision?: number, review?: ReviewedWrite, recoverCorrupt = false,
+    restoringFrom?: BetterMeDocument | null): Promise<boolean> {
     const current = () => operation === this.operation && (autoSaveRevision === undefined || autoSaveRevision === this.autoSaveRevision)
       && (!review || (this.state.doc === review.expected && !this.state.status.externalConflict));
     const write = async () => {
@@ -665,6 +709,10 @@ export class DocumentPersistenceController {
           this.handleStorageChange(STORAGE_KEY, actual && JSON.stringify(actual));
           return false;
         }
+      }
+      if (restoringFrom !== undefined) {
+        await this.retainRequirementReviews(document, restoringFrom, current);
+        if (!current()) return false;
       }
       await this.store.save(document);
       if (review) {
@@ -783,6 +831,12 @@ export class DocumentPersistenceController {
     // replace edits made after the user reviewed the source snapshot.
     if (expected && (this.state.doc !== expected || this.state.status.externalConflict)) return false;
     if (expected && !this.commitLock) { this.reportUnavailableReviewLock(); return false; }
+    const restoreContent = kind === "restore" || kind === "import";
+    if (restoreContent && this.state.status.externalConflict &&
+        (this.state.doc?.requirementEvidence?.length || this.externalVersion?.requirementEvidence?.length || next.requirementEvidence?.length)) {
+      this.emit({ status: { ...this.state.status, kind: "error", message: "另一窗口修改了当前简历，请先处理窗口冲突，再恢复带有岗位证据的版本。" } });
+      return false;
+    }
     const review = expected && { expected, baseline: this.persistedDocument, assertAuthorized };
     clearTimeout(this.timer);
     const operation = ++this.operation;
@@ -812,7 +866,7 @@ export class DocumentPersistenceController {
       // Official storage is atomic. Failure leaves both the editor and protected draft intact.
       if (!await this.protectExternalVersion(operation)) return false;
       if (expected && (this.state.doc !== expected || this.state.status.externalConflict)) return false;
-      if (!await this.writeOfficial(parsed.data as BetterMeDocument, operation, undefined, review, !expected) || operation !== this.operation) return false;
+      if (!await this.writeOfficial(parsed.data as BetterMeDocument, operation, undefined, review, !expected, restoreContent ? previous : undefined) || operation !== this.operation) return false;
       this.rememberPersisted(parsed.data as BetterMeDocument);
       const draftStatus = this.writeDraft(parsed.data as BetterMeDocument);
       this.emit({ doc: parsed.data as BetterMeDocument, loadError: null, status: { ...draftStatus, kind: "saved", hasPendingChanges: false, message: "已保存为新的当前版本", savedAt: new Date().toISOString(), historyError: draftStatus.kind === "error" ? "完整版本已保存；草稿保护失败，请检查存储空间。" : undefined } });
@@ -822,7 +876,7 @@ export class DocumentPersistenceController {
       }
       return !review || operation === this.operation && !this.state.status.externalConflict;
     } catch (error) {
-      if (operation === this.operation) this.emit({ status: { ...this.state.status, kind: "error", message: `${storageError(error)} 当前简历未被替换。` } });
+      if (operation === this.operation) this.emit({ status: { ...this.state.status, kind: "error", message: error instanceof EvidenceArchiveError ? error.message : `${storageError(error)} 当前简历未被替换。` } });
       return false;
     }
   }
@@ -1003,6 +1057,7 @@ export function describeDocumentChanges(before: BetterMeDocument, after: BetterM
     changes.push(`经历 / 要点（${oldExperiences.length} → ${newExperiences.length} 段，${beforeClaims} → ${afterClaims} 条）`);
   }
   if (documentFingerprint({ ...before, resumeViews: after.resumeViews }) !== documentFingerprint(before)) changes.push("简历模板、布局或展示设置");
+  if (JSON.stringify(before.requirementEvidence) !== JSON.stringify(after.requirementEvidence)) changes.push("岗位要求的证据关联");
   if (before.activeResumeId !== after.activeResumeId) changes.push("当前简历");
   return [...new Set(changes)];
 }

@@ -510,7 +510,8 @@ test("completed retest shows a goal-bound evidence trail, remembers the decision
     feedback: {met: true, detail: "已收录", evidence: [{key: "part1", status: "recorded", detail: "已收录原答", nextStep: "指出边界"}]},
   });
   const first = attempt("practice", "我会承诺立刻完成。");
-  const retest = {...attempt("retest", "另一个项目还须核对授权。"), aids: { preview: false, practiceReference: false }};
+  const retest = {...attempt("retest", "另一个项目还须核对授权。"), aids: { preview: false, practiceReference: false },
+    retestChange: { key: "part1" as const, before: "已获授权", after: "尚待授权", criterion: "说明授权怎样影响承诺" }};
   const rewrite = "我会先核实团队排期。";
   first.writingReviews = [{ key: "part1", questionVersion: first.questionVersion!, createdAt: first.at, model, modelDigest,
     quote: "立刻完成", comment: "需要确认排期。", revisionPrompt: "说明时间安排的条件。",
@@ -521,11 +522,11 @@ test("completed retest shows a goal-bound evidence trail, remembers the decision
   const decision: NonNullable<Kit["transferDecision"]> = { model, modelDigest, evidenceVersion, createdAt: retest.at,
     actions: ["write"], direction: "extend", nextGoal: "给两个读者说明不同的承诺前提。",
     reasons: [{evidenceId: "practice.part1", reason: "原答直接承诺。"}, {evidenceId: "rewrite.part1", reason: "改写中引用了团队排期。"},
-      {evidenceId: "retest.part1", reason: "换情境后主动提到授权。"}] };
+      {evidenceId: "retest.part1", reason: "换情境后主动提到授权。", answerQuote: "还须核对授权"}] };
   const source: NonNullable<Kit["transferFrom"]> = {kitId: kit.id, kitTitle: kit.title, version: kit.version, evidenceVersion,
     direction: decision.direction, actions: decision.actions, nextGoal: decision.nextGoal, reasons: decision.reasons,
     citations: trainingTransferInput(kit.goal, kit.attempts)!.evidence,
-    practiceVersion: first.questionVersion!, retestVersion: retest.questionVersion!, retestIndependence: "independent", retestAids: retest.aids};
+    practiceVersion: first.questionVersion!, retestVersion: retest.questionVersion!, retestIndependence: "independent", retestAids: retest.aids, retestChange: retest.retestChange};
   const calls: string[] = [];
   activatePrincipal({id: ownerId, username: "transfer", displayName: "Transfer"});
   t.mock.method(client, "list", async () => [kit]);
@@ -565,6 +566,8 @@ test("completed retest shows a goal-bound evidence trail, remembers the decision
   await flush(() => button("返回工坊")!.click());
   await flush(() => button(kit.title)!.click());
   assert.equal(button("请 Agent 建议下一步"), undefined);
+  assert.match(host.textContent, /首练条件已获授权复测条件尚待授权本次核对说明授权怎样影响承诺/);
+  assert.match(host.textContent, /本人作答原句还须核对授权/);
   assert.equal(host.querySelectorAll(".training-transfer-reasons li").length, 3);
   assert.deepEqual(calls, ["recommend-transfer"]);
   await flush(() => button("按建议开始下一练")!.click());
@@ -578,6 +581,12 @@ test("completed retest shows a goal-bound evidence trail, remembers the decision
   assert.match(host.textContent, /为什么这样练.*复测前改写/);
   assert.equal(button("按建议开始下一练"), undefined);
   assert.equal(button("请 Agent 建议下一步"), undefined);
+
+  await flush(() => root!.render(h(UiPreferencesProvider, null, h(SavedTrainingEvidence, {
+    text: JSON.stringify({ kind: "studio", goal: kit.goal, attempts: kit.attempts }),
+  }))));
+  assert.match(host.textContent, /首练条件已获授权复测条件尚待授权/);
+  assert.equal(host.querySelector(".training-transfer-report"), null);
 
   const { TrainingTransferPanel } = await import("../src/components/TrainingTransferPanel");
   async function checkRetest(attempts: Kit["attempts"]) {
@@ -597,4 +606,65 @@ test("completed retest shows a goal-bound evidence trail, remembers the decision
   assert.match(assistedInput, /复测后改写/);
   assert.match(assistedInput, /已参考首练/);
   assert.doesNotMatch(assistedInput, /独立复测/);
+});
+
+test("interview workshop prefills the saved criterion and evidence and offers only exercises for the selected issue", async t => {
+  activatePrincipal({ id: ownerId, username: "interview-ui", displayName: "Interview UI" });
+  const interview = { followUpId: "7".repeat(64), criterion: "用自己的例子说明为什么采用这个方案", evidence: "上次只描述了团队做的事情" };
+  const summary = { id: ownerId, ownerId, version: "f".repeat(64), title: "本次面试练习", origin: "local", stage: "practice", interviewRef: interview.followUpId };
+  t.mock.method(defaultLearningClient.training, "list", async () => [summary, { ...summary, id: "other", title: "另一个问题的练习", interviewRef: "8".repeat(64) }]);
+  let input: import("@better-me/agent-contracts").TrainingStart | undefined;
+  t.mock.method(defaultLearningClient.training, "plan", async (body: typeof input) => {
+    input = body;
+    return { id: ownerId, ...body, origin: "local", modelCalls: 1, advice: { route: "studio", observation: "讲清当时的决定", nextStep: "比较备选方案" } };
+  });
+  const host = dom.document.createElement("main");
+  dom.document.body.append(host);
+  root = createRoot(host as unknown as Element);
+  await flush(() => root!.render(h(UiPreferencesProvider, null, h(TrainingKitPanel, { interview }))));
+  assert.equal(host.querySelector("input")?.value, interview.criterion);
+  assert.ok(host.querySelector("input")?.readOnly);
+  assert.equal(host.querySelector("textarea")?.value, interview.evidence);
+  assert.ok(button("本次面试练习"));
+  assert.equal(button("另一个问题的练习"), undefined);
+  assert.equal(button("一分钟汇报"), undefined);
+  await flush(() => button("同意并分析难点")!.click());
+  assert.equal(input?.interviewRef, interview.followUpId);
+  assert.equal(input?.goal, interview.criterion);
+  assert.equal(input?.evidence, interview.evidence);
+  assert.match(host.textContent!, /讲清当时的决定/);
+});
+
+test("reopens a linked interview exercise and returns the exact stored version before practice and after retest", async t => {
+  type Kit = import("@better-me/agent-contracts").TrainingView;
+  const interview = { followUpId: "0".repeat(64), criterion: "说明取舍及结果", evidence: "合成面试", savedKit: { id: ownerId, version: "f".repeat(64) } };
+  const screen: Kit["screen"] = { brief: "系统变更", instruction: "说明取舍", notes: [], fields: [{ key: "part1", control: "write", label: "新约束" }] };
+  const practice: Kit = { ...interview.savedKit, ownerId, interviewRef: interview.followUpId, goal: interview.criterion, title: "合成专项练习",
+    kind: "studio", origin: "local", modelCalls: 2, verifiedCases: 1, focus: "取舍", saved: true, revision: 1,
+    stage: "practice", attempts: [], screen };
+  let stored = practice;
+  activatePrincipal({ id: ownerId, username: "interview-ui", displayName: "Interview UI" });
+  t.mock.method(defaultLearningClient.training, "list", async () => []);
+  t.mock.method(defaultLearningClient.training, "get", async (id: string) => { assert.equal(id, interview.savedKit.id); return stored; });
+  const reviewed: Kit[] = [];
+  const onReview = async (kit: Kit, signal: AbortSignal) => { signal.throwIfAborted(); reviewed.push(kit); };
+  const host = dom.document.createElement("main");
+  dom.document.body.append(host);
+  root = createRoot(host as unknown as Element);
+  const render = (key: string) => flush(() => root!.render(h(UiPreferencesProvider, null, h(TrainingKitPanel, { key, interview, onReview }))));
+  await render("saved");
+  assert.match(host.textContent!, /合成专项练习/);
+  await flush(() => button("将此练习关联到面试复盘")!.click());
+  assert.deepEqual(reviewed, [practice]);
+  stored = { ...practice, stage: "complete", revision: 3, attempts: [
+    { round: "practice", at: "2026-11-19T08:00:00Z", answer: { parts: {part1: "在预算内上线"} }, usedPreview: false, feedback: { met: true, detail: "已记录" } },
+    { round: "retest", at: "2026-11-20T08:00:00Z", answer: { parts: {part1: "缩小范围以满足新约束"} }, usedPreview: false, feedback: { met: true, detail: "已记录" } },
+  ] };
+  await render("completed");
+  await flush(() => button("将练习记录带回面试复盘")!.click());
+  assert.deepEqual(reviewed, [practice, stored]);
+  stored = { ...stored, interviewRef: "2".repeat(64) };
+  await render("mismatch");
+  assert.equal(button("将练习记录带回面试复盘"), undefined);
+  assert.match(host.textContent!, /练习与原面试问题或验收标准不匹配/);
 });

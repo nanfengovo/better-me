@@ -140,3 +140,16 @@ test("reuses only recent candidates for the same connection and query; explicit 
   await read("cache-test", true); assert.equal(calls, 8);
   await read("different-connection"); assert.equal(calls, 12);
 });
+
+test("reserves a bounded retrieval lane for a selected career direction and expands that lane beyond the home city", async context => {
+  const requests: JobQueryInput[] = [];
+  context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
+    const query = JSON.parse(String(init.body)) as JobQueryInput; requests.push(query); return reply(query);
+  });
+  const profile = extractRecommendationProfile(fixtureResume);
+  await readIndexRecommendationCandidates(endpoint, "synthetic-direction", { ...profile, targetRole: "前端" }, new AbortController().signal);
+  assert.equal(requests.length, 4);
+  assert.equal(requests[0]!.search?.text, "前端");
+  assert.equal(requests[3]!.search?.text, "前端");
+  assert.equal(requests[3]!.workRegionGroups, undefined);
+});

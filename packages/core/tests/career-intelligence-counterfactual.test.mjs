@@ -126,3 +126,14 @@ test("untrusted malformed, duplicate, changed or unauthorized snapshots are reje
   await assert.rejects(makeSnapshot(input => { input.cohort.jobs[0].sourceIds = []; }), /active_job_needs_observation/);
   await assert.rejects(simulateCareerInvestment(await makeSnapshot(), { ...plan, hypotheticalFacts: [{ ...plan.hypotheticalFacts[0], id: "fact-rust" }] }, current), /hypothesis_overwrites_fact/);
 });
+
+test("implementation cannot satisfy a design requirement even in a fully realized scenario", async () => {
+  const snapshot = await makeSnapshot(input => input.cohort.jobs.forEach(job => job.requirements.forEach(req => { req.contribution = "design"; })));
+  const report = await simulateCareerInvestment(snapshot, plan, current);
+  assert.equal(report.baseline.distribution.mean, 0);
+  assert.equal(report.scenarios[1].distribution.mean, 0);
+  assert.deepEqual(report.scenarios[1].conditionalUnlocks, []);
+  assert.deepEqual(report.scenarios[1].jobs[0].requirementEvidence.map(item => item.hypotheticalIds), [[], []]);
+  const design = await simulateCareerInvestment(snapshot, { ...plan, hypotheticalFacts: [{ ...plan.hypotheticalFacts[0], contribution: "design" }] }, current);
+  assert.equal(design.scenarios[1].distribution.mean, 50);
+});

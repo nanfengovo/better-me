@@ -868,6 +868,12 @@ test("AgentWorkspace provides link extraction button, opens input panel, and aut
   assert.ok(textarea?.value?.includes("智能 Agent 前端架构演进"), "JD text area should be populated");
 });
 
+async function openSetupSummary(fixture: HTMLElement) {
+  const toggle = Array.from(fixture.querySelectorAll("button")).find(button => button.textContent?.trim() === "岗位摘要与范例");
+  assert.ok(toggle);
+  await flush(() => toggle.click());
+}
+
 test("AgentWorkspace isolates setup view during JD creation/editing without squashed chat, and smoothly transitions on submit", async () => {
   await mount(
     h(AgentWorkspace, {...{sendChat:widgetChat},
@@ -886,6 +892,8 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
   // During setup mode, the left pane should render the dedicated setup view
   assert.equal(fixture.querySelector(".advisor-job-panel h3")?.textContent?.trim(), "目标岗位", "Should show dedicated setup header");
   assert.ok(fixture.textContent?.includes("开始拆解"), "Should show primary submit button");
+  assert.equal(fixture.querySelector('[role="separator"]'), null, "setup starts with one input pane");
+  await openSetupSummary(fixture);
   assert.ok(fixture.textContent?.includes("从一份真实岗位开始"), "Should guide input before any job content exists");
   // It should NOT render the squashed chat input or header during setup
   assert.equal(fixture.querySelector(".agent-chat-textarea"), null, "Should not render chat input in setup mode");
@@ -1018,6 +1026,8 @@ test("AgentWorkspace: supports draggable splitter and quiet setup summary chips"
   const fixture = dom.document.getElementById("fixture")!;
   assert.ok(fixture !== null);
 
+  assert.equal(Boolean(fixture.querySelector('[role="separator"]')), false, "setup starts with one input pane");
+  await openSetupSummary(fixture);
   // 1. Draggable splitter verification
   const splitter = fixture.querySelector('[role="separator"]');
   assert.ok(splitter, "Splitter separator with role='separator' should exist");
@@ -1209,7 +1219,7 @@ test("career growth is reachable inside the existing agent workspace and returns
   const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "岗位研判");
   assert.ok(back);
   await flush(() => back.click());
-  assert.ok(fixture.querySelector('[role="separator"]'), "the existing conversation workspace should remain available");
+  assert.ok(fixture.querySelector('.advisor-job-panel textarea'), "returning to job analysis restores the input");
   assert.equal(fixture.querySelector('[aria-label="成长工作区"]'), growth, "switching pages must preserve the mounted growth session");
   assert.equal(growth.closest<HTMLElement>(".career-coach-shell")?.hidden, true, "the inactive growth workspace is hidden, not destroyed");
   assert.equal(chatRequestBodies.length, previousRequests, "returning to the conversation must not generate a request");
@@ -1225,6 +1235,7 @@ test("career growth makes the entered JD available for separate opt-in without r
     llmConfig: dummyLlmConfig, onOpenConfig: () => {}, onNavigateToResume: () => {}, onApplyToResume: () => {},
   }));
   const fixture = dom.document.getElementById("fixture")!;
+  await openSetupSummary(fixture);
   const sample = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("前端 / 全栈"));
   assert.ok(sample);
   await flush(() => sample.click());

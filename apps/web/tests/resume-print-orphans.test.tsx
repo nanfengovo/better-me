@@ -67,3 +67,28 @@ test("an experience and its lead-in labels stay with the first actual bullet on 
     }
   } finally { await browser.close(); }
 });
+
+test("printing an ordinary or themed resume clears desktop wallpaper and glass down to the paper margins", { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
+  try {
+    const page = await browser.newPage({ offline: true });
+    const shell = await readFile(new URL("../src/components/desktop/desktop.css", import.meta.url), "utf8");
+    const sidebar = await readFile(new URL("../src/components/agent-sidebar.css", import.meta.url), "utf8");
+    await page.emulateMedia({ media: "print" });
+    const cases = [
+      { resume: {}, expectedPaper: "rgb(255, 255, 255)" },
+      { resume: { themeId: "forest-professional" as const, themeOverrides: { colors: { paper: "#fcf9f0" } } }, expectedPaper: "rgb(252, 249, 240)" },
+    ];
+    for (const { resume, expectedPaper } of cases) {
+      await page.setContent(`<!doctype html><style>${shell}${sidebar} html{background:#071019} .os-business-window{transition:background 1s}</style>
+        <style media="print">${getResumePrintCss(resume)}</style>
+        <div id="root"><div class="agent-layout"><div class="agent-layout-app"><div class="os-desktop"><section class="os-window os-business-window"><article class="resume-sheet">Test</article></section></div></div></div></div>`);
+      const colors = await page.evaluate(() => {
+        const windowStyle = getComputedStyle(document.querySelector(".os-business-window")!);
+        return [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor,
+          getComputedStyle(document.querySelector(".agent-layout")!).backgroundImage, windowStyle.backgroundColor, windowStyle.transitionDuration];
+      });
+      assert.deepEqual(colors, [expectedPaper, expectedPaper, "none", "rgba(0, 0, 0, 0)", "0s"]);
+    }
+  } finally { await browser.close(); }
+});

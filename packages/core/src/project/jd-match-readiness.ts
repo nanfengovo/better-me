@@ -1,4 +1,5 @@
 import { createDemoFactBase } from "../seed/demo-fact-base.js";
+import type { Experience, FactClaim } from "../schema/fact.js";
 import type { ProjectedExperience, ProjectedResume } from "./resume-projection.js";
 
 export type JdMatchReadiness = {
@@ -23,6 +24,12 @@ const demoClaims = new Set(demo.experiences.flatMap((experience) =>
 const demoProjects = new Set(demo.experiences.flatMap((experience) => localizedValues(experience.projectName)));
 const demoOrgs = new Set(demo.experiences.flatMap((experience) =>
   localizedValues(experience.org).filter((org) => org.includes("示例") || org.includes("sampletech"))));
+export function isBundledDemoWorkSource(experience: Pick<Experience, "org" | "projectName">, claim: Pick<FactClaim, "text">): boolean {
+  return localizedValues(claim.text).some(text => demoClaims.has(text))
+    || localizedValues(experience.org).some(text => demoOrgs.has(text))
+    || localizedValues(experience.projectName).some(text => demoProjects.has(text));
+}
+
 const demoEducation = new Set(localizedValues(demo.profile.education));
 const placeholders = new Set([
   "待填写", "待补充", "待确认", "请输入", "公司名称", "单位名称", "职位名称", "项目名称", "工作内容", "示例", "暂无",

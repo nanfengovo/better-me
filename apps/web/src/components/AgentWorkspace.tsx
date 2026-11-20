@@ -75,7 +75,11 @@ import { AgentProposalListSection } from "./agent-workspace/AgentProposalListSec
 import { AgentApplyModal } from "./agent-workspace/AgentApplyModal";
 import { AgentFitAnalyticsHeader } from "./agent-workspace/AgentFitAnalyticsHeader";
 
+import { RequirementEvidencePanel } from "./RequirementEvidencePanel";
+import type { EvidenceWorkspace } from "../lib/requirement-evidence";
+
 export interface AgentWorkspaceProps {
+  evidenceWorkspace?: EvidenceWorkspace;
   sendChat?:typeof sendAgentChat;
   workspaceKey?: string;
   active?: boolean;
@@ -107,6 +111,7 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
 
 function AgentWorkspaceSession({
   workspaceKey = "active-resume",
+  evidenceWorkspace,
   sendChat=sendAgentChat,
   active = true,
   onActivate,
@@ -192,7 +197,8 @@ function AgentWorkspaceSession({
   const [leftViewMode, setLeftViewMode] = useState<"jd" | "chat">("chat");
   const [pageMotion, setPageMotion] = useState<"forward" | "back" | "none">("none");
   const [rightPaneOpen, setRightPaneOpen] = useState(true);
-  const showRightPane = isSetupMode || rightPaneOpen;
+  const [setupSummaryOpen, setSetupSummaryOpen] = useState(false);
+  const showRightPane = isSetupMode ? setupSummaryOpen : rightPaneOpen;
   const [mobilePane, setMobilePane] = useState<"material" | "result">("material");
 
   function showLeftPage(next: "jd" | "chat") {
@@ -543,6 +549,7 @@ function AgentWorkspaceSession({
   ];
 
   function loadSampleJob(preset: SampleJobPreset) {
+    setMobilePane("material");
     cancelIntake();
     saveAdvisor(previous => ({
       ...previous, ...advisorJobDraft(preset), isEditingJob: previous.isEditingJob,
@@ -757,6 +764,10 @@ function AgentWorkspaceSession({
 
   const handleSubmitJobSetup = () => {
     if (!inputDescription.trim() || loading) return;
+    if (isJdLinkOnly(inputDescription)) {
+      setIsLinkInputOpen(true); setLinkInputValue(inputDescription);
+      void handleExtractLink(inputDescription); return;
+    }
     const newJob: DrawerJobContext = {
       title: inputTitle.trim() || t("目标职位", "Target Position"),
       company: inputCompany.trim() || t("目标企业", "Target Company"),
@@ -1124,11 +1135,16 @@ function AgentWorkspaceSession({
       sourceUrl, sourcePlatform,
     };
   }, [currentJob, isSetupMode, inputDescription, inputTitle, inputCompany, inputSalary, inputLocation, sourceUrl, sourcePlatform, t]);
-  const linkableRequirements = useMemo(() => new Set(
-    careerCoachJob?.description && careerCoachJob.description.length <= 30_000
-      ? careerTrainingRequirements(careerCoachJob).map(item => item.originalQuote) : [],
-  ), [careerCoachJob]);
-  function linkRequirement(quote: string) {
+  const linkableRequirements = useMemo(() => {
+    const byQuote = new Map<string, string | undefined>();
+    if (careerCoachJob?.description && careerCoachJob.description.length <= 30_000) {
+      for (const item of careerTrainingRequirements(careerCoachJob)) {
+        byQuote.set(item.originalQuote, byQuote.has(item.originalQuote) ? undefined : item.id);
+      }
+    }
+    return byQuote;
+  }, [careerCoachJob]);
+  function linkRequirement(quote: string, itemId?: string) {
     if (!careerCoachJob || !linkableRequirements.has(quote)) return;
     interviewRecovery.field("open", false);
     setShowCareerTask(false);
@@ -1136,9 +1152,12 @@ function AgentWorkspaceSession({
     setShowCareerCoach(true);
     setCoachRequest(previous => ({
       mode: "plan", id: (previous?.id ?? 0) + 1,
-      trainingRequirement: { quote, snapshotVersion: careerJobSnapshotVersion(careerCoachJob) },
+      trainingRequirement: { quote, itemId: itemId ?? linkableRequirements.get(quote), snapshotVersion: careerJobSnapshotVersion(careerCoachJob) },
     }));
   }
+
+  const evidencePanel = evidenceWorkspace && careerCoachJob && linkableRequirements.size > 0
+    ? <RequirementEvidencePanel job={careerCoachJob} workspace={evidenceWorkspace} onTrain={linkRequirement}/> : null;
 
   function openCareerTask(objective?:string){
     if(sidebar){sidebar.requestTask({job:careerCoachJob,objective});return;}
@@ -1258,7 +1277,82 @@ function AgentWorkspaceSession({
 
               {/* Scrollable Form Body */}
               <div className="flex-1 min-h-0 overflow-y-auto agent-custom-scrollbar p-5 space-y-4">
-                {/* ── Link Import Panel (always open in setup) ── */}
+                {/* Full JD Textarea */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>
+                      {t("岗位完整 JD 文本 (必填)", "Job Description (Required)")}
+                    </label>
+                    <div className="flex items-center gap-2 text-[10px]">
+                      {inputDescription.trim().length > 0 && (
+                        <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}>
+                          {inputDescription.trim().length} {t("字符", "chars")}
+                        </span>
+                      )}
+                      {sourcePlatform && (
+                        <span className={`font-medium px-2 py-0.5 rounded border ${
+                          isDark ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        }`}>
+                          {sourcePlatform} {sourceUrl ? "· 已关联链接" : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isJdLinkOnly(inputDescription) && (
+                    <div className={`flex items-center justify-between p-3 rounded-2xl text-xs border mb-2.5 shadow-xs ${
+                      isDark ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    }`}>
+                      <span className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-emerald-500 shrink-0" />
+                        <span className="font-medium">{t("检测到您粘贴了招聘链接，是否一键解析所有字段？", "Detected a job link. Extract all fields?")}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLinkInputValue(inputDescription);
+                          setIsLinkInputOpen(true);
+                          void handleExtractLink(inputDescription);
+                        }}
+                        disabled={isExtractingLink}
+                        className="agent-btn-press px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                      >
+                        {isExtractingLink ? t("解析中...", "Extracting...") : t("一键解析填入", "Auto-Extract Now")}
+                      </button>
+                    </div>
+                  )}
+
+                  <textarea
+                    value={inputDescription}
+                    onChange={(e) => {
+                      cancelIntake();
+                      setInputDescription(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleSubmitJobSetup();
+                      }
+                    }}
+                    aria-label={t("岗位链接或 JD 原文", "Job link or description")}
+                    rows={4}
+                    placeholder={t("请在此粘贴招聘 JD 的职责描述、任职要求与福利待遇... (支持快捷键 ⌘+Enter 快速开始分析)", "Paste job description, requirements and responsibilities here... (⌘+Enter to submit)")}
+                    className={`w-full p-3.5 rounded-2xl border text-xs font-mono leading-relaxed focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 resize-y transition ${
+                      isDark
+                        ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
+                        : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 shadow-2xs"
+                    }`}
+                  />
+                </div>
+                {evidencePanel}
+                <details open={isExtractingLink || Boolean(linkError) || undefined} className="advisor-job-options">
+                  <summary>{t("岗位字段与来源导入", "Job fields and source import")}</summary>
+                  <button type="button" className="studio-button" aria-expanded={setupSummaryOpen}
+                    onClick={() => { setSetupSummaryOpen(!setupSummaryOpen); setMobilePane(setupSummaryOpen ? "material" : "result"); }}>
+                    {t("岗位摘要与范例", "Job summary and examples")}
+                  </button>
+                {/* ── Link Import Panel ── */}
                 {isLinkInputOpen && (
                   <div
                     className={`p-3.5 rounded-xl border space-y-2.5 ${
@@ -1496,79 +1590,14 @@ function AgentWorkspaceSession({
                   </div>
                 </div>
 
-                {/* Full JD Textarea */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>
-                      {t("岗位完整 JD 文本 (必填)", "Job Description (Required)")}
-                    </label>
-                    <div className="flex items-center gap-2 text-[10px]">
-                      {inputDescription.trim().length > 0 && (
-                        <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}>
-                          {inputDescription.trim().length} {t("字符", "chars")}
-                        </span>
-                      )}
-                      {sourcePlatform && (
-                        <span className={`font-medium px-2 py-0.5 rounded border ${
-                          isDark ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        }`}>
-                          {sourcePlatform} {sourceUrl ? "· 已关联链接" : ""}
-                        </span>
-                      )}
-                    </div>
-                  </div>
 
-                  {isJdLinkOnly(inputDescription) && (
-                    <div className={`flex items-center justify-between p-3 rounded-2xl text-xs border mb-2.5 shadow-xs ${
-                      isDark ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    }`}>
-                      <span className="flex items-center gap-2">
-                        <Sparkles size={14} className="text-emerald-500 shrink-0" />
-                        <span className="font-medium">{t("检测到您粘贴了招聘链接，是否一键解析所有字段？", "Detected a job link. Extract all fields?")}</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLinkInputValue(inputDescription);
-                          setIsLinkInputOpen(true);
-                          void handleExtractLink(inputDescription);
-                        }}
-                        disabled={isExtractingLink}
-                        className="agent-btn-press px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                      >
-                        {isExtractingLink ? t("解析中...", "Extracting...") : t("一键解析填入", "Auto-Extract Now")}
-                      </button>
-                    </div>
-                  )}
-
-                  <textarea
-                    value={inputDescription}
-                    onChange={(e) => {
-                      cancelIntake();
-                      setInputDescription(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        handleSubmitJobSetup();
-                      }
-                    }}
-                    rows={8}
-                    placeholder={t("请在此粘贴招聘 JD 的职责描述、任职要求与福利待遇... (支持快捷键 ⌘+Enter 快速开始分析)", "Paste job description, requirements and responsibilities here... (⌘+Enter to submit)")}
-                    className={`w-full p-3.5 rounded-2xl border text-xs font-mono leading-relaxed focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 resize-y transition ${
-                      isDark
-                        ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
-                        : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 shadow-2xs"
-                    }`}
-                  />
-                </div>
+                </details>
 
               </div>
 
               {/* Bottom Sticky Action Footer */}
               <div
-                className={`p-4 border-t shrink-0 flex items-center justify-between ${
+                className={`advisor-setup-footer p-4 border-t shrink-0 flex items-center justify-between ${
                   isDark ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)]" : "bg-slate-50/90 border-slate-200"
                 }`}
               >
@@ -1609,7 +1638,7 @@ function AgentWorkspaceSession({
                         <span>
                           {isEditingJob
                             ? t("授权当前简历并重新分析", "Share current resume & re-analyze")
-                            : t("授权当前简历并开始拆解", "Share current resume & analyze")}
+                            : isJdLinkOnly(inputDescription) ? t("读取岗位链接", "Read job link") : t("授权当前简历并开始拆解", "Share current resume & analyze")}
                         </span>
                       </>
                     )}
@@ -1625,6 +1654,7 @@ function AgentWorkspaceSession({
                   isDark ? "bg-[var(--ui-surface-raised,#2e3038)] border-[var(--ui-border,#484b58)]" : "bg-white border-slate-200"
                 }`}
               >
+                {evidencePanel}
                 <AgentActiveJobHeader
                   isDark={isDark}
                   t={t}
@@ -2002,7 +2032,7 @@ function AgentWorkspaceSession({
       )}
     </div>
 
-        {!showRightPane && (
+        {!isSetupMode && !showRightPane && (
           <button
             type="button"
             onClick={() => setRightPaneOpen(true)}

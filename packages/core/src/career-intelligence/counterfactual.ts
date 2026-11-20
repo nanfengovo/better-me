@@ -109,7 +109,7 @@ function distribution(jobs: readonly Coverage[]): CoverageDistribution {
   return { min: values[0]!, p25: quantile(.25), median: quantile(.5), p75: quantile(.75), max: values.at(-1)!, mean: round(values.reduce((sum, value) => sum + value, 0) / values.length) };
 }
 function contributionMatches(actual: string, required: string): boolean {
-  return actual !== "unknown" && actual !== "not_mine" && (required === "any" || actual === required || (actual === "implementation" && required === "design"));
+  return actual !== "unknown" && actual !== "not_mine" && (required === "any" || actual === required);
 }
 function factStrength(fact: SimulationFact, snapshot: CareerSimulationSnapshot): number {
   if (fact.support !== "supported" || !fact.confirmedByUser || !fact.sourceIds.length || ["job", "inference"].includes(fact.provenance)) return 0;

@@ -6,7 +6,7 @@ import type { DrawerJobContext } from "./JdMatchDrawer";
 import { TrainingKitPanel } from "./TrainingKitPanel";
 
 type Plan = NonNullable<CoachState["activePlan"]>;
-export type TrainingRequirementSelection = { quote: string; snapshotVersion: string };
+export type TrainingRequirementSelection = { quote: string; snapshotVersion: string; itemId?: string };
 interface Props {
   state: CoachState;
   job: DrawerJobContext | null;
@@ -33,8 +33,12 @@ export function CareerTrainingPanel(props: Props) {
   const job = selectableJob(props.job);
   const version = job && careerJobSnapshotVersion(job);
   const requirements = job ? careerTrainingRequirements(job) : [];
-  const requestedItem = requested && requested.snapshotVersion === version
-    ? requirements.find(item => item.originalQuote === requested.quote) : undefined;
+  const [chosen, setChosen] = useState<{ request: TrainingRequirementSelection; id: string }>();
+  const candidates = requested && requested.snapshotVersion === version
+    ? requirements.filter(item => item.originalQuote === requested.quote && (!requested.itemId || item.id === requested.itemId)) : [];
+  const ambiguous = candidates.length > 1;
+  const requestedItem = ambiguous
+    ? candidates.find(item => chosen?.request === requested && item.id === chosen?.id) : candidates[0];
   const active = state.activePlan;
   const history = (state.planHistory ?? []).filter((plan, index, all) => plan.id !== active?.id && all.findIndex(p => p.id === plan.id) === index);
   const plan = history.find(p => p.id === historyId) ?? active;
@@ -43,15 +47,21 @@ export function CareerTrainingPanel(props: Props) {
   const task = tasks.find(p => p.id === (historical ? historyTaskId : selectedTaskId)) ?? tasks[0];
   return <>
     {requested && <div className="coach-feedback">
+      {ambiguous && <label>{t("这段原句出现了多次，请选择对应行", "This quote appears more than once. Choose the source line.")}
+        <select value={requestedItem?.id ?? ""} onChange={event => setChosen({ request: requested, id: event.target.value })}>
+          <option value="">{t("请选择", "Choose a line")}</option>
+          {candidates.map(item => <option key={item.id} value={item.id}>{t(`原文第 ${item.sourceSpan?.line} 行`, `Source line ${item.sourceSpan?.line}`)} · {item.originalQuote}</option>)}
+        </select>
+      </label>}
       {requestedItem ? <>
         <p>{t("从岗位匹配选中的要求", "Requirement selected from job match")}</p>
         <blockquote>{requestedItem.originalQuote}</blockquote>
         <button type="button" disabled={disabled} onClick={() => onUseRequirement(requestedItem.originalQuote)}>
           {t("带入学习重点", "Use as plan focus")}
         </button>
-      </> : <p>{t("岗位正文已变化，请重新选择原句。", "The job description changed. Select a requirement again.")}</p>}
+      </> : !ambiguous && <p>{t("岗位正文已变化，请重新选择原句。", "The job description changed. Select a requirement again.")}</p>}
     </div>}
-    {plan && task ? <section className="coach-result coach-training" aria-label={t("计划任务与训练", "Plan task and training")}>
+    {ambiguous && !requestedItem ? null : plan && task ? <section className="coach-result coach-training" aria-label={t("计划任务与训练", "Plan task and training")}>
       <div className="coach-section-heading"><h3>{t("计划任务与训练", "Plan task and training")}</h3></div>
       {history.length > 0 && <label>
         {t("计划版本", "Plan version")}
@@ -66,29 +76,31 @@ export function CareerTrainingPanel(props: Props) {
           {tasks.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>
       </label>
-      <TaskTraining key={JSON.stringify([plan.id, task.id, requestedItem?.id, version])} {...props}
-        plan={plan} task={task} jobSnapshot={job} historical={historical} preferredQuote={requestedItem?.originalQuote}/>
+      <TaskTraining key={JSON.stringify([plan.id, task.id, requested?.itemId, requested?.quote, requested?.snapshotVersion, requestedItem?.id, version])} {...props}
+        plan={plan} task={task} jobSnapshot={job} historical={historical} preferredItemId={requestedItem?.id}
+        requireSelection={!!requested && !requestedItem}/>
     </section> : requestedItem ? <p className="coach-note">{t("先确认成长目标并采纳学习方案，再把这条要求关联到具体任务。", "Confirm your growth goal and adopt a plan, then link this requirement to a task.")}</p> : <TrainingKitPanel confirmedGoal={props.confirmedGoal}/>}
   </>;
 }
 
-function TaskTraining({ state, plan, task, jobSnapshot, historical, preferredQuote, disabled, onBind, onReview }: Props & {
+function TaskTraining({ state, plan, task, jobSnapshot, historical, preferredItemId, requireSelection, disabled, onBind, onReview }: Props & {
   plan: Plan;
   task: CoachTask;
   jobSnapshot?: CareerTrainingJob;
   historical: boolean;
-  preferredQuote?: string;
+  preferredItemId?: string;
+  requireSelection: boolean;
 }) {
   const { t } = useUiPreferences();
   const targets = (state.trainingTargets ?? []).filter(item => item.planId === plan.id && item.taskId === task.id);
   const goalId = state.records.find(record => record.id === plan.id)?.basis.goalId;
   const canBind = !historical && !!goalId && !!state.goalConfirmations?.some(goal => goal.id === goalId) && !!jobSnapshot;
   const requirements = jobSnapshot ? careerTrainingRequirements(jobSnapshot) : [];
-  const preferred = requirements.find(item => item.originalQuote === preferredQuote);
-  const [choice, setChoice] = useState(() => preferredQuote
-    ? targets.find(item => item.quote === preferredQuote && jobSnapshot && careerJobSnapshotVersion(item.job) === careerJobSnapshotVersion(jobSnapshot))?.id ?? "new"
-    : targets.at(-1)?.id ?? "new");
-  const [itemId, setItemId] = useState(preferred?.id ?? requirements[0]?.id ?? "");
+  const preferred = requirements.find(item => item.id === preferredItemId);
+  const [choice, setChoice] = useState(() => preferred
+    ? targets.find(item => item.itemId === preferred.id && item.quote === preferred.originalQuote && jobSnapshot && careerJobSnapshotVersion(item.job) === careerJobSnapshotVersion(jobSnapshot))?.id ?? "new"
+    : requireSelection ? "new" : targets.at(-1)?.id ?? "new");
+  const [itemId, setItemId] = useState(preferred?.id ?? (requireSelection ? "" : requirements[0]?.id ?? ""));
   const [competency, setCompetency] = useState(task.title);
   const [criterionIndex, setCriterionIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -103,6 +115,7 @@ function TaskTraining({ state, plan, task, jobSnapshot, historical, preferredQuo
     const target: CoachTrainingTarget = {
       id: crypto.randomUUID(), goalId, planId: plan.id, taskId: task.id,
       job: jobSnapshot, itemId: item.id, quote: item.originalQuote, competency: competency.trim(),
+      ...(item.sourceSpan && item.parserVersion ? { quoteSource: { parserVersion: item.parserVersion, sourceSpan: item.sourceSpan } } : {}),
       criterionIndex, createdAt: new Date().toISOString(),
     };
     try {
@@ -123,7 +136,8 @@ function TaskTraining({ state, plan, task, jobSnapshot, historical, preferredQuo
     {choice === "new" && !historical && canBind && requirements.length > 0 && <div className="coach-compose">
       <label>{t("岗位原句", "Job requirement")}
         <select value={itemId} disabled={saving || disabled} onChange={e => setItemId(e.target.value)}>
-          {requirements.map(value => <option key={value.id} value={value.id}>{value.originalQuote}</option>)}
+          {requireSelection && <option value="">{t("请选择当前岗位原句", "Choose a requirement from this job")}</option>}
+          {requirements.map(value => <option key={value.id} value={value.id}>{t(`原文第 ${value.sourceSpan?.line} 行`, `Source line ${value.sourceSpan?.line}`)} · {value.originalQuote}</option>)}
         </select>
       </label>
       {item && <blockquote>{item.originalQuote}</blockquote>}

@@ -1,14 +1,26 @@
 import { Activity, ArrowUpRight, CheckCircle2, Clock3, Cpu, PauseCircle } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import type { StudioNode } from "../AutopilotStudioWorkspace";
-import { selectNodeKernelTasks, type AutopilotKernelTelemetry } from "./autopilot-telemetry";
+import { selectNodeKernelTasks, type AutopilotKernelTelemetry, type KernelTaskSummary } from "./autopilot-telemetry";
+
+const TASK_STATUS: Record<KernelTaskSummary["status"], [string, string]> = {
+  ready: ["待开始", "Ready"],
+  running: ["运行中", "Running"],
+  awaiting_answer: ["待回答", "Awaiting answer"],
+  awaiting_review: ["待审核", "Awaiting review"],
+  paused: ["已暂停", "Paused"],
+  interrupted: ["已中断", "Interrupted"],
+  budget_exhausted: ["预算耗尽", "Budget exhausted"],
+  failed: ["失败", "Failed"],
+  revoked: ["已撤回", "Revoked"],
+  completed: ["已完成", "Completed"],
+};
 
 export function AutopilotNodeInspector({
   node,
   theme,
   savedJobsCount,
   claimCount,
-  targetCompany,
   telemetry,
   onOpenOpportunitySources,
   onAnalyzeActiveJob,
@@ -18,7 +30,6 @@ export function AutopilotNodeInspector({
   theme: "light" | "dark";
   savedJobsCount: number;
   claimCount: number;
-  targetCompany?: string;
   telemetry: AutopilotKernelTelemetry;
   onOpenOpportunitySources?: () => void;
   onAnalyzeActiveJob?: () => void;
@@ -28,7 +39,6 @@ export function AutopilotNodeInspector({
   const isLight = theme === "light";
   const matchedTasks = selectNodeKernelTasks(node, telemetry);
   const totalTokens = telemetry.usage?.models.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0) ?? 0;
-  const totalCalls = telemetry.usage?.models.reduce((sum, item) => sum + item.calls, 0) ?? 0;
 
   return (
     <div className={`p-4 rounded-xl border space-y-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"}`}>
@@ -47,11 +57,9 @@ export function AutopilotNodeInspector({
             {t("监控与快捷入口", "Monitor & shortcut")}
           </span>
           <span className={`px-2 py-0.5 rounded text-[10px] ${isLight ? "bg-cyan-100 text-cyan-900 border border-cyan-300 font-bold" : "bg-cyan-400/20 text-cyan-300"}`}>
-            {telemetry.runningCount > 0
-              ? t(`${telemetry.runningCount} 运行中`, `${telemetry.runningCount} active`)
-              : node.tokens === "—"
-                ? t("按需触发", "On demand")
-                : `${totalCalls} calls`}
+            {telemetry.authenticated
+              ? t(`全局 ${telemetry.runningCount} 运行中 · ${telemetry.readyCount} 待开始`, `All tasks · ${telemetry.runningCount} running · ${telemetry.readyCount} ready`)
+              : t("任务概览不可用", "Task summary unavailable")}
           </span>
         </div>
       </div>
@@ -62,17 +70,17 @@ export function AutopilotNodeInspector({
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10.5px] font-mono">
         <div className={`p-2 rounded-lg border ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-black/50 border-white/10 text-slate-200"}`}>
-          <div className="opacity-65">{t("内核任务", "Kernel tasks")}</div>
+          <div className="opacity-65">{t("求职任务总数", "All career tasks")}</div>
           <div className="font-bold mt-0.5 flex items-center gap-1">
             <Activity className="w-3 h-3 text-cyan-500" />
-            <span>{telemetry.totalTasks}</span>
+            <span>{telemetry.authenticated ? telemetry.totalTasks : "—"}</span>
           </div>
         </div>
         <div className={`p-2 rounded-lg border ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-black/50 border-white/10 text-slate-200"}`}>
-          <div className="opacity-65">{t("待审 / 挂起", "Awaiting / paused")}</div>
+          <div className="opacity-65">{t("全局待处理 / 暂停", "All awaiting / paused")}</div>
           <div className="font-bold mt-0.5 flex items-center gap-1">
             <Clock3 className="w-3 h-3 text-amber-500" />
-            <span>{telemetry.awaitingCount + telemetry.pausedCount}</span>
+            <span>{telemetry.authenticated ? telemetry.awaitingCount + telemetry.pausedCount : "—"}</span>
           </div>
         </div>
         <div className={`p-2 rounded-lg border ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-black/50 border-white/10 text-slate-200"}`}>
@@ -86,14 +94,14 @@ export function AutopilotNodeInspector({
           <div className="opacity-65">{t("今日 Token", "Today tokens")}</div>
           <div className="font-bold mt-0.5 flex items-center gap-1">
             <Cpu className="w-3 h-3 text-purple-500" />
-            <span>{totalTokens.toLocaleString()}</span>
+            <span>{telemetry.usage ? totalTokens.toLocaleString() : "—"}</span>
           </div>
         </div>
       </div>
 
       {matchedTasks.length > 0 ? (
         <div className={`p-2.5 rounded-lg border space-y-1.5 text-[10.5px] font-mono ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-black/55 border-white/10 text-slate-300"}`}>
-          <div className="font-bold opacity-80">{t("关联 AgentTaskKernel 记录", "Linked AgentTaskKernel runs")}</div>
+          <div className="font-bold opacity-80">{t("此阶段近期任务（全局）", "Recent tasks by stage (all jobs)")}</div>
           {matchedTasks.map((task) => (
             <div key={task.id} className="flex items-center justify-between gap-2">
               <span className="truncate">{task.kind} · {task.title}</span>
@@ -104,7 +112,7 @@ export function AutopilotNodeInspector({
                     ? "bg-cyan-500/15 text-cyan-500"
                     : "bg-amber-500/15 text-amber-500"
               }`}>
-                {task.status}
+                {t(...TASK_STATUS[task.status])}
               </span>
             </div>
           ))}
@@ -115,7 +123,7 @@ export function AutopilotNodeInspector({
             <PauseCircle className="w-3.5 h-3.5 shrink-0" />
             <span>
               {telemetry.authenticated
-                ? t(`暂无 ${node.tag} 阶段后台任务${targetCompany ? `（当前聚焦：${targetCompany}）` : ""}`, `No ${node.tag} kernel tasks yet${targetCompany ? ` (${targetCompany})` : ""}`)
+                ? t("暂无此阶段任务", "No tasks for this stage")
                 : t("暂未取得本机任务概览，请确认已登录且本机服务可用。", "Task summary is unavailable. Check that you are signed in and the local service is running.")}
             </span>
           </span>

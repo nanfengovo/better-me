@@ -1,5 +1,5 @@
 import type {
-  StudioDesign, StudioEvidence, StudioScene, StudioStep, TrainingFeedback, TrainingScreen,
+  StudioDecisionCondition, StudioDesign, StudioEvidence, StudioScene, StudioStep, TrainingFeedback, TrainingRetestChange, TrainingScreen,
 } from "@better-me/agent-contracts";
 import { executeTransform } from "../capabilities/sandbox.js";
 import { learningFail } from "./learning-store.js";
@@ -37,6 +37,11 @@ function validSequence(step: Order) {
 function normalized(text: string) {
   return text.normalize("NFKC").toLowerCase().replace(/\s+/gu, " ").trim();
 }
+// Ignore sentence endings while preserving meaningful symbols inside the
+// material, such as decimal points, negative amounts and code operators.
+function scenarioText(text: string) {
+  return normalized(text).replace(/[.!?。！？…]+(?=\s|$)/gu, "").trim();
+}
 function taskIdentity(step: StudioStep) {
   if (step.mode === "order") return ["order", step.constraints
     .map(c => JSON.stringify([normalized(c.before), normalized(c.after)])).sort()];
@@ -48,7 +53,61 @@ function taskIdentity(step: StudioStep) {
   if (step.mode === "code") return ["code", step.cases.map(c => JSON.stringify([c.input, c.expected])).sort()];
   return ["write"];
 }
+const conditionStates = {
+  available: ["可用", "available", "不可用", "unavailable"], unavailable: ["不可用", "unavailable", "可用", "available"],
+  confirmed: ["已确认", "confirmed", "待确认", "unconfirmed"], unconfirmed: ["待确认", "unconfirmed", "已确认", "confirmed"],
+  permitted: ["已获许可", "permitted", "未获许可", "not permitted"], prohibited: ["未获许可", "not permitted", "已获许可", "permitted"],
+} as const;
+
+function writingCondition(condition: StudioDecisionCondition) {
+  const { subject, firstState } = condition;
+  const zh = /\p{Script=Han}/u.test(subject);
+  const states = conditionStates[firstState];
+  return {
+    before: subject + " · " + states[zh ? 0 : 1],
+    after: subject + " · " + states[zh ? 2 : 3],
+    criterion: zh ? `在回答中说明「${subject}」的当前状态怎样影响你的选择，并给出你的理由。`
+      : `Explain how the current status of “${subject}” affects your decision and why.`,
+  };
+}
+
+function orderedShape(step: Order) {
+  return labels(step).map(label => [
+    step.constraints.filter(c => c.before === label).length, step.constraints.filter(c => c.after === label).length,
+  ]).sort();
+}
+
+/** Only a condition that the learner had to act on may be used to support transfer. */
+export function studioRetestChange(d: StudioDesign): TrainingRetestChange | undefined {
+  const [first, second] = d.scenes as [StudioScene, StudioScene];
+  if (d.decisionCondition) return { key: "part1", ...writingCondition(d.decisionCondition) };
+  for (const [index, next] of second.steps.entries()) {
+    if (next.mode === "write") continue;
+    const comparable = first.steps.filter(step => step.mode === next.mode);
+    const old = comparable[0];
+    if (!old || comparable.some(step => JSON.stringify(taskIdentity(step)) === JSON.stringify(taskIdentity(next)))) continue;
+    if (old.mode === "quantity" && next.mode === "quantity") {
+      const describe = (step: Quantity) => operationLabels[step.operation] + " · " + step.values.join("，");
+      return { key: keys[index]!, before: describe(old), after: describe(next), criterion: next.prompt };
+    }
+    if (old.mode === "code" && next.mode === "code") {
+      const changed = next.cases.find(test => old.cases.every(previous => previous.input !== test.input));
+      if (changed) {
+        const describe = (test: typeof changed) => JSON.stringify(test.input) + " → " + JSON.stringify(test.expected);
+        return { key: keys[index]!, before: describe(old.cases[0]!), after: describe(changed), criterion: next.prompt };
+      }
+    }
+    if (old.mode === "order" && next.mode === "order" && !comparable.some(step =>
+      step.mode === "order" && JSON.stringify(orderedShape(step)) === JSON.stringify(orderedShape(next)))) {
+      const describe = (step: Order) => step.constraints.map(c => c.before + " → " + c.after).join("；");
+      return { key: keys[index]!, before: describe(old), after: describe(next), criterion: next.prompt };
+    }
+  }
+}
+
 export function validateStudio(d: StudioDesign) {
+  if (d.decisionCondition && !d.scenes.every(s => s.steps.every(step => step.mode === "write")))
+    learningFail("training_design_invalid", 422);
   for (const scene of d.scenes) {
     if (scene.steps.filter(s => s.mode === "code").length > 1) learningFail("training_design_invalid", 422);
     if (new Set(scene.steps.map(s => normalized(s.prompt))).size !== scene.steps.length)
@@ -82,7 +141,7 @@ export function validateStudio(d: StudioDesign) {
   const checks = (s: StudioScene) =>
     s.steps.filter(step => step.mode !== "write").map(step => JSON.stringify(taskIdentity(step))).sort();
   const first = checks(a), second = checks(b);
-  if (normalized(a.situation) === normalized(b.situation) ||
+  if (scenarioText(a.situation) === scenarioText(b.situation) ||
       (first.length > 0 && JSON.stringify(first) === JSON.stringify(second)))
     learningFail("training_retest_repeated", 422);
 }
@@ -90,6 +149,9 @@ export function validateStudio(d: StudioDesign) {
 export function studioScreen(d: StudioDesign, index: number): TrainingScreen {
   const s = d.scenes[index]!;
   const notes = [s.situation];
+  const pair = d.decisionCondition && writingCondition(d.decisionCondition);
+  const writingDecision = pair && { condition: index === 0 ? pair.before : pair.after, criterion: pair.criterion };
+  if (writingDecision) notes.push(writingDecision.condition, writingDecision.criterion);
   const fields = s.steps.map((step, i): TrainingScreen["fields"][number] => {
     const key = keys[i]!, label = step.prompt;
     if (step.mode === "order") {
@@ -113,7 +175,7 @@ export function studioScreen(d: StudioDesign, index: number): TrainingScreen {
     guides.push("提交的函数将用题面给出的用例运行。");
   if (s.steps.some(step => step.mode === "write"))
     guides.push("文字作答会保留原文，供你继续练习和复盘。");
-  return { brief: s.brief, instruction: guides.join(""), fields, notes };
+  return { brief: s.brief, instruction: guides.join(""), fields, notes, ...(writingDecision ? { writingDecision } : {}) };
 }
 
 type CheckInput =

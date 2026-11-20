@@ -1,3 +1,4 @@
+import { downloadResumeMarkdown } from "../lib/resume-markdown-download";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId, useMemo } from "react";
 import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
@@ -223,16 +224,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   }
 
   function handleDownloadMarkdown() {
-    const blob = new Blob([projectedResumeToMarkdown(resume)], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    // eslint-disable-next-line no-control-regex -- Windows filenames must exclude ASCII control characters.
-    link.download = `resume-${resume.locale}-${resume.profile.displayName.replace(/[<>:"/\\|?*\x00-\x1f]/g, "-")}.md`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadResumeMarkdown(resume, view?.careerTaskReceipt ? view.name : undefined);
   }
 
   function handleRenderCvExport() {

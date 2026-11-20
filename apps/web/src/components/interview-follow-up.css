@@ -1,0 +1,11 @@
+.ifu { display: grid; gap: 12px; }
+.ifu .crfp-subhead h3 { margin: 0; }
+.ifu-card { display: grid; gap: 12px; padding-block: 12px; border-top: 1px solid var(--crfp-line); }
+.ifu-card blockquote { margin: 6px 0 0; border-inline-start: 3px solid #729bd2; padding-inline-start: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
+.ifu-card form, .ifu-card dl { display: grid; gap: 10px; margin: 0; }
+.ifu-card dl > div { display: grid; grid-template-columns: 5.5em minmax(0,1fr); gap: 8px; }
+.ifu-card dt, .ifu-plan span { color: var(--crfp-muted); }
+.ifu-card dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.ifu .ifu-choices, .ifu-plan { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ifu .ifu-choices label { display: inline-flex; align-items: center; gap: 6px; }
+.ifu-card summary { cursor: pointer; }

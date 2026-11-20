@@ -4,6 +4,7 @@ import { ReplayStepResultSchema } from "@better-me/core/career-intelligence";
 import { CareerStudio, type StudioPublicationRecord } from "./service.js";
 import { StudioError, studioHash } from "./storage.js";
 import { StudioLocalRuntimeSchema, type StudioAccess, type StudioContext, type StudioLocalRuntime } from "./contracts.js";
+import type { ReadInterviewKit } from "./interview-follow-up.js";
 import { createReplayFeedback } from "./replay-feedback.js";
 import { createPrivacyHttp } from "./privacy-http.js";
 import { createMcpTwinHttp } from "./mcp-twin-http.js";
@@ -32,6 +33,7 @@ export function createCareerStudioHttp(options: {
   getMcpServers?: () => Promise<readonly ConfiguredCareerMcpServer[]>;
   assertConfiguration?: () => Promise<void>;
   cloud?: CloudPrivacyAdapter;
+  readInterviewKit?: ReadInterviewKit;
   finalExportRenderer?: CareerFinalExportRenderer;
   privacyBroker?: Pick<EvidenceBroker, "execute">;
   localEmbeddingClient?(runtime: StudioLocalRuntime, embeddingRuntime: StudioLocalRuntime): LocalOllamaClient;
@@ -56,7 +58,7 @@ export function createCareerStudioHttp(options: {
     const input = z.object({ contextId: id, runtime: StudioLocalRuntimeSchema }).passthrough().parse(body);
     if (studioHash(await selectedRuntime(input.contextId, access)) !== studioHash(input.runtime)) throw new StudioError("studio_runtime_mismatch_new_context_required", 422);
   };
-  const replay = createReplayFeedback({ store: studio.store, ownerId: options.ownerId, getContext: (contextId, access) => studio.getContext(contextId, access),
+  const replay = createReplayFeedback({ readInterviewKit: options.readInterviewKit, store: studio.store, ownerId: options.ownerId, getContext: (contextId, access) => studio.getContext(contextId, access),
     localModel: async request => {
       const contract = { type: "object", additionalProperties: false, required: ["kind", "summary", "artifact"], properties: {
         kind: { const: "analysis" }, summary: { type: "string", maxLength: 8000 }, artifact: { type: "object", additionalProperties: false,
@@ -160,6 +162,7 @@ export function createCareerStudioHttp(options: {
     "/replay/create": replay.replayCreate, "/replay/continue": replay.replayContinue, "/replay/fork": replay.replayFork,
     "/replay/get": (b, a) => { const i = z.object({ runId: id, contextId: id }).strict().parse(b); return replay.replayGet(i.runId, i.contextId, a); },
     "/feedback/identity": (b, a) => replay.feedbackIdentity(contextInput.parse(b).contextId, a),
+    "/feedback/follow-ups": replay.followUps, "/feedback/follow-up/decide": replay.decideFollowUp,
     "/feedback/save": replay.feedbackSave, "/feedback/analyze": replay.feedbackAnalyze,
     "/rules/propose": replay.rulePropose, "/rules/apply": replay.ruleApply, "/rules/revert": replay.ruleRevert, "/rules/export": replay.ruleExport,
     "/rules/runtime": (b, a) => replay.runtimeRules(contextInput.parse(b).contextId, a),

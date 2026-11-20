@@ -80,6 +80,45 @@ const sampleResume = {
   ],
 };
 
+test("inline and multiline bilingual section bodies cite exact spans in the original JD", () => {
+  for (const [group, title, quote] of [
+    ["hardRequirements", "岗位要求", "熟悉 PostgreSQL"],
+    ["hardRequirements", "Qualifications", "Design database schemas"],
+    ["responsibilities", "Responsibilities", "Maintain core services"],
+    ["preferredQualifications", "Preferred Qualifications", "Write clear reviews"],
+    ["constraints", "工作地点", "北京"],
+  ]) {
+    for (const header of [title, `【${title}】`, `[${title}]`]) {
+      for (const separator of [": ", "：　", ":\r\n    ", "\n"]) {
+        const text = `📌 Example\r\n   ${header}${separator}${quote}  `;
+        const result = decomposeJdText(text)[group].filter(item => item.originalQuote === quote);
+        assert.equal(result.length, 1, text);
+        const [item] = result;
+        const start = text.indexOf(quote);
+        assert.equal(item.parserVersion, 2);
+        assert.equal(item.summary, quote);
+        assert.deepEqual(item.sourceSpan, { start, end: start + quote.length, line: text.slice(0, start).split("\n").length });
+      }
+    }
+  }
+});
+
+test("newly recognized items preserve positional IDs for all earlier bindings, including duplicate quotes", () => {
+  const text = "任职要求：熟悉 PostgreSQL\nC#\n熟悉 PostgreSQL\n熟悉 PostgreSQL\nResponsibilities: Review changes\nReview changes\nPreferred: Write tests\nWrite tests";
+  const parsed = decomposeJdText(text);
+  const required = parsed.hardRequirements;
+  assert.deepEqual(required.slice(2).map(item => [item.id, item.originalQuote]), [
+    ["req-1", "熟悉 PostgreSQL"], ["req-2", "熟悉 PostgreSQL"],
+  ]);
+  assert.equal(parsed.responsibilities[1].id, "resp-1");
+  assert.equal(parsed.preferredQualifications[1].id, "pref-1");
+  const items = [...required, ...parsed.responsibilities, ...parsed.preferredQualifications];
+  assert.equal(new Set(items.map(item => item.id)).size, items.length);
+  for (const item of items) assert.equal(text.slice(item.sourceSpan.start, item.sourceSpan.end), item.originalQuote);
+  const { parserVersion, sourceSpan, ...old } = required[2];
+  assert.doesNotThrow(() => DecomposedJdSchema.parse({ rawText: text, hardRequirements: [old] }));
+});
+
 test("decomposeJdText correctly separates sections and preserves exact quotes", () => {
   const decomposed = decomposeJdText(sampleJdText, {
     title: "资深 .NET 后端开发",
@@ -164,4 +203,17 @@ test("alignJdWithResume accurately matches evidence and detects gaps without fab
 
   // Defense questions generated
   assert.ok(alignment.defenseQuestions.length > 0);
+});
+
+
+test("inline sections from a copied JD retain separate raw clauses and the old following ID", () => {
+  const raw = " 岗位职责：交付库存接口；岗位要求：独立设计数据库。加分项：PostgreSQL\r\n分析失败路径";
+  const result = decomposeJdText(raw);
+  assert.deepEqual(result.responsibilities.map(item => item.originalQuote), ["交付库存接口", "分析失败路径"]);
+  assert.deepEqual(result.hardRequirements.map(item => item.originalQuote), ["独立设计数据库"]);
+  assert.deepEqual(result.preferredQualifications.map(item => item.originalQuote), ["PostgreSQL"]);
+  assert.equal(result.responsibilities[1].id, "resp-1");
+  for (const item of [...result.responsibilities, ...result.hardRequirements, ...result.preferredQualifications]) {
+    assert.equal(raw.slice(item.sourceSpan.start, item.sourceSpan.end), item.originalQuote);
+  }
 });

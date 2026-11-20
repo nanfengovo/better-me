@@ -36,3 +36,9 @@
 .advisor-panes[data-dual=true][data-pane=material]>div:last-child,.advisor-panes[data-dual=true][data-pane=result]>div:first-child{display:none!important}
 .advisor-panes[data-dual=true]>div:first-child,.advisor-panes[data-dual=true]>div:last-child{width:100%!important;flex:1!important}
 }
+
+@media (max-width: 480px) {
+  .os-desktop[data-page=agent] .os-window-toolbar .os-resume-shortcut span { display: none; }
+  .os-desktop[data-page=agent] .os-window-toolbar .os-resume-shortcut { flex: 0 0 auto; padding-inline: 5px; }
+  .os-desktop[data-page=agent] .os-window-toolbar button { white-space: nowrap; }
+}

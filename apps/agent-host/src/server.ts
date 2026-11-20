@@ -251,6 +251,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       studioHttp = createCareerStudioHttp({ studio, ownerId: principal.id, baseURL: serverOrigin(), allowedOrigins: [...new Set([...opts.allowedOrigins, serverOrigin()])],
         mcpServers: opts.careerMcpServers, cloud: opts.careerOperator?.configuredCloud ?? opts.careerPrivacyCloud,
         ...(opts.careerOperator ? { getMcpServers: () => opts.careerOperator!.getMcpServers(), assertConfiguration: () => opts.careerOperator!.assertCurrent() } : {}),
+        readInterviewKit: (id, access) => getLearning().training.get(id, access),
         privacyBroker: studioBroker, finalExportRenderer: opts.careerFinalExportRenderer, readBody, sendJson: jsonResponse });
       return studioHttp;
     };

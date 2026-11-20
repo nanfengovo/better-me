@@ -20,11 +20,12 @@ export * from "./studio-analysis.js";
 import { CAREER_TASK_DEFAULT_BUDGET, CareerTaskBudgetSchema, CareerTaskCreateSchema, CareerTaskRunSchema, CareerTaskSchema, CareerTaskEvidenceSchema, CareerTaskStatusSchema, CareerRuntimeBindingSchema, TaskRootLedgerSchema, type TaskLineage, type CareerTask } from "./career-task.js";
 
 const id=z.string().trim().min(1).max(300);
+const conversationResponseContract = z.union([ResumeCandidateResponseContractSchema, z.literal("resume_replacement_v1")]);
 /** Free conversation has no job/resume placeholders and grants no tools or record writes. */
 export const FreeChatTaskCreateSchema=z.object({
   kind:z.literal("free_chat"),workspaceKey:id,objective:z.string().min(1).max(12000),
   parentTaskId:id.optional(),rootScopeKey:id.optional(),
-  responseContract:ResumeCandidateResponseContractSchema.optional(),
+  responseContract:conversationResponseContract.optional(),
   candidateSource:ResumeCandidateSourceBindingSchema.optional(),
   conversation:z.object({messages:z.array(ChatMessageSchema).min(1),context:AgentChatContextSchema.optional()}).strict(),
   runtimeBinding:CareerRuntimeBindingSchema,budget:CareerTaskBudgetSchema.default(CAREER_TASK_DEFAULT_BUDGET),consent:z.literal(true),idempotencyKey:z.string().min(8).max(160),
@@ -32,6 +33,12 @@ export const FreeChatTaskCreateSchema=z.object({
   if(!value.conversation.messages.some(message=>message.role==="user"))ctx.addIssue({code:"custom",message:"user message required"});
   if(new Set(value.conversation.messages.map(message=>message.id)).size!==value.conversation.messages.length)ctx.addIssue({code:"custom",message:"duplicate message identity"});
   if(!validChatMaterial(value.conversation))ctx.addIssue({code:"custom",message:"conversation task material budget or image contract exceeded; no bytes are discarded"});
+  if(value.responseContract==="resume_replacement_v1"){
+    const [first]=value.conversation.messages;
+    if(value.conversation.context || value.conversation.messages.length!==1 || first?.role!=="user" || !first.content.trim()
+      || first.attachments?.length || first.references?.length || first.actions?.length)
+      ctx.addIssue({code:"custom",message:"replacement selection requires one standalone text request"});
+  }
   validateResumeCandidateBinding(value,ctx);
 });
 export type FreeChatTaskCreate=z.input<typeof FreeChatTaskCreateSchema>;
@@ -40,7 +47,7 @@ export const FreeChatReplyDecisionSchema=z.object({kind:z.literal("reply"),conte
 export const TaskOutputArtifactSchema=z.object({id:z.string().regex(/^out_[a-f0-9]{32}$/),bytes:z.number().int().nonnegative(),hash:z.string().regex(/^[a-f0-9]{64}$/),createdAt:z.string()}).strict();
 export type TaskOutputArtifact=z.infer<typeof TaskOutputArtifactSchema>;
 export type FreeChatTask=TaskLineage & Pick<CareerTask,"id"|"ownerId"|"workspaceKey"|"objective"|"revision"|"status"|"createdAt"|"updatedAt"|"runtimeBinding"|"budget"|"usage"|"events"|"error"> & {
-  kind:"free_chat";responseContract?:z.infer<typeof ResumeCandidateResponseContractSchema>;candidateSource?:z.infer<typeof ResumeCandidateSourceBindingSchema>;sourceFingerprint:string;conversation:FreeChatTaskInput["conversation"];turn:number;reply?:z.infer<typeof ChatMessageSchema>;partialOutput?:{text:string;finishReason?:string};outputArtifacts?:TaskOutputArtifact[];
+  kind:"free_chat";responseContract?:z.infer<typeof conversationResponseContract>;candidateSource?:z.infer<typeof ResumeCandidateSourceBindingSchema>;sourceFingerprint:string;conversation:FreeChatTaskInput["conversation"];turn:number;reply?:z.infer<typeof ChatMessageSchema>;partialOutput?:{text:string;finishReason?:string};outputArtifacts?:TaskOutputArtifact[];
 };
 const conversationTaskRecord=z.object({
   id,ownerId:id,workspaceKey:id,objective:z.string().min(1).max(12000),revision:z.number().int().positive(),status:CareerTaskStatusSchema,
@@ -52,7 +59,7 @@ const conversationTaskRecord=z.object({
   partialOutput:z.object({text:z.string(),finishReason:z.string().optional()}).optional(),
   outputArtifacts:z.array(TaskOutputArtifactSchema).optional(),
 });
-export const FreeChatTaskSchema:z.ZodType<FreeChatTask,unknown>=conversationTaskRecord.extend({responseContract:ResumeCandidateResponseContractSchema.optional(),candidateSource:ResumeCandidateSourceBindingSchema.optional()}).superRefine(validateResumeCandidateBinding);
+export const FreeChatTaskSchema:z.ZodType<FreeChatTask,unknown>=conversationTaskRecord.extend({responseContract:conversationResponseContract.optional(),candidateSource:ResumeCandidateSourceBindingSchema.optional()}).superRefine(validateResumeCandidateBinding);
 export const ExperienceRefinementSchema=z.object({
   source:z.object({targetRef:z.lazy(()=>ResumeProposalTargetSchema),text:z.string(),label:z.string().max(2000),
     quote:z.object({exact:z.string().min(1),prefix:z.string().max(32),suffix:z.string().max(32),start:z.number().int().nonnegative(),end:z.number().int().positive()}).strict().optional(),
@@ -170,6 +177,7 @@ export type AgentTaskCreate=import("./career-task.js").CareerTaskCreate|FreeChat
 export const AgentTaskSchema=z.union([CareerTaskSchema,FreeChatTaskSchema,ExperienceRefineTaskSchema,ProjectUnderstandingTaskSchema,JdMatchTaskSchema,MockInterviewTaskSchema,CoachGuidanceTaskSchema,JdIntakeTaskSchema,JdOcrTaskSchema,StudioAnalysisTaskSchema,StudioCommitteeTaskSchema,GrowthPracticeTaskSchema,InventoryTaskSchema]);
 
 export const AGENT_TASK_SUMMARY_LIMIT = 6;
+export const AGENT_TASK_STAGE_SUMMARY_LIMIT = 3;
 const AgentTaskSummarySchema = z.object({
   id,
   kind: z.enum(["resume_tailor", "free_chat", "experience_refine", "project_understanding", "jd_match",
@@ -184,11 +192,14 @@ export const AgentTaskListSummarySchema = z.object({
   ownerId: id,
   totalTasks: z.number().int().nonnegative(),
   runningCount: z.number().int().nonnegative(),
+  readyCount: z.number().int().nonnegative(),
   awaitingCount: z.number().int().nonnegative(),
   completedCount: z.number().int().nonnegative(),
   pausedCount: z.number().int().nonnegative(),
   failedCount: z.number().int().nonnegative(),
   tasks: z.array(AgentTaskSummarySchema).max(AGENT_TASK_SUMMARY_LIMIT),
+  // Bound recent results per kind, including kinds absent from the global top six.
+  recentByKind: z.array(AgentTaskSummarySchema).max(AgentTaskSummarySchema.shape.kind.options.length * AGENT_TASK_STAGE_SUMMARY_LIMIT),
 }).strict();
 export type AgentTaskListSummary = z.infer<typeof AgentTaskListSummarySchema>;
 

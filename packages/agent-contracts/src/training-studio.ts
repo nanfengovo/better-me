@@ -45,10 +45,18 @@ export const StudioScene = z.object({
 }).strict();
 export type StudioScene = z.infer<typeof StudioScene>;
 
+// Both writing prompts ask about the same decision under opposing conditions.
+export const StudioDecisionCondition = z.object({
+  subject: text(90).describe("A resource, permission, or fact that affects the decision in BOTH tasks. Name the same concrete item without its status."),
+  firstState: z.enum(["available", "unavailable", "confirmed", "unconfirmed", "permitted", "prohibited"]),
+}).strict();
+export type StudioDecisionCondition = z.infer<typeof StudioDecisionCondition>;
+
 export const StudioDesign = z.object({
   kind: z.literal("studio"),
   title: text(80),
   scenes: z.array(StudioScene).length(2),
+  decisionCondition: StudioDecisionCondition.optional(),
 }).strict();
 export type StudioDesign = z.infer<typeof StudioDesign>;
 

@@ -17,11 +17,15 @@ export const TrainingTransferEvidence = z.object({
 export type TrainingTransferEvidence = z.infer<typeof TrainingTransferEvidence>;
 
 export const TrainingRetestAids = z.object({ preview: z.boolean(), practiceReference: z.boolean() }).strict();
+export const TrainingRetestChange = z.object({
+  key: StudioEvidence.shape.key, before: text(1050), after: text(1050), criterion: text(300),
+}).strict();
+export type TrainingRetestChange = z.infer<typeof TrainingRetestChange>;
 const independence = z.enum(["independent", "assisted", "untracked"]);
 const round = z.object({ questionVersion: digest, brief: text(400), material: z.array(text(1050)).max(12), usedPreview: z.boolean() }).strict();
 export const TrainingTransferInput = z.object({
   goal: text(600), overallGoal: text(600).optional(), practice: round, retest: round.extend({
-    independence, aids: TrainingRetestAids.optional(),
+    independence, aids: TrainingRetestAids.optional(), change: TrainingRetestChange.optional(),
   }), evidence: z.array(TrainingTransferEvidence).min(2).max(12),
 }).strict();
 export type TrainingTransferInput = z.infer<typeof TrainingTransferInput>;
@@ -29,7 +33,7 @@ export type TrainingTransferInput = z.infer<typeof TrainingTransferInput>;
 export const TrainingTransferAdvice = z.object({
   direction: z.enum(["reinforce", "verify", "extend"]), nextGoal: text(400),
   actions: z.array(TrainingAction).min(1).max(2).refine(items => new Set(items).size === items.length),
-  reasons: z.array(z.object({ evidenceId, reason: text(300) }).strict()).min(2).max(12),
+  reasons: z.array(z.object({ evidenceId, reason: text(300), answerQuote: text(1600).optional() }).strict()).min(2).max(12),
 }).strict();
 export type TrainingTransferAdvice = z.infer<typeof TrainingTransferAdvice>;
 export const TrainingTransferDecision = TrainingTransferAdvice.extend({
@@ -41,7 +45,7 @@ export type TrainingTransferRef = z.infer<typeof TrainingTransferRef>;
 export const TrainingTransferSource = TrainingTransferRef.extend({
   kitTitle: text(80), ...TrainingTransferAdvice.shape,
   citations: z.array(TrainingTransferEvidence).min(2).max(12), practiceVersion: digest, retestVersion: digest,
-  retestIndependence: independence, retestAids: TrainingRetestAids.optional(),
+  retestIndependence: independence, retestAids: TrainingRetestAids.optional(), retestChange: TrainingRetestChange.optional(),
 });
 export type TrainingTransferSource = z.infer<typeof TrainingTransferSource>;
 
@@ -77,6 +81,6 @@ export function trainingTransferInput(overallGoal: string, attempts: readonly Tr
     ...(practiceGoal && practiceGoal !== overallGoal ? { overallGoal } : {}), evidence,
     practice: { questionVersion: practice.questionVersion, brief: practice.question.brief, material: practice.question.notes, usedPreview: practice.usedPreview },
     retest: { questionVersion: retest.questionVersion, brief: retest.question.brief, material: retest.question.notes, usedPreview: retestUsedHelp,
-      independence: retestUsedHelp ? "assisted" : retest.aids ? "independent" : "untracked", aids: retest.aids } });
+      independence: retestUsedHelp ? "assisted" : retest.aids ? "independent" : "untracked", aids: retest.aids, change: retest.retestChange } });
   return input.success ? input.data : undefined;
 }

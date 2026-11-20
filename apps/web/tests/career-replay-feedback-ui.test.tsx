@@ -84,7 +84,7 @@ async function fixture(model = local) {
     if (route === "/feedback/identity") { await delay(60); return helper.feedbackIdentity(String(payload.contextId), access); }
     if (route === "/replay/get") return helper.replayGet(String(payload.runId), String(payload.contextId), access);
     if (route === "/rules/runtime") return helper.runtimeRules(String(payload.contextId), access);
-    const method = ({ "/replay/create": "replayCreate", "/replay/continue": "replayContinue", "/replay/fork": "replayFork", "/feedback/save": "feedbackSave", "/feedback/analyze": "feedbackAnalyze", "/rules/propose": "rulePropose", "/rules/apply": "ruleApply", "/rules/revert": "ruleRevert", "/rules/export": "ruleExport" } as const)[route as "/replay/create"];
+    const method = ({ "/replay/create": "replayCreate", "/replay/continue": "replayContinue", "/replay/fork": "replayFork", "/feedback/save": "feedbackSave", "/feedback/analyze": "feedbackAnalyze", "/feedback/follow-ups": "followUps", "/feedback/follow-up/decide": "decideFollowUp", "/rules/propose": "rulePropose", "/rules/apply": "ruleApply", "/rules/revert": "ruleRevert", "/rules/export": "ruleExport" } as const)[route as "/replay/create"];
     if (!method) throw Error(`unsupported fixture route ${route}`);
     return helper[method](body, access);
   };

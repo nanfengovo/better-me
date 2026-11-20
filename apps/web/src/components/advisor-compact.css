@@ -29,3 +29,17 @@
 @media(max-width:900px){.advisor-navigation-compact{padding:0 14px}.advisor-navigation-compact .advisor-tasks button{padding:0 9px}.advisor-navigation-compact .advisor-tasks strong{font-size:11px}.advisor-panes{padding:12px!important}}
 @media(max-width:719px){.advisor-navigation-compact{padding:0 12px}.advisor-nav-shell{min-height:48px}.advisor-navigation-compact .advisor-tasks button{min-width:90px}.advisor-navigation-compact .advisor-context{min-height:36px}.advisor-navigation-compact .advisor-target{max-width:48vw}.advisor-panes{padding:10px!important}.advisor-import-guide{min-height:210px;padding:24px}}
 @media(max-height:650px){.advisor-navigation-compact{padding-top:0}.advisor-navigation-compact .advisor-context{margin-top:0;padding:0 2px}.advisor-nav-shell{min-height:46px}.advisor-panes{padding:10px!important}}
+
+.advisor-task-picker { display: none; }
+.advisor-job-options > summary { cursor: pointer; color: var(--ui-text-secondary); font-size: .8rem; padding: .5rem 0; }
+.advisor-job-options[open] > div { margin-top: .75rem; }
+.requirement-evidence { color: var(--ui-text); background: var(--ui-surface); max-height: 55vh; overflow: auto; }
+.requirement-evidence select { margin-top: .25rem; max-width: 100%; padding: .4rem; color: var(--ui-text); background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: .375rem; }
+.requirement-evidence blockquote { overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 719px) {
+  .advisor-navigation-compact .advisor-tasks { display: none; }
+  .advisor-task-picker { display: block; min-height: 44px; flex: 1; color: var(--ui-text); background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 6px; padding: 0 .75rem; }
+  .advisor-job-panel .advisor-setup-footer { flex-wrap: wrap; gap: .25rem; }
+  .advisor-job-panel .advisor-setup-footer > div:first-child { display: none; }
+  .advisor-job-panel .advisor-setup-footer button { min-height: 44px; }
+}

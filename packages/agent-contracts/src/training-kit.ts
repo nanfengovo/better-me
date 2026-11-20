@@ -3,11 +3,12 @@ import { TrainingCareerContextSchema, TrainingCareerRefSchema } from "./career-t
 
 import { StudioDesign, StudioEvidence } from "./training-studio.js";
 export * from "./training-studio.js";
-import { TrainingAction, TrainingRetestAids, TrainingTransferDecision, TrainingTransferRef, TrainingTransferSource } from "./training-transfer.js";
+import { TrainingAction, TrainingRetestAids, TrainingRetestChange, TrainingTransferDecision, TrainingTransferRef, TrainingTransferSource } from "./training-transfer.js";
 export * from "./training-transfer.js";
 
 const prose = (max: number) => z.string().trim().min(1).max(max);
 const id = z.string().uuid();
+const interviewRef = z.string().regex(/^[a-f0-9]{64}$/).optional();
 export const TrainingExampleKind = z.enum(["rewrite", "dependency", "canvas", "concurrency"]);
 export type TrainingExampleKind = z.infer<typeof TrainingExampleKind>;
 export const TrainingKind = z.enum([...TrainingExampleKind.options, "studio"]);
@@ -52,6 +53,7 @@ export const TrainingStart = z
     goal: prose(600),
     evidence: z.string().trim().max(800).default(""),
     careerTarget: TrainingCareerRefSchema.optional(),
+    interviewRef,
     followFrom: TrainingFollowRef.optional(),
     transferFrom: TrainingTransferRef.optional(),
     consent: z.literal(true),
@@ -73,6 +75,7 @@ export const TrainingPlan = z
     goal: prose(600),
     evidence: z.string().trim().max(800),
     career: TrainingCareerContextSchema.optional(),
+    interviewRef,
     followFrom: TrainingFollowSource.optional(),
     transferFrom: TrainingTransferSource.optional(),
     advice: TrainingAdvice,
@@ -276,9 +279,15 @@ export const TrainingScreen = z.object({
   instruction: prose(300),
   brief: prose(400),
   notes: z.array(prose(1050)).max(12),
+  writingDecision: z.object({ condition: prose(1050), criterion: prose(300) }).strict().optional(),
   fields: z.array(field).min(1).max(4),
 }).strict();
 export type TrainingScreen = z.infer<typeof TrainingScreen>;
+export function trainingWritingMaterial(screen: TrainingScreen) {
+  // A pure writing task can include its decision condition and assessment question.
+  const decision = screen.writingDecision;
+  return [screen.brief, ...screen.notes.slice(0, 1), ...(decision ? [decision.condition, decision.criterion] : [])];
+}
 const rawWriting = z.string().min(1).max(400).refine(value => value.trim().length > 0);
 export type TrainingWritingInput = { goal: string; material: string[]; question: string; answer: string };
 export const TrainingWritingFeedback = z.object({
@@ -306,6 +315,7 @@ export const TrainingAttempt = z
     questionVersion: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     question: TrainingScreen.optional(),
     aids: TrainingRetestAids.optional(),
+    retestChange: TrainingRetestChange.optional(),
     writingReviews: z.array(TrainingWritingReview).max(4).optional(),
   })
   .strict();
@@ -317,6 +327,7 @@ export const TrainingView = z
     title: prose(80),
     goal: prose(600),
     career: TrainingCareerContextSchema.optional(),
+    interviewRef,
     followFrom: TrainingFollowSource.optional(),
     transferFrom: TrainingTransferSource.optional(),
     focus: prose(500),
@@ -350,6 +361,7 @@ export const TrainingSummary = TrainingView.pick({
   origin: true,
   stage: true,
   career: true,
+  interviewRef: true,
 });
 export type TrainingSummary = z.infer<typeof TrainingSummary>;
 export const TrainingBuild = z

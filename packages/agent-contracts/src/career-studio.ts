@@ -60,3 +60,4 @@ export const StudioArchitecturePublicationPreviewSchema = z.object({ contextId: 
 }).strict();
 export const StudioArchitecturePublicationConfirmSchema = z.object({ contextId: StudioIdSchema, previewId: StudioIdSchema,
   expectedPreviewHash: StudioHashSchema, confirmed: z.literal(true), consent: z.literal(true), idempotencyKey: StudioIdSchema }).strict();
+export * from "./interview-follow-up.js";
