@@ -55,6 +55,8 @@ export type AtlasPrototypeProps = {
   }) => void;
   /** Restore the camera when the GPU instance is rebuilt; this is not a live fly-to command. */
   initialView?: AtlasCamera;
+  /** A renderer switch within the same query retains the already-framed camera. */
+  restoreInitialView?: boolean;
   onViewChange?: (view: AtlasCamera & { bounds: [west: number, south: number, east: number, north: number] }) => void;
   onPick?: (bucket: MapBucket) => void;
   /** Called after a real map interaction selects an address, so the host can open its first matching job. */

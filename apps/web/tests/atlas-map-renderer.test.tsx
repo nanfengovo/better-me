@@ -100,6 +100,23 @@ const { MapLibrePrototype } = await import("../src/components/atlas/prototypes/M
 const { createElement: h, act } = React;
 after(() => { hooks.deregister(); globalThis.fetch = realFetch; dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
+test("a camera restored from Cesium keeps its frame until the map query changes", async () => {
+  const host=dom.document.createElement("div"); dom.document.body.append(host);
+  const root=createRoot(host as unknown as HTMLElement);
+  const saved={center:[121.34,31.12] as [number,number],zoom:16,pitch:42,bearing:12};
+  const props:AtlasPrototypeProps={mode:"domestic",buckets:[],basemap:null,
+    bounds:[120,30,122,32],framingKey:"same-search",initialView:saved,restoreInitialView:true,visual:{viewMode:"spatial"}};
+  try {
+    await act(async()=>{root.render(h(MapLibrePrototype,props));for(let i=0;i<4;i++)await nextTurn();});
+    const map=instances.at(-1)!;
+    await act(async()=>map.emit("load"));
+    assert.equal(map.fits,0);
+    assert.ok(map.jumps.some(value=>typeof value==="object"&&value!==null&&"center" in value&&JSON.stringify(value.center)===JSON.stringify(saved.center)));
+    await act(async()=>root.render(h(MapLibrePrototype,{...props,framingKey:"new-search",bounds:[112,22,114,24]})));
+    assert.equal(map.fits,1);
+  } finally { await act(async()=>root.unmount());host.remove(); }
+});
+
 test("window resizing is frame-coalesced, skips hidden geometry and cancels on unmount", async () => {
   const host = dom.document.createElement("div"); dom.document.body.append(host);
   const root = createRoot(host as unknown as HTMLElement);

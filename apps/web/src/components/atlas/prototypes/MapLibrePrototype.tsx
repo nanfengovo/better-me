@@ -1518,6 +1518,8 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   useEffect(() => {
     const element = host.current; if (!element) return;
     const openingFocus = latest.current.focus;
+    const openingFramingKey = latest.current.framingKey;
+    const restoreOpeningView = latest.current.restoreInitialView;
     const provider = basemapKey === "null" ? null : parseAtlasBasemap(JSON.parse(basemapKey));
     let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0; let resizeFrame = 0;
     let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false, userMoved = false; let cancelHover = () => {};
@@ -1980,6 +1982,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         }
       });
       const viewChanged = () => {
+        if (!mapLoadedRef.current) return;
         updateFocusLabelPlacement();
         building3dRef.current?.scheduleSync();
         if (scrubbingRef.current) return;
@@ -2036,7 +2039,8 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           ownedMap.stop();
           ownedMap.jumpTo({ center, zoom, pitch: 0, bearing: 0 });
         };
-        let framedSearch: string | undefined;
+        const keepInitialFrame = Boolean(savedView && restoreOpeningView && latest.current.framingKey === openingFramingKey);
+        let framedSearch: string | undefined = keepInitialFrame ? openingFramingKey : undefined;
         const fit = (bounds = latest.current.bounds) => {
           const search = latest.current.framingKey;
           if (search !== undefined && framedSearch === search) return;
@@ -2151,6 +2155,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         handle.current = { fit, update, focus, dispose: () => { building3dRef.current?.dispose(); building3dRef.current = null; focusMarker?.remove(); userLocationMarkerRef.current?.remove(); userLocationMarkerRef.current = null; ownedMap.getCanvas().removeEventListener("webglcontextlost", lost); ownedMap.getCanvas().removeEventListener("webglcontextrestored", restored); } };
         update(latest.current);
         if (latest.current.focus && latest.current.focus !== openingFocus) focus(latest.current.focus);
+        else if (keepInitialFrame && savedView) ownedMap.jumpTo({ ...savedView, ...(flatView() ? { pitch: 0, bearing: 0 } : {}) });
         else if (latest.current.bounds) fit();
         else if (savedView) ownedMap.jumpTo({ ...savedView, ...(flatView() ? { pitch: 0, bearing: 0 } : {}) });
         else if (latest.current.focus) focus(latest.current.focus);

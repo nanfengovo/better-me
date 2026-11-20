@@ -10,13 +10,13 @@ const instances: Array<{props:any;callbacks:any;updates:number;disposed:number;s
 const factory=(element:HTMLElement,props:any,callbacks:any)=>{
   const entry={props,callbacks,updates:0,disposed:0,sources:[] as any[],qualities:[] as string[]};instances.push(entry);
   callbacks.status({phase:"ready",rootRequests:0});
-  return {update(){entry.updates++;},source(source:any){entry.sources.push(source);},quality(quality:string){entry.qualities.push(quality);},navigate(){},dispose(){entry.disposed++;callbacks.camera({position:{x:1,y:2,z:3},heading:1,pitch:-1,roll:0});}};
+  return {update(next:any){entry.updates++;entry.props=next;},source(source:any){entry.sources.push(source);},surface(value:string){callbacks.surfaceStatus(value);},quality(quality:string){entry.qualities.push(quality);},navigate(){},dispose(){entry.disposed++;callbacks.camera({position:{x:1,y:2,z:3},heading:1,pitch:-1,roll:0});}};
 };
 const globals={window:dom,document:dom.document,navigator:dom.navigator,HTMLElement:dom.HTMLElement,Element:dom.Element,Node:dom.Node,IS_REACT_ACT_ENVIRONMENT:true,__atlasCesiumFactory:factory};
 const descriptors=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
 for(const [key,value]of Object.entries(globals))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
 const hooks=registerHooks({resolve(specifier,context,next){
-  if(specifier.endsWith("/MapLibrePrototype"))return{url:"data:text/javascript,export default function Work(){return globalThis.React.createElement('div',{'data-test-work-map':''});}",shortCircuit:true};
+  if(specifier.endsWith("/MapLibrePrototype"))return{url:"data:text/javascript,export default function Work(props){globalThis.__atlasWorkMapProps=props;return globalThis.React.createElement('div',{'data-test-work-map':''});}",shortCircuit:true};
   if(specifier.endsWith("/cesium-runtime"))return{url:"data:text/javascript,export const createCesiumAtlas=globalThis.__atlasCesiumFactory;",shortCircuit:true};
   return next(specifier,context);
 },load(url,context,next){if(url.endsWith(".css"))return{source:"export {};",format:"module",shortCircuit:true};return next(url,context);}});
@@ -52,8 +52,22 @@ test("real viewport/React effects gate paid data, survive progress/reset, restor
     await flush(()=>button("数据与画质").click());
     await flush(()=>{const select=host.querySelector<HTMLSelectElement>("select")!;select.value="economy";select.dispatchEvent(new dom.Event("change",{bubbles:true}));});
     assert.equal(instances.length,1);assert.equal(instances[0]!.qualities.at(-1),"economy");
+    const prior={center:[121,31] as [number,number],zoom:16,pitch:25,bearing:0};
+    // An identical WorkMap startup view must not discard a native camera.
+    instances[0]!.props.onViewChange(prior);
     await flush(()=>button("关闭").click());await flush(()=>button("工作地图").click());assert.equal(instances[0]!.disposed,1);
+    (globalThis as any).__atlasWorkMapProps.onViewChange({...prior,bearing:360,bounds:[120,30,122,32]});
     await flush(()=>button("实景 3D").click());assert.equal(instances.length,2);assert.deepEqual(instances[1]!.callbacks.initialCamera.position,{x:1,y:2,z:3});
+    await flush(()=>button("工作地图").click());
+    const moved={center:[114,22],zoom:10,pitch:34,bearing:20,bounds:[112,20,115,24]};
+    (globalThis as any).__atlasWorkMapProps.onViewChange(moved);
+    await flush(()=>button("三维地球").click());assert.equal(instances.length,3);
+    assert.equal(instances[2]!.callbacks.initialCamera, undefined,"a later work-map move supersedes the older native Cesium camera");
+    assert.deepEqual(instances[2]!.props.initialView,moved);
+    await flush(()=>button("三维地球").click());assert.equal(instances.length,3);
+    assert.equal(host.querySelector(".atlas-scene-status"),null,"pressing the active globe mode cannot leave an endless loading state");
+    await flush(()=>button("实景 3D").click());assert.equal(instances.length,3,"switching globe and previously authorized tiles uses the same viewer");
+    assert.equal(instances[2]!.sources.at(-1).apiKey,"synthetic-memory-canary");
     await flush(()=>button("数据与画质").click());await flush(()=>button("清除本页凭据并返回工作地图").click());
     assert.equal(host.querySelector<HTMLInputElement>('input[type="password"]')!.value,"");
     assert.equal(dom.localStorage.length,0);assert.equal(dom.sessionStorage.length,0,"keys and source config never persist to web storage");

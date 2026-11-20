@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
-import { createSceneReconciler, sceneMarkers } from "../src/components/atlas/map3d/scene-model";
+import { createSceneReconciler, sceneDetailForZoom, sceneMarkers } from "../src/components/atlas/map3d/scene-model";
 import { describeSceneFailure, heightToZoom, SCENE_QUALITY, validateSceneSource, zoomToHeight } from "../src/components/atlas/map3d/config";
 import { boundaryRings } from "../src/components/atlas/map3d/boundary-lines";
 
@@ -46,6 +46,26 @@ test("3D grouping preserves exact WGS84 coordinates, excludes city references, k
   assert.equal(marker.jobCount, 2); assert.equal(marker.longitude, 120); assert.equal(marker.latitude, 31);
   assert.deepEqual(input, before, "presentation must not modify jobs or source coordinates");
 });
+test("coarse scene markers group nearby coordinates, deduplicate jobs and use a member position", () => {
+  const input = [
+    bucket(0, {longitude:121.10, latitude:31.10, jobIds:["shared","first"],jobCount:2}),
+    bucket(1, {longitude:121.11, latitude:31.11, jobIds:["shared","second"],jobCount:2}),
+    bucket(2, {longitude:121.11, latitude:31.11, jobIds:["third"]}),
+    bucket(3, {longitude:121.12, latitude:31.12,displayGrade:"city",positionBasis:"city-reference",estimated:true,precision:"city"}),
+    bucket(4, {longitude:2,latitude:48}),
+  ];
+  const grouped=sceneMarkers(input,3);
+  assert.equal(grouped.size,2);
+  const cluster=[...grouped.values()].find(marker=>marker.coordinateCount===2)!;
+  assert.equal(cluster.jobCount,4);
+  assert.deepEqual(cluster.bucketIds,input.slice(0,3).map(item=>item.id));
+  assert.ok(input.slice(0,3).some(item=>item.longitude===cluster.longitude && item.latitude===cluster.latitude));
+  assert.equal(sceneMarkers(input,"exact").size,3);
+  assert.equal(sceneDetailForZoom(14.9,14),14);
+  assert.equal(sceneDetailForZoom(15.21,14),"exact");
+  assert.equal(sceneDetailForZoom(14.95,"exact"),"exact");
+  assert.equal(sceneDetailForZoom(14.7,"exact"),14);
+});
 test("quality profiles are bounded and native camera conversion is explicit rather than using zoom as metres", () => {
   assert.ok(SCENE_QUALITY.economy.cacheBytes < SCENE_QUALITY.balanced.cacheBytes);
   assert.ok(SCENE_QUALITY.sharp.cacheBytes + SCENE_QUALITY.sharp.maximumCacheOverflowBytes <= 384 * 1024 ** 2);
@@ -66,4 +86,25 @@ for (const size of [5000, 15000]) test(`3D incremental reconciliation: ${size} s
   sync(next.slice(1)); assert.equal(removes, 1);
   t.diagnostic(JSON.stringify({ jobs: size, markers: first.size, initialMs, unchanged120Ms: unchangedMs, oneChangedGroupMs: updateMs, changedGroupUploads: 1 }));
   assert.ok(initialMs < 2000 && updateMs < 2000, "generous CPU correctness guard, not a browser FPS claim");
+});
+
+test("city-scale aggregation drops GPU uploads and preserves every source bucket when refining", t => {
+  const input=Array.from({length:15_000},(_,i)=>bucket(i,{
+    longitude:121.25+(i%150)/600,
+    latitude:31.08+Math.floor(i/150)/600,
+  }));
+  let uploads=0, renders=0, removed=0;
+  const sync=createSceneReconciler({upsert(){uploads++;},remove(){removed++;},select(){},render(){renders++;}});
+  const start=performance.now();
+  const groups=sync(input,undefined,9);
+  const coarseMs=performance.now()-start;
+  assert.equal([...groups.values()].flatMap(marker=>marker.bucketIds).length,input.length);
+  assert.ok(groups.size<100);
+  assert.equal(uploads,groups.size);
+  for(let i=0;i<100;i++) assert.equal(sync(input,undefined,9),groups);
+  assert.equal(renders,1);
+  const exact=sync(input,undefined,"exact");
+  assert.equal(exact.size,input.length);
+  assert.ok(removed>0);
+  t.diagnostic(JSON.stringify({exact:exact.size,coarse:groups.size,coarseMs}));
 });

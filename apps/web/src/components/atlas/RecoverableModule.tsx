@@ -2,9 +2,12 @@ import { Component, lazy, Suspense, useState, type ComponentType, type ReactNode
 import "./module-recovery.css";
 import { useUiPreferences, type UiTranslator } from "../../lib/ui-preferences";
 
-class ModuleBoundary extends Component<{ children: ReactNode; label: string; retry: () => void; onExit?: () => void; t: UiTranslator }, { failed: boolean }> {
+class ModuleBoundary extends Component<{ children: ReactNode; label: string; retry: () => void; onExit?: () => void; t: UiTranslator; resetRevision?: number }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidUpdate(previous: Readonly<typeof this.props>) {
+    if (this.state.failed && previous.resetRevision !== this.props.resetRevision) this.props.retry();
+  }
   render() {
     if (!this.state.failed) return this.props.children;
     const { t, label } = this.props;
@@ -16,8 +19,8 @@ class ModuleBoundary extends Component<{ children: ReactNode; label: string; ret
   }
 }
 
-export function RecoverableModule<P extends object>({ load, componentProps, label, onExit }: {
-  load: () => Promise<{ default: ComponentType<P> }>; componentProps: P; label: string; onExit?: () => void; loadingHint?: string;
+export function RecoverableModule<P extends object>({ load, componentProps, label, onExit, resetRevision }: {
+  load: () => Promise<{ default: ComponentType<P> }>; componentProps: P; label: string; onExit?: () => void; loadingHint?: string; resetRevision?: number;
 }) {
   const { t } = useUiPreferences();
   const [Loaded, setLoaded] = useState(() => lazy(load));
@@ -27,7 +30,7 @@ export function RecoverableModule<P extends object>({ load, componentProps, labe
     setLoaded(() => lazy(load));
     setAttempt(value => value + 1);
   }
-  return <ModuleBoundary key={attempt} label={label} retry={retry} onExit={onExit} t={t}>
+  return <ModuleBoundary key={attempt} label={label} retry={retry} onExit={onExit} t={t} resetRevision={resetRevision}>
     <Suspense fallback={null}>
       <Loaded {...componentProps} />
     </Suspense>

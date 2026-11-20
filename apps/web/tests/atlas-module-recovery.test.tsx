@@ -64,7 +64,7 @@ function hasAtlasNavigationEffect(text: string) {
   return found;
 }
 
-test("every page navigation initializes atlas, and reset remounts the failed renderer", () => {
+test("every page navigation initializes atlas and passes camera reset through to module recovery", () => {
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   assert.match(app, /const \{ page, setPage,[^\n]*\} = useWorkspaceNavigation\(\)/);
   // Inspect the wiring, not one-line formatting or an effect dedicated only to Atlas.
@@ -74,5 +74,37 @@ test("every page navigation initializes atlas, and reset remounts the failed ren
   assert.equal(hasAtlasNavigationEffect('useEffect(() => { if (page === "atlas") setOtherInitialized(true); }, [page]);'), false);
   assert.match(app, /onOpenAtlas=\{\(\) => setPage\("atlas"\)\}/);
   const workspace = readFileSync(new URL("../src/components/AtlasWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /<AtlasMap key=\{mapKey\} resetRevision=\{mapKey\}/);
+  assert.match(workspace, /<AtlasMap resetRevision=\{mapKey\}/);
+  assert.match(workspace, /<RecoverableModule [^>]*resetRevision=\{props.resetRevision\}/);
+});
+
+
+test("camera reset retries a failed lazy module and preserves a healthy module", async () => {
+  const host = dom.document.createElement("div");
+  dom.document.body.append(host);
+  const root = createRoot(host as unknown as HTMLElement, { onCaughtError() {} });
+  let calls = 0;
+  const load = async () => {
+    if (++calls === 1) throw new Error("synthetic unavailable chunk");
+    return { default: () => React.createElement("input", { defaultValue: "当前地图配置" }) };
+  };
+  const render = async (resetRevision: number) => {
+    await React.act(async () => {
+      root.render(React.createElement(RecoverableModule, { load, componentProps: {}, label: "岗位地图", resetRevision }));
+      for (let i = 0; i < 8; i++) await nextTurn();
+    });
+  };
+  try {
+    await render(0);
+    assert.match(host.textContent!, /暂时无法打开/);
+    await render(1);
+    assert.equal(calls, 2);
+    const input = host.querySelector("input")!;
+    assert.ok(input);
+    input.value = "用户当前输入";
+    await render(2);
+    assert.equal(calls, 2);
+    assert.equal(host.querySelector("input"), input);
+    assert.equal(input.value, "用户当前输入");
+  } finally { await React.act(async () => root.unmount()); host.remove(); }
 });

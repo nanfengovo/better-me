@@ -1,5 +1,7 @@
 export type SceneSource = { kind: "globe" } | { kind: "google"; apiKey: string } | { kind: "tileset"; url: string; attribution: string };
 export type SceneQuality = "economy" | "balanced" | "sharp";
+export type SceneSurface = "local" | "streets";
+export type SceneSurfaceStatus = "local" | "streets" | "unavailable";
 export const SCENE_QUALITY = {
   economy: { label: "流畅", maxDpr: 1, maximumScreenSpaceError: 32, cacheBytes: 64 * 1024 ** 2, maximumCacheOverflowBytes: 32 * 1024 ** 2 },
   balanced: { label: "均衡", maxDpr: 1.5, maximumScreenSpaceError: 16, cacheBytes: 128 * 1024 ** 2, maximumCacheOverflowBytes: 64 * 1024 ** 2 },
