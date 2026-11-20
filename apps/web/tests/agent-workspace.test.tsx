@@ -48,6 +48,8 @@ for (const [key, value] of Object.entries(globals)) {
 // Mock fetch for agent host health check and API calls
 let nextChatReply: (() => unknown) | undefined;
 let matchingRequestCount = 0;
+let bridgeReads = 0;
+let pendingBridgeJob: { title: string; company: string; description: string; syncedAt: number } | null = null;
 let holdChatRequest: ((init: RequestInit | undefined) => Promise<Response>) | undefined;
 let chatRequestBodies: Array<{
   messages?: Array<{ role: string; content: string }>;
@@ -55,6 +57,10 @@ let chatRequestBodies: Array<{
 }> = [];
 globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input);
+  if (url === "/api/jd/sync-extension") {
+    bridgeReads++;
+    return Response.json({ latest: pendingBridgeJob });
+  }
   if (url.includes("/start")) {
     matchingRequestCount++;
     return new Response(
@@ -125,7 +131,8 @@ const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
 const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
 const { AgentWorkspace } = await import("../src/components/AgentWorkspace.tsx");
-const { initialAdvisorRecovery } = await import("../src/lib/advisor-recovery.ts");
+const { defaultJdMatchTaskClient } = await import("../src/services/jd-match-task-client.ts");
+const { advisorMatchKey, emptyAdvisorMatch, initialAdvisorRecovery } = await import("../src/lib/advisor-recovery.ts");
 
 let root: ReturnType<typeof createRoot> | undefined;
 
@@ -299,6 +306,246 @@ test("switching resume workspaces cannot copy chat drafts into the other resume"
   assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "甲简历的问题");
 });
 
+function renderAdvisor(props: React.ComponentProps<typeof AgentWorkspace>) {
+  root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(AgentWorkspace, props)));
+}
+
+function clickAdvisorButton(text: string) {
+  const button = [...dom.document.querySelectorAll("button")].find(button =>
+    button.getAttribute("aria-label") === text || button.textContent?.trim() === text);
+  assert.ok(button, `Missing advisor button: ${text}`);
+  button.click();
+}
+
+function changeJobField(placeholder: RegExp, value: string) {
+  const field = [...dom.document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input,textarea")]
+    .find(field => placeholder.test(field.placeholder))!;
+  assert.ok(field, `Missing advisor input: ${placeholder}`);
+  const prototype = field instanceof dom.HTMLTextAreaElement ? dom.HTMLTextAreaElement.prototype : dom.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(field, value);
+  field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+}
+
+function recoveredAdvisor(workspaceKey: string) {
+  return JSON.parse(dom.localStorage.getItem(`betterme.recovery.v1:advisor:${workspaceKey}`)!).value;
+}
+
+test("late and completed analyses stay with their JD and resume inputs after switching and reopening", async (t) => {
+  const jobA = { id: "a", title: "合成岗位甲", company: "合成甲", description: "负责验证甲库存流程。" };
+  const jobB = { id: "b", title: "合成岗位乙", company: "合成乙", description: "负责验证乙库存流程。" };
+  let finishA!: () => void;
+  const holdA = new Promise<void>(resolve => { finishA = resolve; });
+  const calls: string[] = [];
+  t.mock.method(defaultJdMatchTaskClient, "match", async (params: Parameters<typeof defaultJdMatchTaskClient.match>[0]) => {
+    const jd = params.matching.rawJd;
+    calls.push(jd);
+    if (jd === jobA.description) await holdA;
+    return { id: `fixture-${jd}`, status: "awaiting_review", result: { proposals: [
+      { id: jd, jdItem: jd, evidenceType: "gap", suggestion: `建议范围 ${jd}`, rationale: `依据范围 ${jd}` },
+    ] } };
+  });
+  const props = { workspaceKey: "jd-switch-regression", job: jobA, resume: dummyResume, llmConfig: dummyLlmConfig,
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() {} };
+  await mount(h(AgentWorkspace, props));
+  await flush(() => clickAdvisorButton("授权当前简历并分析"));
+  assert.deepEqual(calls, [jobA.description]);
+  await flush(() => renderAdvisor({ ...props, job: jobB }));
+  await flush(() => clickAdvisorButton("授权当前简历并分析"));
+  assert.match(dom.document.body.textContent ?? "", /依据范围 负责验证乙库存流程/);
+  await flush(() => finishA());
+  assert.doesNotMatch(dom.document.body.textContent ?? "", /依据范围 负责验证甲库存流程/);
+  await flush(() => renderAdvisor(props));
+  assert.match(dom.document.body.textContent ?? "", /依据范围 负责验证甲库存流程/);
+  assert.doesNotMatch(dom.document.body.textContent ?? "", /依据范围 负责验证乙库存流程/);
+  await mount(h(AgentWorkspace, { ...props, job: jobB }));
+  assert.match(dom.document.body.textContent ?? "", /依据范围 负责验证乙库存流程/);
+  await flush(() => renderAdvisor({ ...props, job: jobB, resume: { ...dummyResume, templateId: "format-only" } }));
+  assert.match(dom.document.body.textContent ?? "", /依据范围 负责验证乙库存流程/);
+  await flush(() => renderAdvisor({ ...props, job: jobB, resume: { ...dummyResume, skills: ["SQL"] } }));
+  assert.doesNotMatch(dom.document.body.textContent ?? "", /依据范围 负责验证乙库存流程/);
+  assert.deepEqual(calls, [jobA.description, jobB.description], "switching and restoring never dispatch");
+});
+
+test("a completed review cannot apply a proposal after switching jobs", async (t) => {
+  const jobA = { id: "reviewed-a", title: "合成岗位甲", company: "合成甲", description: "核对甲合成业务。" };
+  const jobB = { id: "reviewed-b", title: "合成岗位乙", company: "合成乙", description: "核对乙合成业务。" };
+  const proposals: MatchProposal[] = [{ id: "reviewed-proposal", jdItem: jobA.description, evidenceType: "claimed",
+    suggestion: "甲的已选择措辞", rationale: "合成夹具" }];
+  let resolveReview!: () => void;
+  const gate = new Promise<void>(resolve => { resolveReview = resolve; });
+  const review = t.mock.method(defaultJdMatchTaskClient, "review", async () => {
+    await gate;
+    return { result: { proposals } };
+  });
+  let applyCount = 0;
+  const props = { workspaceKey: "advisor-stale-review", job: jobA, resume: dummyResume, llmConfig: dummyLlmConfig,
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { applyCount++; } };
+  const journal = initialAdvisorRecovery(jobA);
+  journal.matches[advisorMatchKey(jobA, dummyResume)!] = {
+    ...emptyAdvisorMatch, threadId: `ct_${"a".repeat(32)}`, proposals, decisions: { "reviewed-proposal": { status: "accepted" } },
+  };
+  dom.localStorage.setItem(`betterme.recovery.v1:advisor:${props.workspaceKey}`, JSON.stringify({ version: 1, value: journal }));
+  await mount(h(AgentWorkspace, props));
+  await flush(() => {
+    const apply = [...dom.document.querySelectorAll("button")].find(button => button.textContent?.includes("应用已采纳"));
+    assert.ok(apply && !apply.disabled);
+    apply.click();
+  });
+  assert.equal(review.mock.callCount(), 1);
+  await flush(() => renderAdvisor({ ...props, job: jobB }));
+  await flush(() => resolveReview());
+  assert.equal(applyCount, 0);
+  await flush(() => renderAdvisor(props));
+  assert.match(dom.document.body.textContent ?? "", /甲的已选择措辞/);
+  assert.equal(applyCount, 0);
+});
+
+test("changing target jobs archives unfinished forms and preserves earlier reviews without applying unbound legacy proposals", async () => {
+  const jobA = { id: "draft-a", title: "原始岗位甲", company: "甲", description: "甲的岗位描述" };
+  const jobB = { id: "draft-b", title: "原始岗位乙", company: "乙", description: "乙的岗位描述" };
+  const props = { workspaceKey: "advisor-job-drafts", job: jobA, resume: dummyResume, llmConfig: dummyLlmConfig,
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { assert.fail("unbound proposal must never be applied"); } };
+  const legacy = initialAdvisorRecovery(jobA);
+  legacy.threadId = "legacy-no-scope";
+  legacy.proposals = [{ id: "old-a", jdItem: "甲", evidenceType: "claimed", suggestion: "旧的未绑定建议", rationale: "未绑定" }];
+  dom.localStorage.setItem(`betterme.recovery.v1:advisor:${props.workspaceKey}`, JSON.stringify({ version: 1, value: legacy }));
+  await mount(h(AgentWorkspace, props));
+  assert.doesNotMatch(dom.document.body.textContent ?? "", /旧的未绑定建议/);
+  await flush(() => clickAdvisorButton("编辑岗位"));
+  await flush(() => changeJobField(/例如：资深前端工程师/, "甲的未提交标题"));
+  await flush(() => renderAdvisor({ ...props, job: jobB }));
+  assert.equal(recoveredAdvisor(props.workspaceKey).inputTitle, jobB.title);
+  assert.equal(recoveredAdvisor(props.workspaceKey).jobDrafts[Object.keys(recoveredAdvisor(props.workspaceKey).jobDrafts)[0]].inputTitle, "甲的未提交标题");
+  await flush(() => renderAdvisor(props));
+  assert.equal(recoveredAdvisor(props.workspaceKey).inputTitle, "甲的未提交标题");
+  assert.equal(recoveredAdvisor(props.workspaceKey).isEditingJob, true);
+  assert.equal(recoveredAdvisor(props.workspaceKey).proposals[0].id, "old-a");
+});
+
+test("advisor chat keeps sent and unsent material with its originating job", async () => {
+  const jobA = { id: "chat-a", title: "客服工程师甲", company: "甲", description: "支持甲项目。" };
+  const jobB = { id: "chat-b", title: "客服工程师乙", company: "乙", description: "支持乙项目。" };
+  const props = { sendChat: widgetChat, workspaceKey: "advisor-job-conversation", job: jobA, resume: dummyResume,
+    llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() {} };
+  let resolveFirst!: (value: Response) => void;
+  const held = new Promise<Response>(resolve => { resolveFirst = resolve; });
+  holdChatRequest = () => held;
+  chatRequestBodies = [];
+  const typeChat = (message: string) => {
+    const field = dom.document.querySelector(".agent-chat-textarea")!;
+    assert.ok(field);
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, message);
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+  };
+  try {
+    await mount(h(AgentWorkspace, props));
+    await flush(() => typeChat("甲的已送出问题"));
+    await flush(() => clickAdvisorButton("发送"));
+    await flush(() => typeChat("甲的下一条草稿"));
+    await flush(() => clickAdvisorButton("自动朗读新回复"));
+    assert.equal(dom.document.querySelector('[data-testid="agent-auto-speech-toggle"]')?.getAttribute("aria-pressed"), "true");
+    await flush(() => renderAdvisor({ ...props, job: jobB }));
+    assert.equal(dom.document.querySelector('[data-testid="agent-auto-speech-toggle"]')?.getAttribute("aria-pressed"), "false");
+    assert.doesNotMatch(dom.document.body.textContent ?? "", /甲的已送出问题/);
+    assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "");
+    await flush(() => resolveFirst(Response.json({ reply: { id: "a-only-reply", role: "assistant", content: "甲的迟到回复" } })));
+    assert.doesNotMatch(dom.document.body.textContent ?? "", /甲的迟到回复/);
+    holdChatRequest = undefined;
+    await flush(() => typeChat("乙的已送出问题"));
+    await flush(() => clickAdvisorButton("发送"));
+    assert.deepEqual(chatRequestBodies.at(-1)?.messages?.map(item => item.content), ["乙的已送出问题"]);
+    await flush(() => renderAdvisor(props));
+    assert.match(dom.document.body.textContent ?? "", /甲的已送出问题/);
+    assert.match(dom.document.body.textContent ?? "", /上次对话请求已中断/);
+    assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "甲的下一条草稿");
+  } finally {
+    holdChatRequest = undefined;
+    chatRequestBodies = [];
+  }
+});
+
+test("browser intake waits for explicit use, keeps drafts recoverable and stops reads while inactive", async () => {
+  const props = { workspaceKey: "bridge-draft-regression", job: null, resume: dummyResume, llmConfig: dummyLlmConfig,
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() {} };
+  pendingBridgeJob = null;
+  await mount(h(AgentWorkspace, props));
+  await flush(() => {
+    changeJobField(/例如：资深前端工程师/, "尚未提交的岗位");
+    changeJobField(/例如：35k/, "原薪资");
+    changeJobField(/例如：上海/, "原地点");
+  });
+  const beforePause = bridgeReads;
+  await flush(() => renderAdvisor({ ...props, active: false }));
+  pendingBridgeJob = { title: "浏览器合成岗位", company: "合成企业", description: "来自浏览器的合成说明", syncedAt: Date.now() + 100 };
+  try {
+    await flush(() => dom.dispatchEvent(new dom.Event("focus")));
+    assert.equal(bridgeReads, beforePause);
+    await flush(() => renderAdvisor(props));
+    assert.equal(bridgeReads, beforePause + 1, "reactivating checks for jobs that arrived while hidden");
+    const state = () => recoveredAdvisor(props.workspaceKey);
+    assert.equal(state().inputTitle, "尚未提交的岗位");
+    assert.equal(state().inputSalary, "原薪资");
+    assert.equal(state().inputLocation, "原地点");
+    await flush(() => clickAdvisorButton("导入岗位"));
+    assert.equal(state().inputTitle, "浏览器合成岗位");
+    assert.equal(state().inputSalary, "");
+    assert.equal(state().inputLocation, "");
+    await mount(h(AgentWorkspace, props));
+    await flush(() => clickAdvisorButton("恢复导入前草稿"));
+    assert.equal(state().inputTitle, "尚未提交的岗位");
+    assert.equal(state().inputSalary, "原薪资");
+    assert.equal(state().inputLocation, "原地点");
+    await flush(() => renderAdvisor({ ...props, job: { id: "picked-job", title: "从列表选的岗位", company: "甲", description: "合成说明" } }));
+    assert.equal(state().inputTitle, "从列表选的岗位");
+    await flush(() => clickAdvisorButton("恢复未关联草稿"));
+    assert.equal(state().currentJob, null);
+    assert.equal(state().inputTitle, "尚未提交的岗位");
+  } finally {
+    pendingBridgeJob = null;
+  }
+});
+
+test("analyzing an imported job keeps the displaced draft recoverable without rebinding the result", async (t) => {
+  const props = { workspaceKey: "bridge-submit-recovery", job: null, resume: dummyResume, llmConfig: dummyLlmConfig,
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() {} };
+  const imported = { title: "浏览器岗位乙", company: "合成乙", description: "乙的岗位要求" };
+  const draft = { inputTitle: "手写岗位甲", inputSalary: "甲薪资", inputLocation: "甲地点", inputDescription: "甲的完整草稿" };
+  const match = t.mock.method(defaultJdMatchTaskClient, "match", async (params: Parameters<typeof defaultJdMatchTaskClient.match>[0]) => ({
+    id: "bridge-accepted-result", status: "awaiting_review", result: { proposals: [
+      { id: "bridge-result", jdItem: params.matching.rawJd, evidenceType: "gap", suggestion: "乙的分析建议", rationale: "乙的分析依据" },
+    ] },
+  }));
+  const state = () => recoveredAdvisor(props.workspaceKey);
+  try {
+    await mount(h(AgentWorkspace, props));
+    await flush(() => {
+      changeJobField(/例如：资深前端工程师/, draft.inputTitle);
+      changeJobField(/例如：35k/, draft.inputSalary);
+      changeJobField(/例如：上海/, draft.inputLocation);
+      changeJobField(/请在此粘贴招聘 JD/, draft.inputDescription);
+    });
+    pendingBridgeJob = { ...imported, syncedAt: Date.now() + 100 };
+    await flush(() => dom.dispatchEvent(new dom.Event("focus")));
+    await flush(() => clickAdvisorButton("导入岗位"));
+    await flush(() => clickAdvisorButton("授权当前简历并开始拆解"));
+    assert.equal(state().currentJob.description, imported.description);
+    assert.equal(match.mock.callCount(), 1);
+    assert.match(dom.document.body.textContent ?? "", /乙的分析依据/);
+
+    await mount(h(AgentWorkspace, props));
+    await flush(() => clickAdvisorButton("恢复导入前草稿"));
+    assert.equal(state().currentJob.description, imported.description);
+    assert.equal(state().isEditingJob, true);
+    for (const [key, expected] of Object.entries(draft)) assert.equal(state()[key], expected);
+    assert.equal(match.mock.callCount(), 1, "restoring always stops at editing");
+    assert.ok(Object.values(state().matches).some(entry => (entry as { threadId: string }).threadId === "bridge-accepted-result"));
+    await flush(() => clickAdvisorButton("取消修改"));
+    assert.match(dom.document.body.textContent ?? "", /乙的分析依据/);
+  } finally {
+    pendingBridgeJob = null;
+  }
+});
+
 test("AgentWorkspace renders full-page dual-pane layout with job profile and chat on left, analytics and proposals on right", async () => {
   await mount(
     h(AgentWorkspace, {...{sendChat:widgetChat},
@@ -452,9 +699,11 @@ test("AgentWorkspace handles proposal accept and triggers onApplyToResume", asyn
   let appliedPayload: { acceptedProposals: MatchProposal[]; customResumeName: string } | null = null;
   const job = { title: "全栈架构师", company: "领先科技", description: "精通 React，微前端架构。" };
   const state = initialAdvisorRecovery(job);
-  state.threadId = "historical-local-review";
-  state.proposals = [{ id: "historical-claim", jdItem: "精通 React，微前端架构。", evidenceType: "claimed",
-    suggestion: "突出已有 React 经历", rationale: "历史候选，仍需本人核实" }];
+  state.matches[advisorMatchKey(job, dummyResume)!] = {
+    ...emptyAdvisorMatch, threadId: "historical-local-review",
+    proposals: [{ id: "historical-claim", jdItem: "精通 React，微前端架构。", evidenceType: "claimed",
+      suggestion: "突出已有 React 经历", rationale: "历史候选，仍需本人核实" }],
+  };
   dom.localStorage.setItem("betterme.recovery.v1:advisor:manual-review", JSON.stringify({ version: 1, value: state }));
   const beforeMatching = matchingRequestCount;
 

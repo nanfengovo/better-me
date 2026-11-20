@@ -174,7 +174,11 @@ test("real ephemeral service persists SQLite and uses its private token with an 
     assert.ok(service.port > 0); assert.match(service.url, /^http:\/\/127\.0\.0\.1:/);
     assert.equal((await fetch(`${service.url}/healthz`)).status, 401);
     const headers = { authorization: `Bearer ${token}`, origin: "http://localhost:5173" };
-    assert.equal((await fetch(`${service.url}/healthz`, { headers })).status, 200);
+    const healthy = await fetch(`${service.url}/healthz`, { headers });
+    assert.equal(healthy.status, 200);
+    assert.deepEqual(await healthy.json(), {
+      status: "ok", mode: "local-job-service", apiVersion: 1, writerReady: true, readers: { ready: 2, total: 2 },
+    });
     assert.equal((await fetch(`${service.url}/healthz`, { headers: { ...headers, origin: "http://untrusted.example" } })).status, 403);
     const exported = await fetch(`${service.url}/api/v1/dataset/export`, { headers });
     const body = await exported.json();

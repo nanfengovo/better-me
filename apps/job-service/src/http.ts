@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual, randomUUID } from "node:crypto";
 import { createToolRegistry, type TrustedToolContext } from "@better-me/opportunities";
-import type { SerializedToolResult } from "./application-runtime-protocol.js";
+import type { JobRuntimeHealth, SerializedToolResult } from "./application-runtime-protocol.js";
 
 type Registry = Pick<ReturnType<typeof createToolRegistry>, "execute"> & {
   /** The isolated runtime has already validated and serialized this response. */
@@ -9,6 +9,7 @@ type Registry = Pick<ReturnType<typeof createToolRegistry>, "execute"> & {
 };
 export interface JobHttpOptions {
   registry: Registry;
+  health?: () => JobRuntimeHealth;
   token: string;
   allowedOrigins: readonly string[];
   host?: "127.0.0.1" | "::1";
@@ -139,7 +140,10 @@ export function createJobHttpServer(options: JobHttpOptions) {
     try { url = new URL(request.url, "http://127.0.0.1"); }
     catch { return send(response, 400, { error: "invalid-request" }); }
     if (url.search) return send(response, 400, { error: "query-parameters-not-supported" });
-    if (request.method === "GET" && url.pathname === "/healthz") return send(response, 200, { status: "ok", mode: "local-job-service", apiVersion: 1 });
+    if (request.method === "GET" && url.pathname === "/healthz") {
+      const health = options.health?.() ?? { status: "ok" };
+      return send(response, health.status === "ok" ? 200 : 503, { ...health, mode: "local-job-service", apiVersion: 1 });
+    }
     const route = ROUTES.find((candidate) => candidate.method === request.method && candidate.path.test(url.pathname));
     if (!route) return send(response, 404, { error: "route-not-found" });
     const cancellation = new AbortController();
@@ -169,7 +173,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
       const result = serialized ? undefined : await options.registry.execute(route.tool, input, context);
       const ok = serialized?.ok ?? result!.ok;
       const code = serialized?.errorCode ?? (result && !result.ok ? result.error.code : undefined);
-      const status = ok ? 200 : code === "invalid-input" || code === "invalid-context" ? 400 : code === "not-authorized" ? 403 : code === "stale-version" || code === "idempotency-conflict" ? 409 : code === "timeout" ? 504 : code === "rate-limited" ? 429 : 422;
+      const status = serialized?.temporarilyUnavailable ? 503 : ok ? 200 : code === "invalid-input" || code === "invalid-context" ? 400 : code === "not-authorized" ? 403 : code === "stale-version" || code === "idempotency-conflict" ? 409 : code === "timeout" ? 504 : code === "rate-limited" ? 429 : 422;
       if (serialized) {
         if (!response.destroyed && !response.writableEnded) {
           response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });

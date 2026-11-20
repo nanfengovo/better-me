@@ -7,7 +7,7 @@ import {
   LlmConfigSchema, resolveResumeFactBase, careerTaskSourceFingerprint, createCareerTaskResume,
   type FactBase, type Locale, type ResumeView, type LlmConfig, type TextStyleRange, type ClaimIssue,
 } from "@better-me/core";
-import { createInitialDocument, exportDocumentJson, parseDocumentJson, DocumentSchema, STORAGE_KEY, documentFingerprint, type BetterMeDocument, type DocumentVersion, type DocumentFieldChange } from "@better-me/storage";
+import { createInitialDocument, exportDocumentJson, parseDocumentJson, DocumentSchema, documentFingerprint, type BetterMeDocument, type DocumentVersion, type DocumentFieldChange } from "@better-me/storage";
 import { FactEditor } from "./components/FactEditor";
 import { ResumePreview } from "./components/ResumePreview";
 import { BookOpenCheck } from "lucide-react";
@@ -425,6 +425,7 @@ export function App() {
     if (job) {
       setAgentDrawerJob(job);
       setAgentMode("advisor");
+      setAgentNavigation(previous => ({ view: "job", id: (previous?.id ?? 0) + 1 }));
     }
     setPage("agent");
   }
@@ -539,7 +540,32 @@ export function App() {
     if (editing.state !== "current") return editing;
     return JSON.stringify(stored.receipt) === JSON.stringify(editing.receipt) ? stored : { state: "conflict" };
   }
-  if (ready && loadError && !doc) return <div className="recovery-screen"><WorkspacePreferences /><div className="recovery-card"><ShieldCheck size={28} /><h1>{t("先保护好你的简历", "Protect your resume first")}</h1><p role="alert">{loadError}</p><p>{t("原始数据已保留。可以下载原文，或从有效备份恢复。", "The original data is preserved. Download it or restore a valid backup.")}</p><input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" /><div className="flex flex-wrap gap-3"><button className="studio-button" onClick={() => { try { downloadJson(localStorage.getItem(STORAGE_KEY) ?? "", "better-me-backup-recovery.json"); } catch { setActionError(t("浏览器拒绝读取存储。", "The browser blocked access to local storage.")); } }}>{t("下载原始数据", "Download original data")}</button><button className="studio-button primary" onClick={() => fileInputRef.current?.click()}>{t("恢复 JSON 备份", "Restore a JSON backup")}</button><button className="studio-button" onClick={() => void resetDemo()}>{t("恢复演示", "Reset demo")}</button></div>{actionError && <p role="alert">{actionError}</p>}</div></div>;
+  if (ready && loadError && !doc) {
+    const { rawOfficialRecovery, rawDraftRecovery, rawPreviousDraftRecovery } = status;
+    const hasRecoveryBytes = [rawOfficialRecovery, rawDraftRecovery, rawPreviousDraftRecovery].some(raw => raw !== undefined);
+    return (
+      <div className="recovery-screen">
+        <WorkspacePreferences />
+        <div className="recovery-card">
+          <ShieldCheck size={28} />
+          <h1>{t("先保护好你的简历", "Protect your resume first")}</h1>
+          <p role="alert">{loadError}</p>
+          <p>{hasRecoveryBytes
+            ? t("可以下载此工作区的原始记录，或从有效备份恢复。", "Download the original records from this workspace or restore a valid backup.")
+            : t("此工作区暂未读到可下载的原始数据。可以从有效备份恢复。", "No original data is available to download from this workspace. You can restore a valid backup.")}</p>
+          <input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" />
+          <div className="flex flex-wrap gap-3">
+            {rawOfficialRecovery !== undefined && <button className="studio-button" onClick={() => downloadJson(rawOfficialRecovery, "better-me-backup-recovery.json")}>{t("下载原始数据", "Download original data")}</button>}
+            {rawDraftRecovery !== undefined && <button className="studio-button" onClick={() => downloadJson(rawDraftRecovery, "better-me-draft-recovery.json")}>{t("下载原始草稿", "Download original draft")}</button>}
+            {rawPreviousDraftRecovery !== undefined && <button className="studio-button" onClick={() => downloadJson(rawPreviousDraftRecovery, "better-me-draft-before-switch.json")}>{t("下载切换前草稿", "Download pre-switch draft")}</button>}
+            <button className="studio-button primary" onClick={() => fileInputRef.current?.click()}>{t("恢复 JSON 备份", "Restore a JSON backup")}</button>
+            <button className="studio-button" onClick={() => void resetDemo()}>{t("恢复演示", "Reset demo")}</button>
+          </div>
+          {actionError && <p role="alert">{actionError}</p>}
+        </div>
+      </div>
+    );
+  }
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
   const visibleFacts = resolveResumeFactBase(doc.factBase, activeResume);
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);

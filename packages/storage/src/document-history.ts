@@ -466,9 +466,6 @@ export class DocumentPersistenceController {
     const operation = ++this.operation;
     let official: BetterMeDocument | null = null;
     let loadError: string | null = null;
-    try { official = await this.store.load(); }
-    catch (error) { loadError = error instanceof Error ? error.message : "本地简历读取失败，原文已保留。"; }
-    if (operation !== this.operation) return;
     let draft: BetterMeDocument | null = null;
     let draftSavedAt: string | undefined;
     let rawDraftRecovery: string | undefined;
@@ -483,18 +480,37 @@ export class DocumentPersistenceController {
       const backup = await this.previousDraftRepository.load();
       if (backup && (!rawPreviousDraftRecovery || Date.parse(JSON.parse(backup).savedAt) > Date.parse(JSON.parse(rawPreviousDraftRecovery).savedAt))) rawPreviousDraftRecovery = backup;
     } catch { /* The primary previous draft remains available. */ }
-    try {
-      const officialRaw = this.storage.getItem(STORAGE_KEY);
-      if (loadError && officialRaw !== null) rawOfficialRecovery = officialRaw;
-      if (officialRaw) {
-        try { officialSavedAt = JSON.parse(officialRaw)._betterMeSavedAt; }
-        catch { /* Official corruption is handled above and retained as raw recovery. */ }
-      }
-    } catch { loadError = loadError ?? "浏览器拒绝读取本地简历，请检查本地存储权限。"; }
-    try { localDraftRaw = this.storage.getItem(DRAFT_STORAGE_KEY); }
-    catch { loadError = loadError ?? "浏览器拒绝读取草稿，请检查本地存储权限。"; }
     try { indexedDraftRaw = await this.draftRepository.load(); }
     catch { /* localStorage remains the primary path; IndexedDB is an overflow recovery copy. */ }
+
+    // Read the live slots after the IndexedDB reads. Other tabs can save while
+    // this controller is still opening and has no document to conflict with.
+    const backupReadError = loadError;
+    while (operation === this.operation) {
+      let before: string | null | undefined;
+      let officialRaw: string | null | undefined;
+      loadError = backupReadError;
+      try { before = this.storage.getItem(STORAGE_KEY); }
+      catch { loadError ??= "浏览器拒绝读取本地简历，请检查本地存储权限。"; }
+      try { official = await this.store.load(); }
+      catch (error) {
+        official = null;
+        loadError = error instanceof Error ? error.message : "本地简历读取失败，原文已保留。";
+      }
+      try { officialRaw = this.storage.getItem(STORAGE_KEY); }
+      catch { loadError ??= "浏览器拒绝读取本地简历，请检查本地存储权限。"; }
+      if (before !== officialRaw) continue;
+      if (official && officialRaw) {
+        const savedAt = JSON.parse(officialRaw)._betterMeSavedAt;
+        if (typeof savedAt === "string" && Number.isFinite(Date.parse(savedAt))) officialSavedAt = savedAt;
+      } else if (officialRaw != null && loadError) {
+        rawOfficialRecovery = officialRaw;
+      }
+      break;
+    }
+    if (operation !== this.operation) return;
+    try { localDraftRaw = this.storage.getItem(DRAFT_STORAGE_KEY); }
+    catch { loadError ??= "浏览器拒绝读取草稿，请检查本地存储权限。"; }
 
     const candidates = [
       localDraftRaw,
@@ -528,29 +544,29 @@ export class DocumentPersistenceController {
       draftSavedAt, recoveredDraft: !!draft, rawDraftRecovery, rawOfficialRecovery, rawPreviousDraftRecovery,
       historyError: loadError && doc ? `${loadError} 当前已从草稿恢复，请先下载备份。` : undefined,
     } });
-    // Restored drafts become complete versions only after their configured trigger.
-    const baseline = official;
-    if (baseline) {
-      try {
-        const versions = await this.history.list();
-        if (!versions[0] || documentFingerprint(versions[0].document) !== documentFingerprint(baseline)) {
-          await this.history.append(baseline, "会话起点 · 上次完整版本", "checkpoint");
-        }
-      } catch (error) {
-        if (operation === this.operation) this.emit({ status: { ...this.state.status, historyError: error instanceof Error ? error.message : "会话起点未能保存到版本库，请下载备份。" } });
-      }
-    }
-    if (operation !== this.operation) return;
-    if (doc) {
-      // Preserve corrupt draft bytes until the user edits or restores explicitly.
-      if (!rawDraftRecovery && (!draft || !official)) {
+    if (doc && operation === this.operation) {
+      // Only an empty workspace needs an initial protection draft. An official
+      // document or a recovered draft already has a durable copy.
+      if (!official && !draft && !loadError && rawDraftRecovery === undefined) {
         const protection = this.writeDraft(doc);
         this.emit({ status: protection.kind === "error"
           ? protection
           : { ...this.state.status, draftSavedAt: protection.draftSavedAt } });
       }
-      if (!loadError) this.scheduleAutoSave();
     }
+
+    // Restored drafts become complete versions only after their configured trigger.
+    if (official && operation === this.operation) {
+      try {
+        const versions = await this.history.list();
+        if (operation === this.operation && (!versions[0] || documentFingerprint(versions[0].document) !== documentFingerprint(official))) {
+          await this.history.append(official, "会话起点 · 上次完整版本", "checkpoint");
+        }
+      } catch (error) {
+        if (operation === this.operation) this.emit({ status: { ...this.state.status, historyError: error instanceof Error ? error.message : "会话起点未能保存到版本库，请下载备份。" } });
+      }
+    }
+    if (doc && !loadError && operation === this.operation) this.scheduleAutoSave();
   }
   private writeDraft(next: BetterMeDocument): PersistenceStatus {
     let raw: string;

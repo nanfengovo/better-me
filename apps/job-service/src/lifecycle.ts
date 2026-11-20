@@ -179,7 +179,7 @@ export async function loadOrCreateServiceToken(dataDirectory: string): Promise<{
   } catch { throw new LocalJobServiceError("invalid-token", "The existing local service token is invalid; it was preserved."); }
 }
 
-type Application = { registry: JobHttpOptions["registry"]; shutdown(): Promise<void> };
+type Application = Pick<JobHttpOptions, "registry" | "health"> & { shutdown(): Promise<void> };
 type HttpListener = Pick<ReturnType<typeof createJobHttpServer>, "listen" | "close">;
 export type JobServiceDependencies = {
   /** Only for embedders already holding an exclusive persistent-volume lease. */
@@ -232,7 +232,10 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
       repository.close(); repositoryClosed = true;
       application = await startJobApplicationRuntime({ databasePath, config });
     }
-    http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });
+    http = (dependencies.createHttpServer ?? createJobHttpServer)({
+      registry: application.registry, ...(application.health ? { health: application.health } : {}),
+      token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port,
+    });
     const address = await http.listen();
     listening = true;
     return { ...address, dataDirectory: lock.dataDirectory, databasePath, tokenPath, allowedOrigins: config.allowedOrigins, dns: config.dns, recoveredRuns: recovered.recovered, close };

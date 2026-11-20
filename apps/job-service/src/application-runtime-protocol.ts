@@ -10,5 +10,10 @@ export const READ_LANE_TOOLS: ReadonlySet<string> = new Set([
 export type RuntimeConfig = { databasePath: string; config: JobServiceConfig; readOnly: boolean };
 export type RuntimeCall = { type: "execute"; id: number; tool: string; input: unknown; context: Omit<TrustedToolContext, "signal"> };
 export type RuntimeRequest = RuntimeCall | { type: "cancel"; id: number } | { type: "close" };
-export type SerializedToolResult = { ok: boolean; errorCode?: ToolErrorCode; json: Uint8Array };
+export type SerializedToolResult = { ok: boolean; errorCode?: ToolErrorCode; temporarilyUnavailable?: true; json: Uint8Array };
 export type RuntimeResponse = { type: "ready" } | { type: "closed" } | { type: "result"; id: number; result: SerializedToolResult };
+export type JobRuntimeHealth = {
+  status: "ok" | "degraded" | "unavailable";
+  writerReady: boolean;
+  readers: { ready: number; total: number };
+};

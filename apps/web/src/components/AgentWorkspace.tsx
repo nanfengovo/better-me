@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useCallback, useEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { readChatImage, chatImageErrorMessage, MAX_CHAT_IMAGES } from "../lib/chat-images";
 import { useAgentRouting } from "../lib/agent-routing";
@@ -58,7 +58,10 @@ import { useAgentSidebar } from "./AgentSidebar";
 import { isCareerTailoringRequest } from "../lib/career-task-intent";
 import { privateKey } from "../lib/private-storage";
 import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
-import { AdvisorRecoverySchema, initialAdvisorRecovery } from "../lib/advisor-recovery";
+import {
+  AdvisorRecoverySchema, BrowserJobSchema, advisorJobDraft, advisorJobKey, advisorMatchKey, captureAdvisorJobDraft,
+  emptyAdvisorMatch, initialAdvisorRecovery, switchAdvisorConversation, switchAdvisorJob, type AdvisorMatch,
+} from "../lib/advisor-recovery";
 import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
 import { AgentEmptyPromptCards } from "./agent-workspace/AgentEmptyPromptCards";
 import { AgentActiveJobHeader } from "./agent-workspace/AgentActiveJobHeader";
@@ -130,8 +133,8 @@ function AgentWorkspaceSession({
   const recovery = useWorkspaceRecovery(`advisor:${workspaceKey}`, AdvisorRecoverySchema, () => initialAdvisorRecovery(job));
   const interviewWorkspaceKey=agent?.workspaceKey??workspaceKey;
   const interviewRecovery=useWorkspaceRecovery(`interview-index:${interviewWorkspaceKey}`,InterviewWorkspaceStateSchema,()=>({open:false}));
-  const saveInterview=interviewRecovery.set,interviewStorageError=interviewRecovery.error;
-  const saveRecoveryField = recovery.field;
+  const { set: saveInterview, field: saveInterviewField, error: interviewStorageError } = interviewRecovery;
+  const { set: saveAdvisor } = recovery;
   const [showCareerCoach, setShowCareerCoach] = useRecoveryField(recovery, "showCareerCoach");
   const [showCareerTask, setShowCareerTask] = useState(false);
   const [taskObjective, setTaskObjective] = useState<string>();
@@ -154,7 +157,7 @@ function AgentWorkspaceSession({
   useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, [setTaskView, setShowCareerCoach]);
 
   // Current Target Job state
-  const [currentJob, setCurrentJob] = useRecoveryField(recovery, "currentJob");
+  const { currentJob, browserJob, beforeBrowserImport } = recovery.value;
   const currentJobView: DrawerJobContext = currentJob ?? {
     title: t("简历讨论", "Resume discussion"),
     company: "",
@@ -184,13 +187,7 @@ function AgentWorkspaceSession({
   },[taskRuntime.key]);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSuccessNotice, setLinkSuccessNotice] = useState<string | null>(null);
-  const [sourceUrl, setSourceUrl] = useRecoveryField(recovery, "sourceUrl");
-  const [sourcePlatform, setSourcePlatform] = useRecoveryField(recovery, "sourcePlatform");
-
-  // High-Tech Cyberpunk Stream / Handwriting Fill state
-  const [isStreamingFill, setIsStreamingFill] = useState(false);
-  const [streamingField, setStreamingField] = useState<"title" | "company" | "salary" | "location" | "description" | null>(null);
-  const skipAnimationRef = useRef<boolean>(false);
+  const { sourceUrl, sourcePlatform } = recovery.value;
 
   const [leftViewMode, setLeftViewMode] = useState<"jd" | "chat">("chat");
   const [pageMotion, setPageMotion] = useState<"forward" | "back" | "none">("none");
@@ -270,15 +267,39 @@ function AgentWorkspaceSession({
   // Foldable sections state
   const [isJobSpecFolded, setIsJobSpecFolded] = useState(false);
 
-  // Matching state
-  const [threadId, setThreadId] = useRecoveryField(recovery, "threadId");
-  const [loading, setLoading] = useState(false);
-  const [structuredJd, setStructuredJd] = useRecoveryField(recovery, "structuredJd");
-  const [proposals, setProposals] = useRecoveryField(recovery, "proposals");
-  const [decisions, setDecisions] = useRecoveryField(recovery, "decisions");
-  const [editingProposalId, setEditingProposalId] = useRecoveryField(recovery, "editingProposalId");
-  const [editedText, setEditedText] = useRecoveryField(recovery, "editedText");
-  const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const documentKey = careerTaskConfig?.workspaceKey;
+  const jobKey = useMemo(() => advisorJobKey(currentJob), [currentJob]);
+  const matchKey = useMemo(() => advisorMatchKey(currentJob, resume, documentKey), [currentJob, resume, documentKey]);
+  const liveContext = useRef({ jobKey, matchKey, mounted: true });
+  useLayoutEffect(() => {
+    liveContext.current = { jobKey, matchKey, mounted: true };
+    return () => { liveContext.current.mounted = false; };
+  }, [jobKey, matchKey, active]);
+  const { threadId, structuredJd, proposals, decisions, editingProposalId, editedText } =
+    (matchKey ? recovery.value.matches[matchKey] : undefined) ?? emptyAdvisorMatch;
+  const pendingMatches = useRef(new Map<string, AbortController>());
+  const [loadingMatches, setLoadingMatches] = useState<Record<string, boolean>>({});
+  const [matchErrors, setMatchErrors] = useState<Record<string, string>>({});
+  const loading = Boolean(matchKey && loadingMatches[matchKey]);
+  const errorNotice = (matchKey ? matchErrors[matchKey] : undefined) || null;
+  const setErrorNotice = (error: string) => {
+    if (matchKey) setMatchErrors(previous => ({ ...previous, [matchKey]: error }));
+  };
+
+  function updateMatch(key: string | undefined, update: (previous: AdvisorMatch) => AdvisorMatch) {
+    if (!key) return;
+    saveAdvisor(previous => ({
+      ...previous,
+      matches: { ...previous.matches, [key]: update(previous.matches[key] ?? emptyAdvisorMatch) },
+    }));
+  }
+  useEffect(() => {
+    const requests = pendingMatches.current;
+    return () => {
+      for (const request of requests.values()) request.abort();
+      requests.clear();
+    };
+  }, []);
 
   // Proposal filter & detail view
   const [proposalFilter, setProposalFilter] = useState<"all" | "accepted" | "pending" | "rejected">("all");
@@ -286,13 +307,13 @@ function AgentWorkspaceSession({
 
   // Chat state
   const [messages, setMessages] = useRecoveryField(recovery, "messages");
-  const autoSpeech = useSessionAutoSpeech(messages, speech, active && !showCareerCoach && taskView !== "handoff" && !showCareerTask, workspaceKey);
+  const autoSpeech = useSessionAutoSpeech(messages, speech, active && !showCareerCoach && taskView !== "handoff" && !showCareerTask, `${workspaceKey}:${jobKey}`);
   const [shareResumeForEditing, setShareResumeForEditing] = useState(false);
   const [resumeProposalStates, setResumeProposalStates] = useState<Record<string, { status: "saving" | "approved" | "rejected" | "conflict" | "error"; message?: string }>>({});
   const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
   const [inputMessage, setInputMessage] = useRecoveryField(recovery, "inputMessage");
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatNotice, setChatNotice] = useState(recovery.value.pendingChatId ? "上次对话请求已中断，问题与已完成记录已保留。请核对后手动重试；未自动重发。" : "");
+  const [chatNotice, setChatNotice] = useState("");
   const chatAbortRef = useRef<AbortController | null>(null);
   const kernelChatId=useRef<string|undefined>(undefined);
   const chatRouting=useAgentRouting();
@@ -308,6 +329,18 @@ function AgentWorkspaceSession({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatComposerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => () => chatAbortRef.current?.abort(), []);
+
+  function leaveJobConversation() {
+    chatAbortRef.current?.abort();
+    chatAbortRef.current = null;
+    pendingChatRef.current = null;
+    kernelChatId.current = undefined;
+    setChatLoading(false);
+    setChatNotice("");
+    setAttachmentError(null);
+    setShareResumeForEditing(false);
+    setResumeProposalStates({});
+  }
 
   const decideResumeProposal = async (key: string, action: NonNullable<ChatMessage["actions"]>[number], approve: boolean) => {
     if (!approve) {
@@ -346,84 +379,126 @@ function AgentWorkspaceSession({
   const [showGapsSummary, setShowGapsSummary] = useState(false);
 
   // Guided application milestone modal state
-  const [isApplying, setIsApplying] = useState(false);
+  const [applyingMatchKey, setApplyingMatchKey] = useState<string>();
+  const isApplying = Boolean(applyingMatchKey && applyingMatchKey === matchKey);
+  const pendingReviews = useRef(new Set<string>());
+  const applyTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  useEffect(() => {
+    const timers = applyTimers.current;
+    return () => { for (const timer of timers) clearTimeout(timer); timers.length = 0; };
+  }, []);
   const [applyStep, setApplyStep] = useState<1 | 2 | 3>(1);
   const [extractingStepMessage, setExtractingStepMessage] = useState<string | null>(null);
 
-  // Auto-listen to direct web sync from Bookmarklet / Browser Extension
-  const lastProcessedSyncTimeRef = useRef<number>(Date.now());
+  function cancelIntake() {
+    intakeVersion.current++;
+    intakeObserver.current?.abort();
+    setIntakeTask(undefined);
+    setIntakeBase(undefined);
+    setIntakeResumeConsent(false);
+    setIsExtractingLink(false);
+    setExtractingStepMessage(null);
+    setLinkError(null);
+    setLinkSuccessNotice(null);
+  }
+
+  const lastBrowserSync = useRef(Math.max(Date.now(), recovery.value.lastBrowserSyncAt ?? 0));
+  const jobPaneActive = active && !showCareerCoach && !showCareerTask && taskView === "job" && !interviewRecovery.value.open;
   useEffect(() => {
-    // The Docker runtime deliberately does not attach the host browser/profile.
-    if (readRuntimeConnection()?.mode === "docker") return;
-    let isCancelled = false;
+    // Docker does not attach the host browser/profile.
+    if (!jobPaneActive || readRuntimeConnection()?.mode === "docker") return;
+    let request: AbortController | undefined;
+    const isVisible = () => document.visibilityState !== "hidden";
     const checkSync = async () => {
+      if (request || !isVisible()) return;
+      const controller = new AbortController();
+      request = controller;
       try {
-        const resp = await fetch("/api/jd/sync-extension", { headers: localBridgeHeaders });
+        const resp = await fetch("/api/jd/sync-extension", { headers: localBridgeHeaders, signal: controller.signal });
         if (!resp.ok) return;
-        const data = (await resp.json()) as { latest?: { title: string; company: string; salary?: string; location?: string; description: string; sourceUrl?: string; syncedAt: number } };
-        if (data.latest && data.latest.syncedAt > lastProcessedSyncTimeRef.current) {
-          if (isCancelled) return;
-          lastProcessedSyncTimeRef.current = data.latest.syncedAt;
-          setInputTitle(data.latest.title);
-          setInputCompany(data.latest.company);
-          if (data.latest.salary) setInputSalary(data.latest.salary);
-          if (data.latest.location) setInputLocation(data.latest.location);
-          setInputDescription(data.latest.description);
-          if (data.latest.sourceUrl) {
-            setSourceUrl(data.latest.sourceUrl);
-          }
-          setIsLinkInputOpen(false);
-          setLinkSuccessNotice(
-            t(
-              `🎉 已全自动接收浏览器直推岗位：${data.latest.company} · ${data.latest.title}`,
-              `🎉 Auto-synced from browser: ${data.latest.company} · ${data.latest.title}`
-            )
-          );
-          triggerAgentGuide({
-            actionType: "focus",
-            label: `已全自动接收岗位「${data.latest.title}」`,
-            text: data.latest.title,
-          });
-          setTimeout(() => setLinkSuccessNotice(null), 4000);
-        }
-      } catch {
-        // Ignore polling error
-      }
+        const data = await resp.json() as { latest?: unknown };
+        const parsed = BrowserJobSchema.safeParse(data.latest);
+        if (controller.signal.aborted || !isVisible() || !parsed.success || parsed.data.syncedAt <= lastBrowserSync.current) return;
+        const latest = parsed.data;
+        lastBrowserSync.current = latest.syncedAt;
+        saveAdvisor(previous => ({ ...previous, browserJob: latest, lastBrowserSyncAt: latest.syncedAt }));
+      } catch { /* A missed poll can be retried on the next refresh. */ }
+      finally { if (request === controller) request = undefined; }
     };
-
-    const interval = setInterval(() => { void checkSync(); }, 1200);
-    if (typeof (interval as unknown as { unref?: () => void }).unref === "function") {
-      (interval as unknown as { unref: () => void }).unref();
-    }
-    const onWindowFocus = () => { void checkSync(); };
-    window.addEventListener("focus", onWindowFocus);
-
+    const poll = () => { void checkSync(); };
+    const visibilityChanged = () => {
+      if (document.visibilityState === "hidden") {
+        request?.abort();
+        request = undefined;
+      } else poll();
+    };
+    poll();
+    const interval = setInterval(poll, 1200);
+    window.addEventListener("focus", poll);
+    document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
-      isCancelled = true;
+      request?.abort();
       clearInterval(interval);
-      window.removeEventListener("focus", onWindowFocus);
+      window.removeEventListener("focus", poll);
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
-  }, [t, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setSourceUrl]);
+  }, [jobPaneActive, saveAdvisor]);
 
-  // Sync prop job changes to local state
-  const previousJobSeed = useRef(JSON.stringify(recovery.value.jobSeed));
-  useEffect(() => {
-    const fingerprint = JSON.stringify(job);
-    if (previousJobSeed.current === fingerprint) return;
-    previousJobSeed.current = fingerprint;
-    if (job) {
-      saveRecoveryField("jobSeed", job);
-      setCurrentJob(job);
-      setInputTitle(job.title || "");
-      setInputCompany(job.company || "");
-      setInputSalary(job.salary || "");
-      setInputLocation(job.location || "");
-      setInputDescription(job.description || "");
-      setSourceUrl(job.sourceUrl);
-      setSourcePlatform(job.sourcePlatform);
-      setIsEditingJob(false);
+  function importBrowserJob() {
+    if (!browserJob) return;
+    cancelIntake();
+    saveAdvisor(previous => ({
+      ...previous, ...advisorJobDraft(browserJob), beforeBrowserImport: previous.beforeBrowserImport ?? captureAdvisorJobDraft(previous),
+      isEditingJob: Boolean(previous.currentJob?.description), browserJob: undefined,
+    }));
+    setIsLinkInputOpen(false);
+    showLeftPage("jd");
+    setMobilePane("material");
+  }
+
+  function restoreBrowserDraft() {
+    cancelIntake();
+    saveAdvisor(previous => previous.beforeBrowserImport
+      ? {
+        ...previous, ...previous.beforeBrowserImport, beforeBrowserImport: undefined,
+        isEditingJob: Boolean(previous.currentJob?.description) || previous.beforeBrowserImport.isEditingJob,
+      } : previous);
+    setIsLinkInputOpen(true);
+    showLeftPage("jd");
+    setMobilePane("material");
+  }
+
+  const hasUnassignedDraft = Boolean(currentJob && recovery.value.jobDrafts[advisorJobKey(null)]);
+
+  function restoreUnassignedDraft() {
+    cancelIntake();
+    leaveJobConversation();
+    saveAdvisor(previous => ({ ...switchAdvisorJob(previous, null), jobSeed: previous.jobSeed }));
+    setIsLinkInputOpen(true);
+    showLeftPage("jd");
+    setMobilePane("material");
+  }
+
+  // Journal the outgoing draft and select the incoming job together, before paint.
+  const initialJobSeed = useRef(recovery.value.jobSeed);
+  const previousJobProp = useRef<DrawerJobContext | null | undefined>(undefined);
+  useLayoutEffect(() => {
+    const previous = previousJobProp.current;
+    previousJobProp.current = job;
+    if (!job || previous === job) return;
+    const nextJobKey = advisorJobKey(job);
+    if (previous === undefined && advisorJobKey(initialJobSeed.current) === nextJobKey) return;
+    cancelIntake();
+    if (nextJobKey !== liveContext.current.jobKey) {
+      leaveJobConversation();
+      saveInterviewField("open", false);
+      setLeftViewMode("chat");
     }
-  }, [job, saveRecoveryField, setCurrentJob, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setIsEditingJob, setSourcePlatform, setSourceUrl]);
+    saveAdvisor(state => switchAdvisorJob(state, job));
+    setActiveDiffProposalId(null);
+    setShowGapsSummary(false);
+    setProposalFilter("all");
+  }, [job, saveAdvisor, saveInterviewField]);
 
   const extractUrlFromText = extractJobLink;
 
@@ -468,87 +543,19 @@ function AgentWorkspaceSession({
   ];
 
   function loadSampleJob(preset: SampleJobPreset) {
-    handleSkipStreamAnimation();
-    setInputTitle(preset.title);
-    setInputCompany(preset.company);
-    setInputSalary(preset.salary);
-    setInputLocation(preset.location);
-    setInputDescription(preset.description);
-    setLinkError(null);
-    setLinkSuccessNotice(null);
+    cancelIntake();
+    saveAdvisor(previous => ({
+      ...previous, ...advisorJobDraft(preset), isEditingJob: previous.isEditingJob,
+      beforeBrowserImport: previous.beforeBrowserImport,
+    }));
   }
 
-  const commitParsedFields = (parsed: ParsedJobInfo) => {
-    setInputTitle(parsed.title);
-    setInputCompany(parsed.company);
-    setInputSalary(parsed.salary);
-    setInputLocation(parsed.location);
-    setInputDescription(parsed.description);
-  };
-
-  const playHighTechStreamFill = async (parsed: ParsedJobInfo) => {
-    setIsStreamingFill(true);
-    skipAnimationRef.current = false;
-
-    const streamChunk = async (
-      text: string,
-      setter: (val: string) => void,
-      field: "title" | "company" | "salary" | "location" | "description",
-      chunkSize: number,
-      tickDelay: number
-    ) => {
-      if (!text) return;
-      setStreamingField(field);
-      let acc = "";
-      for (let i = 0; i < text.length; i += chunkSize) {
-        if (skipAnimationRef.current) {
-          setter(text);
-          return;
-        }
-        acc += text.slice(i, i + chunkSize);
-        setter(acc);
-        await new Promise((resolve) => setTimeout(resolve, tickDelay));
-      }
-      setter(text);
-    };
-
-    try {
-      // 1. Title (handwriting / typewriter style)
-      await streamChunk(parsed.title, setInputTitle, "title", 2, 14);
-      if (skipAnimationRef.current) {
-        commitParsedFields(parsed);
-        return;
-      }
-      // 2. Company
-      await streamChunk(parsed.company, setInputCompany, "company", 2, 14);
-      if (skipAnimationRef.current) {
-        commitParsedFields(parsed);
-        return;
-      }
-      // 3. Salary & Location
-      if (parsed.salary) {
-        await streamChunk(parsed.salary, setInputSalary, "salary", 2, 10);
-      }
-      if (parsed.location) {
-        await streamChunk(parsed.location, setInputLocation, "location", 2, 10);
-      }
-      if (skipAnimationRef.current) {
-        commitParsedFields(parsed);
-        return;
-      }
-      // 4. Description (rapid cyber matrix stream)
-      await streamChunk(parsed.description, setInputDescription, "description", 36, 16);
-    } finally {
-      commitParsedFields(parsed);
-      setIsStreamingFill(false);
-      setStreamingField(null);
-    }
-  };
-
-  const handleSkipStreamAnimation = () => {
-    skipAnimationRef.current = true;
-    setIsStreamingFill(false);
-    setStreamingField(null);
+  const commitParsedFields = (parsed: ParsedJobInfo, fallbackUrl?: string) => {
+    saveAdvisor(previous => ({
+      ...previous, ...advisorJobDraft({ ...parsed, sourceUrl: parsed.sourceUrl || fallbackUrl }),
+      linkInputValue: previous.linkInputValue, isEditingJob: previous.isEditingJob,
+      beforeBrowserImport: previous.beforeBrowserImport,
+    }));
   };
 
   const handleExtractLink = async (overrideInput?: string, forceMode?: "static" | "browser" | "auto-browser", authorizeModel=false) => {
@@ -585,6 +592,7 @@ function AgentWorkspaceSession({
             mode: "static",
           });
         } catch {
+          if (version !== intakeVersion.current || controller.signal.aborted) return;
           // If static extraction encounters network/anti-bot errors, auto-fallback to local automated browser engine
           setExtractingStepMessage(t("🤖 已启动自动化浏览器接续抓取...若出现滑块验证，请在浏览器中拖动完成，系统将自动继续！", "Automated browser active... If captcha slider appears, please complete it; system will auto-resume!"));
           parsed = await extractAndParseJobLink(inputToProcess, {
@@ -606,24 +614,7 @@ function AgentWorkspaceSession({
         parsed=applyJdMetadata(parsed,task.result!);
       }
 
-      // Populate form fields with high-tech stream animation
-      const isTestContext = typeof process !== "undefined" && Boolean(process.env?.NODE_TEST_CONTEXT);
-      const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-      // Authorized task output commits atomically after the runtime/version fence;
-      // a delayed typewriter must not keep writing after a source/runtime change.
-      if (authorizeModel || isTestContext || prefersReducedMotion) {
-        commitParsedFields(parsed);
-      } else {
-        await playHighTechStreamFill(parsed);
-      }
-
-      if (parsed.sourceUrl || normalizedUrl) {
-        setSourceUrl(parsed.sourceUrl || normalizedUrl || undefined);
-      }
-      if (parsed.sourcePlatform) {
-        setSourcePlatform(parsed.sourcePlatform);
-      }
+      commitParsedFields(parsed, normalizedUrl || undefined);
 
       setLinkSuccessNotice(
         t(
@@ -671,12 +662,13 @@ function AgentWorkspaceSession({
   };
 
   const handlePasteClipboard = async () => {
+    const version = intakeVersion.current;
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
         const text = await navigator.clipboard.readText();
-        if (text) {
+        if (text && version === intakeVersion.current) {
+          cancelIntake();
           setLinkInputValue(text);
-          setLinkError(null);
         }
       }
     } catch {
@@ -685,10 +677,11 @@ function AgentWorkspaceSession({
   };
 
   const handlePasteClipboardAndExtract = async () => {
+    const version = intakeVersion.current;
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
         const text = await navigator.clipboard.readText();
-        if (text?.trim()) {
+        if (text?.trim() && version === intakeVersion.current) {
           setLinkInputValue(text.slice(0, 300));
           await handleExtractLink(text);
         }
@@ -707,28 +700,46 @@ function AgentWorkspaceSession({
 
   // Only an explicitly labeled user action grants this frozen JD + resume projection.
   // Mount, navigation and history restoration never dispatch analysis.
-  const runMatching = useCallback(async (jdText: string) => {
-    if(!active||loading)return;
-    setLoading(true);setErrorNotice(null);setProposals([]);setDecisions({});setStructuredJd(null);setThreadId("");
+  const runMatching = async (targetJob: DrawerJobContext) => {
+    const scope = advisorMatchKey(targetJob, resume, documentKey);
+    if (!active || !scope || pendingMatches.current.has(scope)) return;
+    const controller = new AbortController();
+    pendingMatches.current.set(scope, controller);
+    setLoadingMatches(previous => ({ ...previous, [scope]: true }));
+    setMatchErrors(previous => ({ ...previous, [scope]: "" }));
     try {
-      if(chatRouting?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
+      if (chatRouting?.blocked) throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
       taskRuntime.assertSelected();
-      const result=await startJdMatch({threadId:"explicit-jd-analysis",workspaceKey:agent?.workspaceKey??workspaceKey,rootScopeKey:agent?.workspaceKey??workspaceKey,
-        rawJd:jdText,...jdMatchResumeMaterial(resume),llmConfig,consent:true,
-        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
-        onTask:task=>setThreadId(task.id),
+      const rootScopeKey = agent?.workspaceKey ?? workspaceKey;
+      const result = await startJdMatch({
+        threadId: "explicit-jd-analysis", workspaceKey: `${rootScopeKey}:advisor:${scope}`, rootScopeKey,
+        rawJd: targetJob.description, ...jdMatchResumeMaterial(resume), llmConfig, consent: true,
+        runtime: taskRuntime.runtime, preferredRuntimeId: taskRuntime.preferredRuntimeId, signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       taskRuntime.assertSelected();
-      setThreadId(result.threadId);setProposals(result.proposals);if(result.structuredJd)setStructuredJd(result.structuredJd);setDecisions({});
-    } catch(error) {
-      setErrorNotice(error instanceof Error?error.message:t("岗位分析未完成，原任务记录与用量保留。","Analysis not completed; task history and usage retained."));
-    } finally {setLoading(false);}
-  },[active,loading,chatRouting,taskRuntime,agent?.workspaceKey,workspaceKey,resume,llmConfig,t,setDecisions,setProposals,setStructuredJd,setThreadId]);
+      updateMatch(scope, previous => ({
+        ...emptyAdvisorMatch, threadId: result.threadId, proposals: result.proposals, structuredJd: result.structuredJd ?? null,
+        ...(previous.threadId === result.threadId ? {
+          decisions: previous.decisions, editedText: previous.editedText, editingProposalId: previous.editingProposalId,
+        } : {}),
+      }));
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        const notice = error instanceof Error ? error.message : t("岗位分析未完成，原任务记录与用量保留。", "Analysis not completed; task history and usage retained.");
+        setMatchErrors(previous => ({ ...previous, [scope]: notice }));
+      }
+    } finally {
+      if (pendingMatches.current.get(scope) === controller) {
+        pendingMatches.current.delete(scope);
+        setLoadingMatches(previous => ({ ...previous, [scope]: false }));
+      }
+    }
+  };
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
-    setDecisions((prev) => ({
-      ...prev,
-      [proposalId]: { status },
+    updateMatch(matchKey, previous => ({
+      ...previous, decisions: { ...previous.decisions, [proposalId]: { status } },
     }));
 
     if (status === "accepted") {
@@ -755,52 +766,40 @@ function AgentWorkspaceSession({
       sourceUrl,
       sourcePlatform,
     };
-    setCurrentJob(newJob);
-    setIsEditingJob(false);
-    void runMatching(newJob.description);
+    cancelIntake();
+    if (advisorJobKey(newJob) !== jobKey) leaveJobConversation();
+    saveAdvisor(previous => ({
+      ...switchAdvisorConversation(previous, newJob), ...advisorJobDraft(newJob),
+      currentJob: newJob, beforeBrowserImport: previous.beforeBrowserImport,
+    }));
+    void runMatching(newJob);
   };
 
   const handleCancelJobEdit = () => {
-    if (currentJob) {
-      setInputTitle(currentJob.title);
-      setInputCompany(currentJob.company);
-      setInputSalary(currentJob.salary || "");
-      setInputLocation(currentJob.location || "");
-      setInputDescription(currentJob.description);
-      setSourceUrl(currentJob.sourceUrl);
-      setSourcePlatform(currentJob.sourcePlatform);
-    }
-    setIsEditingJob(false);
+    cancelIntake();
+    saveAdvisor(previous => ({ ...previous, ...advisorJobDraft(previous.currentJob), beforeBrowserImport: previous.beforeBrowserImport }));
     setIsLinkInputOpen(false);
-    setLinkError(null);
   };
 
   const handleOpenJobEdit = () => {
-    if (currentJob) {
-      setInputTitle(currentJob.title);
-      setInputCompany(currentJob.company);
-      setInputSalary(currentJob.salary || "");
-      setInputLocation(currentJob.location || "");
-      setInputDescription(currentJob.description);
-      setSourceUrl(currentJob.sourceUrl);
-      setSourcePlatform(currentJob.sourcePlatform);
-    }
     setIsEditingJob(true);
+    showLeftPage("jd");
   };
 
   const startEdit = (proposal: MatchProposal) => {
-    setEditingProposalId(proposal.id);
     const current = decisions[proposal.id];
-    setEditedText(current && current.status === "edited" ? current.editedSuggestion : proposal.suggestion);
+    updateMatch(matchKey, previous => ({
+      ...previous, editingProposalId: proposal.id,
+      editedText: current && current.status === "edited" ? current.editedSuggestion : proposal.suggestion,
+    }));
   };
 
   const saveEdit = (proposalId: string) => {
     if (!editedText.trim()) return;
-    setDecisions((prev) => ({
-      ...prev,
-      [proposalId]: { status: "edited", editedSuggestion: editedText.trim() },
+    updateMatch(matchKey, previous => ({
+      ...previous, decisions: { ...previous.decisions, [proposalId]: { status: "edited", editedSuggestion: editedText.trim() } },
+      editingProposalId: null,
     }));
-    setEditingProposalId(null);
 
     const prop = proposals.find((p) => p.id === proposalId);
     triggerAgentGuide({
@@ -812,7 +811,7 @@ function AgentWorkspaceSession({
   };
 
   const cancelEdit = () => {
-    setEditingProposalId(null);
+    updateMatch(matchKey, previous => ({ ...previous, editingProposalId: null }));
   };
 
   const handleChatImageSelection = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -833,9 +832,9 @@ function AgentWorkspaceSession({
     setReadingChatImages(true);
     try {
       const prepared = await Promise.all(files.map(readChatImage));
-      setPendingAttachments((previous) => [...previous, ...prepared]);
+      if (liveContext.current.mounted && liveContext.current.jobKey === jobKey) setPendingAttachments((previous) => [...previous, ...prepared]);
     } catch (error) {
-      setAttachmentError(chatImageErrorMessage(error, t));
+      if (liveContext.current.mounted && liveContext.current.jobKey === jobKey) setAttachmentError(chatImageErrorMessage(error, t));
     } finally { chatImageRead.current = false; setReadingChatImages(false); }
   };
 
@@ -894,10 +893,10 @@ function AgentWorkspaceSession({
       if(chatRouting?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
       taskRuntime.assertSelected();
       const reply = await sendChat({
-        workspaceKey:`advisor:${workspaceKey}`,
+        workspaceKey:`advisor:${workspaceKey}:${jobKey}`,
         rootScopeKey:agent?.workspaceKey??workspaceKey,
         runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
-        onTask:task=>{kernelChatId.current=task.id;},
+        onTask: task => { if (chatAbortRef.current === controller) kernelChatId.current = task.id; },
         messages: chatMessagesForRequest([...messages, userMsg]),
         llmConfig,
         signal: controller.signal,
@@ -965,7 +964,8 @@ function AgentWorkspaceSession({
 
   // Multi-step Guided Application Flow
   const handleApply = async () => {
-    if (isApplying) return;
+    if (!active || !matchKey || isApplying || loading || pendingReviews.current.has(matchKey)) return;
+    const reviewedContext = liveContext.current;
     if (careerTaskConfig) {
       openCareerTask(t("针对当前岗位准备定制简历，先查证再提交逐句差异与待确认项。", "Prepare a tailored resume for this job with evidence, per-sentence changes and unknowns."));
       return;
@@ -990,9 +990,23 @@ function AgentWorkspaceSession({
     const customResumeName = `${company} · ${title} 定制版`;
 
     if(/^ct_[a-f0-9]{32}$/.test(threadId)){
-      setIsApplying(true);
+      pendingReviews.current.add(matchKey);
+      setApplyingMatchKey(matchKey);
       try{await resumeJdMatch({threadId,decisions,currentProposals:proposals,llmConfig,matching:{rawJd:currentJob?.description??"",...jdMatchResumeMaterial(resume)}});}
-      catch(error){setErrorNotice(error instanceof Error?error.message:"任务选择未确认，未应用。 ");setIsApplying(false);return;}
+      catch(error){
+        if (liveContext.current.mounted) {
+          setErrorNotice(error instanceof Error ? error.message : "任务选择未确认，未应用。");
+          setApplyingMatchKey(current => current === matchKey ? undefined : current);
+        }
+        return;
+      } finally {
+        pendingReviews.current.delete(matchKey);
+      }
+    }
+    if (!liveContext.current.mounted) return;
+    if (liveContext.current !== reviewedContext) {
+      setApplyingMatchKey(current => current === matchKey ? undefined : current);
+      return;
     }
     // Workspace owns the business write, after the exact source and review gate.
     onApplyToResume({
@@ -1002,13 +1016,15 @@ function AgentWorkspaceSession({
       targetCompany: company,
     });
 
-    setIsApplying(true);
+    setApplyingMatchKey(matchKey);
     setApplyStep(1);
-
-    setTimeout(() => setApplyStep(2), 400);
-    setTimeout(() => setApplyStep(3), 800);
-    setTimeout(() => {
-      setIsApplying(false);
+    for (const timer of applyTimers.current) clearTimeout(timer);
+    applyTimers.current.push(setTimeout(() => { if (liveContext.current.matchKey === matchKey) setApplyStep(2); }, 400),
+      setTimeout(() => { if (liveContext.current.matchKey === matchKey) setApplyStep(3); }, 800),
+      setTimeout(() => {
+      applyTimers.current.length = 0;
+      setApplyingMatchKey(current => current === matchKey ? undefined : current);
+      if (liveContext.current.matchKey !== matchKey) return;
       const firstEntryId = acceptedList.find((p) => p.profileEntryId)?.profileEntryId;
       if (firstEntryId) {
         triggerAgentGuide({
@@ -1017,7 +1033,7 @@ function AgentWorkspaceSession({
           actionType: "applied",
         });
       }
-    }, 1200);
+    }, 1200));
   };
 
   // Counts and metrics
@@ -1136,7 +1152,7 @@ function AgentWorkspaceSession({
     if(!currentJob?.description||!resume)return;
     try{
       const selection=await createInterviewSelection({matching:{rawJd:currentJob.description,...jdMatchResumeMaterial(resume)},focus:{question:defense.question,gapItem:defense.targetTopic,corePoints:[defense.coreDefenseStrategy,...defense.suggestedAnswerFramework]}});
-      interviewRecovery.set({selection,open:true});
+      if (liveContext.current.mounted && liveContext.current.matchKey === matchKey) interviewRecovery.set({selection,open:true});
     }catch(error){setErrorNotice(error instanceof Error?error.message:"无法打开对练，未发送资料。");}
   };
   useEffect(()=>{
@@ -1165,6 +1181,16 @@ function AgentWorkspaceSession({
     {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
     {(recovery.error || (!showCareerCoach && taskView !== "handoff")) && <WorkspaceRecoveryNotice {...recovery} />}
     <AgentTaskNavigation onOpenArea={onOpenArea} onTailor={careerTaskConfig ? () => openCareerTask() : undefined} tailoring={sidebar ? sidebar.open && sidebar.conversation === "task" : showCareerTask} onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
+    {taskView === "job" && !showCareerTask && (browserJob || beforeBrowserImport || hasUnassignedDraft) && (
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs" aria-live="polite">
+        {browserJob && <>
+          <span>{t("浏览器推送", "From browser")} · {browserJob.company} · {browserJob.title}</span>
+          <button type="button" className="studio-button" onClick={importBrowserJob}>{t("导入岗位", "Import job")}</button>
+        </>}
+        {beforeBrowserImport && <button type="button" className="studio-button" onClick={restoreBrowserDraft}>{t("恢复导入前草稿", "Restore pre-import draft")}</button>}
+        {hasUnassignedDraft && <button type="button" className="studio-button" onClick={restoreUnassignedDraft}>{t("恢复未关联草稿", "Return to unassigned draft")}</button>}
+      </div>
+    )}
     {interviewRecovery.value.selection&&<button type="button" className="studio-button" onClick={()=>interviewRecovery.field("open",true)}>{t("回到对练会话", "Return to interview practice")}</button>}
     {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>{t("面试攻防 · 选择题目开始对练", "Interview practice · Choose a question")}</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>{t("与 AI 顾问对练这道题", "Practice this question with the AI advisor")}</button></article>)}</details>}
     <div hidden={showCareerTask} style={{ display: showCareerTask ? "none" : "contents" }}>{careerCoachPanel}</div>
@@ -1198,7 +1224,7 @@ function AgentWorkspaceSession({
               : "bg-white border-slate-200/90 shadow-sm"
           }`}
         >
-          {((!currentJob?.description || isEditingJob) && !(leftViewMode === "chat" && (pendingReferences.length > 0 || messages.length > 0))) ? (
+          {(isEditingJob || (!currentJob?.description && !(leftViewMode === "chat" && (pendingReferences.length > 0 || messages.length > 0)))) ? (
             /* ── VIEW 1: Dedicated Job Setup & Link Extraction Screen (Full Left Pane Height) ── */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Setup View Top Header */}
@@ -1261,9 +1287,8 @@ function AgentWorkspaceSession({
                       rows={2}
                       value={linkInputValue}
                       onChange={(e) => {
-                        intakeVersion.current++;intakeObserver.current?.abort();setIntakeTask(undefined);setIntakeBase(undefined);setIntakeResumeConsent(false);setIsExtractingLink(false);
+                        cancelIntake();
                         setLinkInputValue(e.target.value);
-                        setLinkError(null);
                       }}
                       onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
@@ -1380,34 +1405,6 @@ function AgentWorkspaceSession({
                   </div>
                 )}
 
-                {isStreamingFill && (
-                  <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-[11px] ${
-                    isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  }`}>
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin shrink-0" />
-                      <span>
-                        {streamingField === "title"
-                          ? t("正在填入职位名称…", "Filling title…")
-                          : streamingField === "company"
-                          ? t("正在填入公司…", "Filling company…")
-                          : streamingField === "salary"
-                          ? t("正在填入薪资…", "Filling salary…")
-                          : streamingField === "location"
-                          ? t("正在填入地点…", "Filling location…")
-                          : t("正在填入 JD…", "Filling JD…")}
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleSkipStreamAnimation}
-                      className="underline-offset-2 hover:underline cursor-pointer bg-transparent border-0 p-0 text-[11px] font-medium"
-                    >
-                      {t("跳过", "Skip")}
-                    </button>
-                  </div>
-                )}
-
                 {/* 2-column Metadata Grid */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
@@ -1415,21 +1412,16 @@ function AgentWorkspaceSession({
                       <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>
                         {t("职位名称", "Job Title")}
                       </label>
-                      {streamingField === "title" && (
-                        <span className="text-[10px] text-emerald-500">{t("填入中", "Writing")}</span>
-                      )}
                     </div>
                     <input
                       type="text"
                       value={inputTitle}
                       onChange={(e) => {
-                        handleSkipStreamAnimation();
+                        cancelIntake();
                         setInputTitle(e.target.value);
                       }}
                       placeholder={t("例如：资深前端工程师 / 架构师", "e.g. Senior Frontend Engineer")}
                       className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition ${
-                        streamingField === "title" ? "cyber-typing-active" : ""
-                      } ${
                         isDark
                           ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
                           : "border-slate-200 bg-white text-slate-900 placeholder-slate-400 shadow-2xs"
@@ -1441,21 +1433,16 @@ function AgentWorkspaceSession({
                       <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>
                         {t("目标公司", "Company")}
                       </label>
-                      {streamingField === "company" && (
-                        <span className="text-[10px] text-emerald-500">{t("填入中", "Writing")}</span>
-                      )}
                     </div>
                     <input
                       type="text"
                       value={inputCompany}
                       onChange={(e) => {
-                        handleSkipStreamAnimation();
+                        cancelIntake();
                         setInputCompany(e.target.value);
                       }}
                       placeholder={t("例如：字节跳动 / 腾讯 / 创新企业", "e.g. Acme Inc.")}
                       className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition ${
-                        streamingField === "company" ? "cyber-typing-active" : ""
-                      } ${
                         isDark
                           ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
                           : "border-slate-200 bg-white text-slate-900 placeholder-slate-400 shadow-2xs"
@@ -1470,21 +1457,16 @@ function AgentWorkspaceSession({
                       <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>
                         {t("薪资范围 (选填)", "Salary (Optional)")}
                       </label>
-                      {streamingField === "salary" && (
-                        <span className="text-[10px] text-emerald-500">{t("填入中", "Writing")}</span>
-                      )}
                     </div>
                     <input
                       type="text"
                       value={inputSalary}
                       onChange={(e) => {
-                        handleSkipStreamAnimation();
+                        cancelIntake();
                         setInputSalary(e.target.value);
                       }}
                       placeholder={t("例如：35k-50k · 16薪", "e.g. 35k-50k")}
                       className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition ${
-                        streamingField === "salary" ? "cyber-typing-active" : ""
-                      } ${
                         isDark
                           ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
                           : "border-slate-200 bg-white text-slate-900 placeholder-slate-400 shadow-2xs"
@@ -1496,21 +1478,16 @@ function AgentWorkspaceSession({
                       <label className={`block text-[11px] font-medium ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-600"}`}>
                         {t("工作地点 (选填)", "Location (Optional)")}
                       </label>
-                      {streamingField === "location" && (
-                        <span className="text-[10px] text-emerald-500">{t("填入中", "Writing")}</span>
-                      )}
                     </div>
                     <input
                       type="text"
                       value={inputLocation}
                       onChange={(e) => {
-                        handleSkipStreamAnimation();
+                        cancelIntake();
                         setInputLocation(e.target.value);
                       }}
                       placeholder={t("例如：上海 / 远程", "e.g. Shanghai / Remote")}
                       className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition ${
-                        streamingField === "location" ? "cyber-typing-active" : ""
-                      } ${
                         isDark
                           ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
                           : "border-slate-200 bg-white text-slate-900 placeholder-slate-400 shadow-2xs"
@@ -1526,9 +1503,6 @@ function AgentWorkspaceSession({
                       {t("岗位完整 JD 文本 (必填)", "Job Description (Required)")}
                     </label>
                     <div className="flex items-center gap-2 text-[10px]">
-                      {streamingField === "description" && (
-                        <span className="text-[10px] text-emerald-500">{t("填入中…", "Writing…")}</span>
-                      )}
                       {inputDescription.trim().length > 0 && (
                         <span className={isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}>
                           {inputDescription.trim().length} {t("字符", "chars")}
@@ -1570,7 +1544,7 @@ function AgentWorkspaceSession({
                   <textarea
                     value={inputDescription}
                     onChange={(e) => {
-                      handleSkipStreamAnimation();
+                      cancelIntake();
                       setInputDescription(e.target.value);
                     }}
                     onKeyDown={(e) => {
@@ -1583,8 +1557,6 @@ function AgentWorkspaceSession({
                     rows={8}
                     placeholder={t("请在此粘贴招聘 JD 的职责描述、任职要求与福利待遇... (支持快捷键 ⌘+Enter 快速开始分析)", "Paste job description, requirements and responsibilities here... (⌘+Enter to submit)")}
                     className={`w-full p-3.5 rounded-2xl border text-xs font-mono leading-relaxed focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 resize-y transition ${
-                      streamingField === "description" ? "cyber-typing-active" : ""
-                    } ${
                       isDark
                         ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)] placeholder:text-[var(--ui-text-muted,#a7adbd)]"
                         : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 shadow-2xs"
@@ -1872,7 +1844,7 @@ function AgentWorkspaceSession({
                       <span>{t("Agent 正在结合当前岗位与本次授权内容思考…", "Agent is considering the current job and the context you shared…")}</span>
                     </div>
                   )}
-                  {chatNotice && <p role="status" className="px-2 py-1 text-xs text-emerald-600 dark:text-emerald-300">{chatNotice}</p>}
+                  {(chatNotice || (!chatLoading && recovery.value.pendingChatId)) && <p role="status" className="px-2 py-1 text-xs text-emerald-600 dark:text-emerald-300">{chatNotice || t("上次对话请求已中断，问题与已完成记录已保留。请核对后手动重试；未自动重发。", "The previous request was interrupted. Your question and history are still here. Review them before retrying.")}</p>}
 
                   <div ref={chatEndRef} />
                 </div>
@@ -2239,7 +2211,7 @@ function AgentWorkspaceSession({
               onHideRightPane={() => setRightPaneOpen(false)}
               onRunMatching={() => {
                 if (currentJob?.description) {
-                  void runMatching(currentJobView.description);
+                  void runMatching(currentJob);
                 } else {
                   setIsEditingJob(true);
                 }
@@ -2271,7 +2243,7 @@ function AgentWorkspaceSession({
                 onStartEdit={startEdit}
                 onSaveEdit={saveEdit}
                 onCancelEdit={cancelEdit}
-                onChangeEditedText={setEditedText}
+                onChangeEditedText={text => updateMatch(matchKey, previous => ({ ...previous, editedText: text }))}
                 getClaimText={getClaimText}
               />
             </AgentFitAnalyticsHeader>

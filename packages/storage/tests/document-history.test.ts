@@ -578,6 +578,22 @@ test("metadata-only saves and unrelated configuration updates do not trigger con
   assert.notEqual(controller.getState().status.externalConflict, true);
 });
 
+test("a damaged official record cannot hide a valid draft with an older timestamp", async t => {
+  const { data, storage } = storageFixture(t);
+  const doc = createInitialDocument();
+  const draft = JSON.stringify({ schemaVersion: 1, savedAt: "2026-01-01T00:00:00.000Z", document: doc });
+  const corrupt = JSON.stringify({ _betterMeSavedAt: "2026-01-02T00:00:00.000Z" });
+  data.set(STORAGE_KEY, corrupt);
+  data.set(DRAFT_STORAGE_KEY, draft);
+  const controller = new DocumentPersistenceController({ storage, history: new LocalDocumentHistory(new MemoryVersions()) });
+  t.after(() => controller.dispose());
+
+  await controller.load();
+  assert.equal(controller.getState().doc?.documentId, doc.documentId);
+  assert.equal(controller.getState().status.rawOfficialRecovery, corrupt);
+  assert.equal(data.get(DRAFT_STORAGE_KEY), draft);
+});
+
 test("damaged official without renderable draft can be reset while retaining raw recovery", async (t) => {
   const { data, doc, history } = await setup(t);
   data.set(STORAGE_KEY, "{corrupt");
@@ -691,6 +707,40 @@ test("refresh recovers valid unsaved drafts without promoting them in Enter or d
     assert.equal(data.get(STORAGE_KEY), official);
     assert.equal((await history.list()).length, count);
   }
+});
+
+test("an initializing tab reads the other tab's new official version and pending draft after its backup read", async t => {
+  for (const save of [true, false]) await t.test(save ? "formal version" : "pending draft", async t => {
+    const { storage, data } = storageFixture(t);
+    const history = new LocalDocumentHistory(new MemoryVersions());
+    const waiting = signal(), resume = signal();
+    const backup = { async load() { return null; }, async save() {} };
+    const a = new DocumentPersistenceController({
+      storage, history, previousDraftRepository: backup,
+      draftRepository: { ...backup, async load() { waiting.release(); await resume.promise; return null; } },
+    });
+    const b = new DocumentPersistenceController({ storage, history, previousDraftRepository: backup, draftRepository: backup });
+    const c = new DocumentPersistenceController({ storage, history, previousDraftRepository: backup, draftRepository: backup });
+    t.after(() => { a.dispose(); b.dispose(); c.dispose(); });
+
+    const opening = a.load();
+    await waiting.promise;
+    await b.load();
+    const edited = structuredClone(b.getState().doc!);
+    edited.resumeViews[0]!.name = "Work from window B";
+    b.update(edited);
+    if (save) assert.equal(await b.flush(true), true);
+    const key = save ? STORAGE_KEY : DRAFT_STORAGE_KEY;
+    a.handleStorageChange(key, data.get(key)!);
+    const bytes = [...data];
+    resume.release();
+    await opening;
+    assert.equal(a.getState().doc?.resumeViews[0]?.name, "Work from window B");
+    assert.deepEqual([...data], bytes);
+    await c.load();
+    assert.equal(c.getState().doc?.resumeViews[0]?.name, "Work from window B");
+    assert.deepEqual([...data], bytes);
+  });
 });
 
 test("first launch with default Enter mode creates a draft but no history before a trigger", async (t) => {

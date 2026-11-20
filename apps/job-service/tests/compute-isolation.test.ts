@@ -4,8 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
+import { Worker } from "node:worker_threads";
 import { openJobRepository, RepositoryError } from "../src/repository.ts";
 import { startJobApplicationRuntime } from "../src/application-runtime.ts";
+import { createJobHttpServer } from "../src/http.ts";
 import { syntheticAtlas } from "./synthetic-atlas.ts";
 
 test("WAL read-only lane reads a coherent committed snapshot while the writer holds its transaction", async () => {
@@ -73,4 +76,90 @@ test("runtime startup failure fails closed rather than opening an unisolated fal
   try {
     await assert.rejects(startJobApplicationRuntime({ databasePath: join(directory, "missing", "jobs.sqlite"), config: { dataDirectory: directory, allowedOrigins: ["http://localhost:5296"] } }));
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("read worker failure degrades health, preserves the writer and replaces old snapshot handles", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "better-me-reader-recovery-"));
+  const readers: Worker[] = [];
+  const replacementPermit = new Int32Array(new SharedArrayBuffer(4));
+  const token = "synthetic-reader-failure-token-1234567890";
+  const allowedOrigins = ["http://localhost:5296"];
+  const runtime = await startJobApplicationRuntime({ databasePath: join(directory, "jobs.sqlite"), config: { dataDirectory: directory, allowedOrigins } }, (entry, options) => {
+    const readOnly = options.workerData.readOnly;
+    const replacing = readOnly && readers.length >= 2;
+    const wrapper = "import { workerData } from 'node:worker_threads'; "
+      + "Atomics.wait(workerData.replacementPermit, 0, 0, 30_000); "
+      + `await import(${JSON.stringify(entry.href)});`;
+    const worker = replacing
+      ? new Worker(new URL(`data:text/javascript,${encodeURIComponent(wrapper)}`), { ...options, workerData: { ...options.workerData, replacementPermit } })
+      : new Worker(entry, options);
+    if (readOnly) readers.push(worker);
+    return worker;
+  });
+  const http = createJobHttpServer({ ...runtime, token, allowedOrigins, port: 0 });
+  const { url } = await http.listen();
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const get = (path: string) => fetch(url + path, { headers });
+  const post = (path: string, body: object, key?: string) => fetch(url + path, {
+    method: "POST", body: JSON.stringify(body), headers: { ...headers, ...(key ? { "Idempotency-Key": key } : {}) },
+  });
+  const allowReplacement = () => { Atomics.store(replacementPermit, 0, 1); Atomics.notify(replacementPermit, 0); };
+  try {
+    const firstImport = { dataset: syntheticAtlas(3), expectedRevision: 0 };
+    const initial = await post("/api/v1/dataset/import", firstImport, "reader-recovery-seed");
+    assert.equal(initial.status, 200);
+    const receipt = await initial.json();
+    const browse = await post("/api/v1/atlas/browse", {});
+    assert.equal(browse.status, 200);
+    const { snapshot } = (await browse.json()).value;
+    const baseline = await post("/api/v1/dataset/baseline", {});
+    assert.equal(baseline.status, 200);
+    const { next: baselinePage } = (await baseline.json()).value;
+    assert.ok(baselinePage);
+
+    await readers[0]!.terminate();
+    const degraded = await get("/healthz");
+    const state = await degraded.json();
+    assert.equal(degraded.status, 503);
+    assert.equal(state.status, "degraded");
+    assert.equal(state.writerReady, true);
+    assert.deepEqual(state.readers, { ready: 1, total: 2 });
+    assert.equal((await post("/api/v1/atlas/query", { snapshot, query: {} })).status, 503);
+    const healthyReader = await get("/api/v1/dataset/export");
+    assert.equal(healthyReader.status, 200);
+    assert.equal((await healthyReader.json()).value.jobs.length, 3);
+    const replay = await post("/api/v1/dataset/import", firstImport, "reader-recovery-seed");
+    assert.equal(replay.status, 200);
+    assert.deepEqual((await replay.json()).value, receipt.value);
+    const newWrite = await post("/api/v1/dataset/import", { dataset: syntheticAtlas(1, "new") }, "reader-recovery-new");
+    assert.equal(newWrite.status, 200);
+
+    allowReplacement();
+    const deadline = performance.now() + 15_000;
+    let healthy = false;
+    do {
+      const response = await get("/healthz");
+      healthy = response.ok;
+      await response.body?.cancel();
+      if (!healthy) await delay(25);
+    } while (!healthy && performance.now() < deadline);
+    assert.ok(healthy, "the replacement reader becomes ready");
+    assert.equal(readers.length, 3);
+    const stale = await post("/api/v1/atlas/query", { snapshot, query: {} });
+    assert.equal(stale.status, 409);
+    assert.equal((await stale.json()).error.code, "stale-version");
+    const expired = await post("/api/v1/dataset/baseline", { page: baselinePage });
+    assert.equal(expired.status, 200);
+    assert.equal((await expired.json()).value.kind, "expired");
+    const refreshed = await post("/api/v1/atlas/browse", { snapshot });
+    assert.equal(refreshed.status, 200);
+    const { value } = await refreshed.json();
+    assert.equal(value.kind, "view");
+    assert.notEqual(value.snapshot, snapshot);
+    assert.equal(value.dataset.jobs.length, 4);
+  } finally {
+    allowReplacement();
+    await Promise.all([http.close(), runtime.shutdown()]);
+    await rm(directory, { recursive: true, force: true });
+  }
 });

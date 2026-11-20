@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { ResumeProposalTargetSchema } from "@better-me/agent-contracts";
-import { LlmConfigSchema } from "@better-me/core";
+import { careerJobSnapshotVersion, inventoryDigest, ResumeProposalTargetSchema } from "@better-me/agent-contracts";
+import { LlmConfigSchema, type ProjectedResume } from "@better-me/core";
 import type { ChatMessage, MatchProposal, ProposalDecision, StructuredJd } from "../services/agent-client";
+import { jdMatchResumeMaterial } from "../services/jd-match-task-client";
 
 export const RecoveryJobSchema = z.object({ id: z.string().optional(), title: z.string(), company: z.string(), description: z.string(),
   salary: z.string().optional(), location: z.string().optional(), sourceUrl: z.string().optional(), sourcePlatform: z.string().optional() }).strict();
@@ -30,18 +31,95 @@ const DecisionSchema: z.ZodType<ProposalDecision> = z.discriminatedUnion("status
   z.object({ status: z.literal("rejected"), reason: z.string().optional() }).strict(), z.object({ status: z.literal("edited"), editedSuggestion: z.string() }).strict()]);
 const StructuredSchema: z.ZodType<StructuredJd> = z.object({ title: z.string(), company: z.string(), location: z.string(), requirements: z.array(z.string()),
   responsibilities: z.array(z.string()).optional(), qualifications: z.array(z.string()).optional(), preferences: z.array(z.string()), compensationRaw: z.string().nullable(), techStack: z.array(z.string()) }).strict();
-export const AdvisorRecoverySchema = z.object({
-  jobSeed: RecoveryJobSchema.nullable(), currentJob: RecoveryJobSchema.nullable(), inputTitle: z.string(), inputCompany: z.string(), inputSalary: z.string(), inputLocation: z.string(), inputDescription: z.string(),
+const AdvisorMatchSchema = z.object({
+  threadId: z.string(), structuredJd: StructuredSchema.nullable(), proposals: z.array(ProposalSchema),
+  decisions: z.record(z.string(), DecisionSchema), editedText: z.string(), editingProposalId: z.string().nullable(),
+}).strict();
+export const emptyAdvisorMatch: z.infer<typeof AdvisorMatchSchema> = {
+  threadId: "", structuredJd: null, proposals: [], decisions: {}, editedText: "", editingProposalId: null,
+};
+export type AdvisorMatch = z.infer<typeof AdvisorMatchSchema>;
+const JobDraftFieldsSchema = z.object({
+  inputTitle: z.string(), inputCompany: z.string(), inputSalary: z.string(), inputLocation: z.string(), inputDescription: z.string(),
   sourceUrl: z.string().optional(), sourcePlatform: z.string().optional(), isEditingJob: z.boolean(), linkInputValue: z.string(),
-  messages: z.array(RecoveryMessageSchema), inputMessage: z.string(), pendingReferences: z.array(RecoveryReferenceSchema), pendingAttachments: z.array(RecoveryImageSchema), pendingChatId: z.string().optional(),
-  threadId: z.string(), structuredJd: StructuredSchema.nullable(), proposals: z.array(ProposalSchema), decisions: z.record(z.string(), DecisionSchema),
-  editedText: z.string(), editingProposalId: z.string().nullable(),
+}).strict();
+const JobDraftSchema = JobDraftFieldsSchema.extend({ beforeBrowserImport: JobDraftFieldsSchema.optional() });
+const AdvisorConversationSchema = z.object({
+  messages: z.array(RecoveryMessageSchema), inputMessage: z.string(), pendingReferences: z.array(RecoveryReferenceSchema),
+  pendingAttachments: z.array(RecoveryImageSchema), pendingChatId: z.string().optional(),
+}).strict();
+const emptyConversation: z.infer<typeof AdvisorConversationSchema> = {
+  messages: [], inputMessage: "", pendingReferences: [], pendingAttachments: [], pendingChatId: undefined,
+};
+export const BrowserJobSchema = RecoveryJobSchema.extend({ syncedAt: z.number().finite() });
+export const AdvisorRecoverySchema = z.object({
+  jobSeed: RecoveryJobSchema.nullable(), currentJob: RecoveryJobSchema.nullable(), ...JobDraftSchema.shape,
+  jobDrafts: z.record(z.string(), JobDraftSchema).default({}),
+  browserJob: BrowserJobSchema.optional(),
+  lastBrowserSyncAt: z.number().finite().optional(),
+  ...AdvisorConversationSchema.shape,
+  conversations: z.record(z.string(), AdvisorConversationSchema).default({}),
+  // Keep pre-scope records recoverable in the journal. Their JD and résumé provenance cannot be proven.
+  ...AdvisorMatchSchema.shape,
+  matches: z.record(z.string(), AdvisorMatchSchema).default({}),
   taskView: z.enum(["job", "resume", "career", "learning", "practice", "handoff"]), showCareerCoach: z.boolean(),
 }).strict();
-export function initialAdvisorRecovery(job: z.infer<typeof RecoveryJobSchema> | null): z.infer<typeof AdvisorRecoverySchema> {
-  return { jobSeed: job, currentJob: job, inputTitle: job?.title ?? "", inputCompany: job?.company ?? "", inputSalary: job?.salary ?? "", inputLocation: job?.location ?? "", inputDescription: job?.description ?? "",
-    sourceUrl: job?.sourceUrl, sourcePlatform: job?.sourcePlatform, isEditingJob: false, linkInputValue: "", messages: [], inputMessage: "", pendingReferences: [], pendingAttachments: [],
-    threadId: "", structuredJd: null, proposals: [], decisions: {}, editedText: "", editingProposalId: null, taskView: "job", showCareerCoach: false };
+
+type RecoveryJob = z.infer<typeof RecoveryJobSchema>;
+export function advisorJobKey(job: RecoveryJob | null) {
+  return job ? inventoryDigest([careerJobSnapshotVersion(job), job.salary ?? null, job.location ?? null]) : "unassigned";
+}
+
+export function advisorMatchKey(job: RecoveryJob | null, resume: ProjectedResume | null, documentKey?: string) {
+  if (!job?.description) return undefined;
+  const basis = [advisorJobKey(job), documentKey ?? null, Boolean(resume)];
+  try {
+    return inventoryDigest([...basis, jdMatchResumeMaterial(resume)]);
+  } catch {
+    // Invalid résumé sources have a UI scope for the validation error, but cannot start a match.
+    return inventoryDigest([...basis, "invalid-resume"]);
+  }
+}
+
+export function advisorJobDraft(job: RecoveryJob | null) {
+  return { inputTitle: job?.title ?? "", inputCompany: job?.company ?? "", inputSalary: job?.salary ?? "", inputLocation: job?.location ?? "", inputDescription: job?.description ?? "",
+    sourceUrl: job?.sourceUrl, sourcePlatform: job?.sourcePlatform, isEditingJob: false, linkInputValue: "", beforeBrowserImport: undefined };
+}
+
+export function switchAdvisorJob(state: z.infer<typeof AdvisorRecoverySchema>, job: RecoveryJob | null) {
+  const outgoing = advisorJobKey(state.currentJob), incoming = advisorJobKey(job);
+  if (outgoing === incoming) return { ...state, jobSeed: job, currentJob: job };
+  const jobDrafts = { ...state.jobDrafts };
+  const draft = JobDraftSchema.strip().parse(state);
+  if (JSON.stringify(draft) !== JSON.stringify(advisorJobDraft(state.currentJob))) jobDrafts[outgoing] = draft;
+  const next = jobDrafts[incoming] ?? advisorJobDraft(job);
+  delete jobDrafts[incoming];
+  return {
+    ...switchAdvisorConversation(state, job), ...next, beforeBrowserImport: next.beforeBrowserImport,
+    jobSeed: job, currentJob: job, jobDrafts,
+  };
+}
+
+export function switchAdvisorConversation(state: z.infer<typeof AdvisorRecoverySchema>, job: RecoveryJob | null) {
+  const outgoing = advisorJobKey(state.currentJob), incoming = advisorJobKey(job);
+  if (outgoing === incoming) return state;
+  const conversations = { ...state.conversations };
+  const conversation = AdvisorConversationSchema.strip().parse(state);
+  if (conversation.messages.length || conversation.inputMessage || conversation.pendingReferences.length || conversation.pendingAttachments.length || conversation.pendingChatId) {
+    conversations[outgoing] = conversation;
+  }
+  const next = conversations[incoming] ?? emptyConversation;
+  delete conversations[incoming];
+  return { ...state, ...next, pendingChatId: next.pendingChatId, conversations };
+}
+
+export function initialAdvisorRecovery(job: RecoveryJob | null): z.infer<typeof AdvisorRecoverySchema> {
+  return { jobSeed: job, currentJob: job, ...advisorJobDraft(job), jobDrafts: {}, ...emptyConversation, conversations: {},
+    ...emptyAdvisorMatch, matches: {}, taskView: "job", showCareerCoach: false };
+}
+
+export function captureAdvisorJobDraft(state: z.infer<typeof AdvisorRecoverySchema>) {
+  return JobDraftFieldsSchema.strip().parse(state);
 }
 export const CompanionRecoverySchema = z.object({ messages: z.array(RecoveryMessageSchema), draft: z.string(),
   references: z.array(RecoveryReferenceSchema), attachments: z.array(RecoveryImageSchema), prompt: z.string(), pending: z.boolean() }).strict();

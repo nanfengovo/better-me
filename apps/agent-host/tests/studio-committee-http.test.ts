@@ -37,12 +37,21 @@ async function setup(t: TestContext, modelStepMs = 0) {
     careerTaskReasoner: async () => { adapters++; return reasoner; }, careerStudioLocalClient: () => ({ binding: async () => ({ id: "synthetic-metadata", version: "synthetic-v1", location: "local", endpointFingerprint: "c".repeat(64), ...selected, modelDigest: metadataDigest }),
       complete: async () => { legacyCalls++; throw Error("kernel must not call the legacy Studio completion"); } }) });
   await once(server, "listening"); const address = server.address(); assert.ok(address && typeof address !== "string"); const base = `http://127.0.0.1:${address.port}`;
-  const identity = await registerTestIdentity(base, "synthetic-committee-token", "synthetic-committee-owner");
   t.after(async () => { server.closeIdleConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); await rm(directory, { recursive: true, force: true }); });
+  const identity = await registerTestIdentity(base, "synthetic-committee-token", "synthetic-committee-owner");
+  // Bound the whole authenticated scenario. A single request can queue behind
+  // durable task writes on a busy runner.
+  const fixtureSignal = AbortSignal.any([t.signal, AbortSignal.timeout(90_000)]);
   const request = async (route: string, body?: unknown, headers = identity.headers) => {
-    const response = await fetch(base + "/api/v1/agent" + route, { method: body === undefined ? "GET" : "POST", headers: { ...headers, "Content-Type": "application/json", Authorization: "Bearer synthetic-committee-token" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) });
-    return { status: response.status, data: await response.json() as Record<string, unknown> };
+    const method = body === undefined ? "GET" : "POST";
+    try {
+      const response = await fetch(base + "/api/v1/agent" + route, { method, headers: { ...headers, "Content-Type": "application/json", Authorization: "Bearer synthetic-committee-token" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: fixtureSignal });
+      return { status: response.status, data: await response.json() as Record<string, unknown> };
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new Error(`Committee HTTP fixture ${method} ${route} failed: ${message}`, { cause });
+    }
   };
   const result = await request("/career-studio/context/create", { workspaceKey: scope, resumeId: "synthetic-resume", sourceFingerprint: "b".repeat(64), consent: true,
     claims: [{ id: "claim-a", text: "参与本地模块设计。", contribution: "design", confirmedByUser: false, confirmedNumericTokens: [], skillIds: [] }], jobs: [] }); assert.equal(result.status, 200);
@@ -52,7 +61,13 @@ async function setup(t: TestContext, modelStepMs = 0) {
     request: { contextId: context.id, idempotencyKey: key, consent: true, runtime: selected, claimIds: ["claim-a"], statements: [{ label: "合成设计", kind: "design", text: "  原始资料😀\r\n保留个人行动未知。\r\nTAIL  " }], code: [] },
     runtimeBinding: careerRuntimeBinding(runtime), budget: { maxModelCalls: 20, maxToolCalls: 50, maxActiveMs: fixtureActiveBudgetMs }, consent: true, idempotencyKey: key });
   const start = (task: StudioCommitteeTask, rt = runtime) => request(`/tasks/${task.id}/start`, { expectedRevision: task.revision, sourceFingerprint: task.sourceFingerprint, runtimeBinding: task.runtimeBinding, consent: true, runtime: rt });
-  const settled = async (id: string) => { for (let i = 0; i < 1000; i++) { const task = StudioCommitteeTaskSchema.parse((await request(`/tasks/${id}`)).data.task); if (task.status !== "running") return task; await delay(5); } throw Error("HTTP committee did not settle"); };
+  const settled = async (id: string) => {
+    for (;;) {
+      const task = StudioCommitteeTaskSchema.parse((await request(`/tasks/${id}`)).data.task);
+      if (task.status !== "running") return task;
+      await delay(25);
+    }
+  };
   return { request, input, start, settled, context, identity, base, sourceRoot, sourceFile, sourceText, counts: () => ({ calls, adapters, legacyCalls }), changeDigest: () => { metadataDigest = "d".repeat(64); } };
 }
 
@@ -81,7 +96,8 @@ test("actual authenticated HTTP rejects another owner, forged scope, digest drif
 
 test("completed task reads recheck revoked context and cannot use an old cached committee as current", async t => {
   const f = await setup(t); let task = StudioCommitteeTaskSchema.parse((await f.request("/tasks", f.input())).data.task);
-  assert.equal((await f.start(task)).status, 202); task = await f.settled(task.id); assert.equal(task.status, "completed");
+  assert.equal((await f.start(task)).status, 202); task = await f.settled(task.id); assert.equal(task.status, "completed", task.error);
+  assert.equal((await f.request(`/tasks/${task.id}/committee/current`)).status, 200);
   assert.equal((await f.request("/career-studio/context/revoke", { contextId: f.context.id })).status, 200);
   const current = await f.request(`/tasks/${task.id}/committee/current`); assert.equal(current.status, 409); assert.equal(current.data.error, "studio_context_stale");
   assert.equal((await f.request(`/tasks/${task.id}`)).status, 200); assert.equal(f.counts().calls, 14); assert.equal(f.counts().legacyCalls, 0);
