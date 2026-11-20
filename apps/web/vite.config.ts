@@ -10,12 +10,14 @@ import { atlasAssetsPlugin } from "./server/atlas-assets";
 import { atlasDevIndexPlugin } from "./server/atlas-dev-index";
 import { agentHostDevPlugin } from "./server/agent-host-dev";
 import { cesiumAssetsPlugin } from "./server/cesium-assets";
+import { atlasPreviewPlugin } from "./server/atlas-preview";
 
 const isWin = process.platform === "win32";
 const appDir = path.dirname(fileURLToPath(import.meta.url));
+const atlasIndex = process.env.V0_WORKSPACE_ROOT ? atlasPreviewPlugin("5-web.v0.build") : atlasDevIndexPlugin();
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), cesiumAssetsPlugin(), agentHostDevPlugin(), atlasDevIndexPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: isWin, useNativeBoss: isWin, useNative51Job: isWin }), opportunitySourcesPlugin()],
+  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), cesiumAssetsPlugin(), agentHostDevPlugin(), atlasIndex, networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: isWin, useNativeBoss: isWin, useNative51Job: isWin }), opportunitySourcesPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(appDir, "./src"),

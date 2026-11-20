@@ -28,7 +28,7 @@ import { projectLocalOpportunities } from "./atlas/local-opportunities";
 import { createAtlasSourceClient } from "./atlas/service-client";
 import { useAtlasMapReferences } from "./atlas/use-atlas-map-references";
 import { clearAtlasConnectionSession, DEFAULT_ATLAS_ENDPOINT, readAtlasConnectionSession, writeAtlasConnectionSession, type AtlasConnectionIdentity, type AtlasDataMode } from "./atlas/connection-session";
-import { readAtlasDevAutoConnectSuppressed, requestDevJobIndex, writeAtlasDevAutoConnectSuppressed, type DevJobIndexBootstrap } from "./atlas/dev-index-bootstrap";
+import { clearAtlasDevAutoConnectSuppressed, previewJobIndexEnabled, readAtlasDevAutoConnectSuppressed, requestDevJobIndex, writeAtlasDevAutoConnectSuppressed, type DevJobIndexBootstrap } from "./atlas/dev-index-bootstrap";
 import { runAtlasSourceSearch, type AtlasAggregateProgress, type AtlasAggregateSource } from "./atlas/aggregate-search";
 import { AtlasSearchProgress } from "./atlas/AtlasSearchProgress";
 import { AtlasJobDetailPane } from "./atlas/AtlasJobDetailPane";
@@ -1611,7 +1611,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
 
   function retryIndexConnection() {
     restoreConnection.current = false;
-    if (devJobIndex && !token.trim() && !devAutoConnectSuppressed.current) void bootstrapDevIndex();
+    if (previewJobIndexEnabled()) {
+      devAutoConnectSuppressed.current = false;
+      clearAtlasDevAutoConnectSuppressed();
+      void bootstrapDevIndex();
+    } else if (devJobIndex && !token.trim() && !devAutoConnectSuppressed.current) void bootstrapDevIndex();
     else void connect({ endpoint, token }, true);
   }
   const indexError = dataMode === "live" ? connectionError : dataMode === "local" ? localError : "";
@@ -1621,7 +1625,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     + Number(includeUnclassified && mode === "domestic" && !chinaFilter.selectedProvince);
   const settingsTitles = {
     maps: "地图与街道底图",
-    connection: t("连接你的本机岗位索引", "Connect your local job index"),
+    connection: previewJobIndexEnabled() ? t("连接预览岗位服务", "Connect the preview job service") : t("连接你的本机岗位索引", "Connect your local job index"),
     home: "离家距离 · 私人参照点",
     colors: "企业控股来源配色",
   };
@@ -1743,6 +1747,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
         onConnect={connect}
         onChangeConnection={changeConnection}
         onDisconnect={disconnect}
+        onReconnectPreview={retryIndexConnection}
         latitude={latitude}
         longitude={longitude}
         setLatitude={setLatitude}

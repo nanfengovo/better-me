@@ -1,8 +1,10 @@
 import { DEFAULT_ATLAS_ENDPOINT, parseAtlasConnectionSession } from "./connection-session";
 import { readRuntimeConnection } from "../../lib/runtime-connection";
+import { currentPrincipal } from "../../lib/identity";
+import { ATLAS_DEV_JOB_INDEX_PATH, ATLAS_OWNER_HEADER, PREVIEW_ATLAS_BOOTSTRAP_PATH, previewAtlasSession } from "../../lib/atlas-preview";
 
-/** Same path as the Vite development middleware. Public builds never call it. */
-export const ATLAS_DEV_JOB_INDEX_PATH = "/__better-me/dev/local-job-index";
+export { ATLAS_DEV_JOB_INDEX_PATH };
+export const previewJobIndexEnabled = () => import.meta.env?.VITE_BETTERME_PREVIEW_JOBS === true;
 export const ATLAS_DEV_AUTOCONNECT_SUPPRESSED_KEY = "better-me:atlas-dev-autoconnect-suppressed:v1";
 
 export type DevJobIndexBootstrap = { ok: true; endpoint: string; token: string } | { ok: false; error: string };
@@ -40,10 +42,13 @@ export function parseDevJobIndexBootstrap(value: unknown): DevJobIndexBootstrap 
 
 export async function requestDevJobIndex(signal: AbortSignal): Promise<DevJobIndexBootstrap | undefined> {
   signal.throwIfAborted();
+  const preview = previewJobIndexEnabled();
+  const owner = preview ? currentPrincipal()?.id : undefined;
   let response: Response;
   try {
-    response = await fetch(ATLAS_DEV_JOB_INDEX_PATH, {
-      signal, credentials: "same-origin", cache: "no-store", redirect: "error", headers: { Accept: "application/json" },
+    response = await fetch(preview ? PREVIEW_ATLAS_BOOTSTRAP_PATH : ATLAS_DEV_JOB_INDEX_PATH, {
+      signal, credentials: "same-origin", cache: "no-store", redirect: "error",
+      headers: { Accept: "application/json", ...(owner ? { [ATLAS_OWNER_HEADER]: owner } : {}) },
     });
   } catch (error) {
     if (signal.aborted) throw error;
@@ -59,6 +64,10 @@ export async function requestDevJobIndex(signal: AbortSignal): Promise<DevJobInd
       return { ok: false, error: "本机岗位自动连接尚未就绪。请先保存当前编辑，再启动或重启 pnpm dev；独立验收入口使用 pnpm dev:isolated。无需手填访问令牌。" };
     }
     return undefined;
+  }
+  if (response.ok && preview && payload && typeof payload === "object" && "mode" in payload && payload.mode === "preview") {
+    if (owner && currentPrincipal()?.id === owner && globalThis.location?.origin) return { ok: true, endpoint: globalThis.location.origin, token: previewAtlasSession(owner) };
+    return { ok: false, error: "请先登录当前 BetterMe 预览。" };
   }
   const parsed = parseDevJobIndexBootstrap(payload);
   if (!parsed) return undefined;

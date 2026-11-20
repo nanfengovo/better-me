@@ -1,4 +1,6 @@
 import { readRuntimeConnection } from "../../lib/runtime-connection";
+import { currentPrincipal } from "../../lib/identity";
+import { previewAtlasOwner } from "../../lib/atlas-preview";
 
 export const ATLAS_CONNECTION_SESSION_KEY = "better-me:atlas-connection-session:v1";
 export const DEFAULT_ATLAS_ENDPOINT = "http://127.0.0.1:5178";
@@ -21,9 +23,13 @@ function validIdentity(value: Record<string, unknown>): value is Record<string, 
       || typeof value.token !== "string" || !value.token.trim() || value.token.length > 4096 || /[\r\n\0]/.test(value.token)) return false;
   try {
     const url = new URL(value.endpoint);
-    return (["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.protocol === "https:" && readRuntimeConnection()?.origin === url.origin)
-      && ["http:", "https:"].includes(url.protocol) && !url.username && !url.password
-      && !url.search && !url.hash && url.pathname === "/";
+    const basic = ["http:", "https:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash && url.pathname === "/";
+    if (!basic) return false;
+    if (import.meta.env?.VITE_BETTERME_PREVIEW_JOBS === true) {
+      const owner = previewAtlasOwner(url.href, value.token);
+      return Boolean(owner && owner === currentPrincipal()?.id);
+    }
+    return ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.protocol === "https:" && readRuntimeConnection()?.origin === url.origin;
   } catch { return false; }
 }
 

@@ -1,7 +1,9 @@
 import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from "node:http";
+import { createAtlasPreviewGateway } from "../server/atlas-preview.ts";
+import { ATLAS_OWNER_HEADER, PREVIEW_ATLAS_BOOTSTRAP_PATH, PREVIEW_ATLAS_PATH, previewAtlasOwner, previewAtlasSession } from "../src/lib/atlas-preview.ts";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -242,6 +244,71 @@ test("public or unrelated payloads are not treated as a development connection",
   assert.equal(parseDevJobIndexBootstrap({ endpoint: ATLAS_DEV_JOB_INDEX_ENDPOINT, token, extra: true }), undefined);
   assert.equal(parseDevJobIndexBootstrap("<!doctype html>"), undefined);
   assert.deepEqual(parseDevJobIndexBootstrap({ error: "端口 5178 被占用。" }), { ok: false, error: "端口 5178 被占用。" });
+});
+
+test("sandbox preview uses signed-in owner indexes without exposing the loopback service credential", async () => {
+  const host = "preview.example.test";
+  const ownerA = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+  const ownerB = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+  const secret = "a".repeat(43);
+  const opened: string[] = [];
+  const closed: string[] = [];
+  const upstream = createServer((req, res) => {
+    assert.equal(req.url, "/api/v1/dataset/sync-page");
+    assert.equal(req.headers.cookie, undefined);
+    assert.equal(req.headers[ATLAS_OWNER_HEADER], undefined);
+    let body = "";
+    req.setEncoding("utf8").on("data", chunk => { body += chunk; }).on("end", () => {
+      assert.equal(body, "{}");
+      res.end(JSON.stringify({ owner: req.headers.authorization === `Bearer ${secret}` ? ownerA : ownerB }));
+    });
+  });
+  await new Promise<void>(resolve => upstream.listen(0, "127.0.0.1", resolve));
+  const gateway = createAtlasPreviewGateway({ previewHost: host,
+    getSessionOwner: async cookie => ({ "session=a": ownerA, "session=b": ownerB }[cookie]),
+    openIndex: async owner => {
+      opened.push(owner);
+      return { endpoint: `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`, token: owner === ownerA ? secret : "b".repeat(43), close: async () => { closed.push(owner); } };
+    },
+  });
+  const server = createServer((req, res) => { void gateway.handle(req, res, () => { res.statusCode = 404; res.end(); }); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  async function call(path: string, headers: Record<string, string> = {}, method = "GET") {
+    return new Promise<{ status?: number; body: string }>((resolve, reject) => {
+      const request = httpRequest({ host: "127.0.0.1", port: (server.address() as AddressInfo).port, path, method, headers: { host, ...headers } }, response => {
+        let body = "";
+        response.setEncoding("utf8").on("data", chunk => { body += chunk; }).on("end", () => resolve({ status: response.statusCode, body }));
+      });
+      request.on("error", reject).end(method === "POST" ? "{}" : undefined);
+    });
+  }
+  const api = `${PREVIEW_ATLAS_PATH}/api/v1/dataset/sync-page`;
+  const sessionA = { cookie: "session=a", [ATLAS_OWNER_HEADER]: ownerA };
+  const sessionB = { cookie: "session=b", [ATLAS_OWNER_HEADER]: ownerB };
+  const writeHeaders = { origin: `https://${host}`, "content-type": "application/json" };
+  try {
+    assert.equal((await call(ATLAS_DEV_JOB_INDEX_PATH, sessionA)).status, 404);
+    assert.equal((await call(PREVIEW_ATLAS_BOOTSTRAP_PATH)).status, 401);
+    assert.equal((await call(PREVIEW_ATLAS_BOOTSTRAP_PATH, { ...sessionA, host: "untrusted.example.test" })).status, 403);
+    assert.equal((await call(PREVIEW_ATLAS_BOOTSTRAP_PATH, { ...sessionA, "sec-fetch-site": "cross-site" })).status, 403);
+    const result = await call(PREVIEW_ATLAS_BOOTSTRAP_PATH, sessionA);
+    assert.deepEqual(result, { status: 200, body: '{"mode":"preview"}' });
+    assert.equal((await call(api, { ...sessionA, ...writeHeaders, cookie: "session=b" }, "POST")).status, 409);
+    assert.equal((await call(api, { ...writeHeaders, ...sessionA, origin: "https://other.example.test" }, "POST")).status, 403);
+    assert.equal((await call(api, sessionA, "POST")).status, 403);
+    assert.equal((await call(`${PREVIEW_ATLAS_PATH}/api/v1/dataset/%2e%2e/%2e%2e/healthz`, { ...sessionA, ...writeHeaders }, "POST")).status, 404);
+    assert.deepEqual(opened, []);
+    assert.deepEqual(JSON.parse((await call(api, { ...sessionA, ...writeHeaders }, "POST")).body), { owner: ownerA });
+    assert.deepEqual(JSON.parse((await call(api, { ...sessionB, ...writeHeaders }, "POST")).body), { owner: ownerB });
+    assert.equal((await call(api, { ...sessionA, ...writeHeaders }, "POST")).status, 200);
+    assert.deepEqual(opened, [ownerA, ownerB]);
+    assert.equal(previewAtlasOwner(`https://${host}`, previewAtlasSession(ownerA), `https://${host}`), ownerA);
+    assert.equal(previewAtlasOwner("https://other.example.test", previewAtlasSession(ownerA), `https://${host}`), undefined);
+  } finally {
+    await gateway.close();
+    await Promise.all([server, upstream].map(current => new Promise<void>(resolve => current.close(() => resolve()))));
+  }
+  assert.deepEqual(closed.sort(), [ownerA, ownerB]);
 });
 
 function invoke(middleware: ReturnType<typeof createDevJobIndexMiddleware>, remoteAddress: string) {

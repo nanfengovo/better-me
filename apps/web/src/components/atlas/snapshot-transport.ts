@@ -1,5 +1,6 @@
 import { AtlasDatasetSchema, type AtlasDataset } from "@better-me/opportunities";
 import { AtlasClientError } from "./client-error";
+import { atlasHttpTarget, previewAtlasOwner } from "../../lib/atlas-preview";
 import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
 
 export type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number; view?: "browse"; onProgress?: (dataset: AtlasDataset, progress: BaselineProgress) => void | Promise<void> };
@@ -29,7 +30,7 @@ async function readSmallToolError(response: Response): Promise<string | undefine
 export function atlasConnection(endpoint: string, token: string, maxBytes = DEFAULT_MAX_BYTES) {
   let url: URL;
   try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
-  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
+  if ((!previewAtlasOwner(url.href, token) && !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))
       || !["http:", "https:"].includes(url.protocol) || url.username || url.password
       || url.search || url.hash || url.pathname !== "/") {
     throw new AtlasClientError("invalid-endpoint", "请输入本机 loopback 服务地址，例如 http://127.0.0.1:5178。");
@@ -44,11 +45,12 @@ export async function readAtlasEnvelope(endpoint: string, token: string, { signa
   request: { path: string; body?: unknown; allowUnsupported?: boolean }): Promise<{ supported: false } | { supported: true; value: unknown; bytes: number }> {
   signal?.throwIfAborted();
   const connection = atlasConnection(endpoint, token, maxBytes);
-  const response = await fetch(new URL(request.path, connection.url), {
+  const target = atlasHttpTarget(connection.url, connection.token, request.path);
+  const response = await fetch(target.url, {
     signal, ...(request.body === undefined ? {} : { method: "POST" }),
-    headers: { Authorization: `Bearer ${connection.token}`, ...(request.body === undefined ? {} : { "Content-Type": "application/json" }) },
+    headers: { ...target.headers, ...(request.body === undefined ? {} : { "Content-Type": "application/json" }) },
     ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
-    credentials: "omit", redirect: "error", cache: "no-store",
+    credentials: target.credentials, redirect: "error", cache: "no-store",
   });
   if (signal?.aborted) void response.body?.cancel(signal.reason).catch(() => {});
   signal?.throwIfAborted();

@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { AtlasIllustration } from "./AtlasIllustration";
+import { previewJobIndexEnabled } from "./dev-index-bootstrap";
 
 interface AtlasEmptyJobListProps {
   dataLoading: boolean;
@@ -43,16 +44,18 @@ export function AtlasEmptyJobList({
           : emptyIndex
             ? "先把真实岗位接入地图"
             : !hasData && dataMode === "live"
-              ? "连接本机索引，查看已采集岗位"
+              ? previewJobIndexEnabled() ? "连接预览岗位服务" : "连接本机索引，查看已采集岗位"
               : "暂未找到匹配岗位"}
       </strong>
       <p>
         {dataLoading
           ? "已读取的岗位会逐步显示，地图随后更新。"
           : emptyIndex
-            ? "连接本机采集索引，或读取并收藏招聘原文。岗位会逐步出现，地区与企业在后台自动补全。"
+            ? previewJobIndexEnabled() && connected
+              ? "当前账号的预览索引还没有岗位。配置招聘来源并采集后即可搜索。"
+              : "连接本机采集索引，或读取并收藏招聘原文。岗位会逐步出现，地区与企业在后台自动补全。"
             : !hasData && dataMode === "live"
-              ? "暂未取得本机岗位数据。请检查服务连接；已有数据不会因此清空。"
+              ? previewJobIndexEnabled() ? "请重新连接预览岗位服务。已有数据不会清空。" : "暂未取得本机岗位数据。请检查服务连接；已有数据不会因此清空。"
               : "已收录岗位中没有匹配项。可以清除筛选、扩大地区范围，或继续读取招聘来源。"}
       </p>
       {!dataLoading && (

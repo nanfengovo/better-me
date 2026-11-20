@@ -16,7 +16,7 @@ const spawnWorker: SpawnWorker = (entry, options) => new Worker(entry, options);
 function createLane(config: RuntimeConfig, onFailure: () => void, spawn: SpawnWorker) {
   // tsx's scoped import is needed only for a source checkout. Built JS uses a
   // normal module worker and never inherits watch/test/inspect process flags.
-  const source = import.meta.url.endsWith(".ts");
+  const source = new URL(import.meta.url).pathname.endsWith(".ts");
   const entry = new URL(source ? "./application-runtime-worker.ts" : "./application-runtime-worker.js", import.meta.url).href;
   const bootstrap = source
     ? `const {tsImport}=await import(${JSON.stringify(import.meta.resolve("tsx/esm/api"))}); await tsImport(${JSON.stringify(entry)}, ${JSON.stringify(import.meta.url)});`

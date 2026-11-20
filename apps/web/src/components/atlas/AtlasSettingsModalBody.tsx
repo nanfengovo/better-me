@@ -3,7 +3,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { CompanyColorConfigSchema, getDefaultCompanyColorConfig, type CompanyColorConfig, type QueryOptions } from "@better-me/opportunities";
 import { ATLAS_BASEMAPS } from "./prototypes/basemaps";
 import { COLOR_KEY } from "./atlas-filter-presets";
-import { clearAtlasDevAutoConnectSuppressed } from "./dev-index-bootstrap";
+import { clearAtlasDevAutoConnectSuppressed, previewJobIndexEnabled } from "./dev-index-bootstrap";
 import { readRuntimeConnection } from "../../lib/runtime-connection";
 
 export type AtlasSettingsPanel = "maps" | "connection" | "home" | "colors";
@@ -33,6 +33,7 @@ type AtlasSettingsModalBodyProps = {
   onConnect: (credentials: { endpoint: string; token: string }, manual: boolean) => Promise<void>;
   onChangeConnection: (field: "endpoint" | "token", value: string) => void;
   onDisconnect: () => void;
+  onReconnectPreview?: () => void;
   latitude: string;
   longitude: string;
   setLatitude: Dispatch<SetStateAction<string>>;
@@ -66,6 +67,7 @@ export function AtlasSettingsModalBody({
   onConnect,
   onChangeConnection,
   onDisconnect,
+  onReconnectPreview,
   latitude,
   longitude,
   setLatitude,
@@ -102,6 +104,17 @@ export function AtlasSettingsModalBody({
         </details>
       </div>
     );
+  }
+
+  if (settings === "connection" && previewJobIndexEnabled()) {
+    return <div>
+      <p>使用当前 BetterMe 账号连接沙箱里的独立岗位索引，无需填写服务地址或令牌。电脑上的岗位库不会自动同步到预览。</p>
+      <div className="atlas-form-row">
+        <button type="button" disabled={connecting} onClick={onReconnectPreview}>{connecting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}{connecting ? "正在连接" : "连接并读取索引"}</button>
+        <button type="button" onClick={onDisconnect}>断开连接</button>
+      </div>
+      {connectionError && <p role="alert" className="atlas-error">{connectionError}</p>}
+    </div>;
   }
 
   if (settings === "connection") {

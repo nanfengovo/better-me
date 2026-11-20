@@ -13,6 +13,7 @@ import {
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot, readAtlasBrowseSnapshot } from "./client";
+import { atlasHttpTarget, previewAtlasOwner } from "../../lib/atlas-preview";
 import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
@@ -126,7 +127,7 @@ function input<T>(schema: z.ZodType<T, unknown>, value: unknown): T {
 function baseUrl(endpoint: string, token: string): URL {
   let url: URL;
   try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
-  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || !["http:", "https:"].includes(url.protocol)
+  if ((!previewAtlasOwner(url.href, token) && !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) || !["http:", "https:"].includes(url.protocol)
     || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
     throw new AtlasClientError("invalid-endpoint", "来源工具仅连接本机 loopback 服务根地址。");
   }
@@ -167,9 +168,10 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     if (key !== undefined) input(KeySchema, key);
     let response: Response;
     try {
-      response = await fetch(new URL(`/api/v1/${path}`, base), { method: payload === undefined ? "GET" : "POST", signal: options.signal,
-        credentials: "omit", redirect: "error", cache: "no-store",
-        headers: { Authorization: `Bearer ${token.trim()}`, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
+      const target = atlasHttpTarget(base, token.trim(), `/api/v1/${path}`);
+      response = await fetch(target.url, { method: payload === undefined ? "GET" : "POST", signal: options.signal,
+        credentials: target.credentials, redirect: "error", cache: "no-store",
+        headers: { ...target.headers, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
       });
     } catch (error) {
