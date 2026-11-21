@@ -13,6 +13,7 @@ export interface SelectMenuGroup {
 }
 
 export function SelectMenu({
+  id,
   value,
   options,
   groups,
@@ -24,6 +25,7 @@ export function SelectMenu({
   className,
   triggerClassName,
 }: {
+  id?: string;
   value: string;
   options?: readonly SelectMenuOption[];
   groups?: readonly SelectMenuGroup[];
@@ -54,15 +56,17 @@ export function SelectMenu({
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
         setOpen(false);
         triggerRef.current?.focus();
       }
     };
     window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [open]);
 
@@ -115,6 +119,7 @@ export function SelectMenu({
   return (
     <div ref={rootRef} data-full-width={fullWidth ? "true" : undefined} className={className ? `bm-select-wrap ${className}` : "bm-select-wrap"}>
       <button
+        id={id}
         ref={triggerRef}
         type="button"
         role="combobox"

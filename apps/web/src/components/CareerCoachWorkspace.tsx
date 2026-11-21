@@ -31,6 +31,7 @@ const CoachViewRecoverySchema = z.object({ mode: z.enum(COACH_MODES), inputs: z.
 const initialCoachView = (): z.infer<typeof CoachViewRecoverySchema> => ({ mode: "analysis", inputs: {}, selectedRecords: {}, taskId: "", evidence: {}, minutes: 30, decisions: {} });
 
 import { useUiPreferences } from "../lib/ui-preferences";
+import { useConfirmOrFallback } from "./ConfirmationDialog";
 
 export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
@@ -88,6 +89,7 @@ export function CareerCoachWorkspace(props: CareerCoachWorkspaceProps) {
 
 function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000, taskClient = defaultCoachGuidanceTaskClient }: CareerCoachWorkspaceProps) {
   const { t } = useUiPreferences();
+  const confirmAction = useConfirmOrFallback();
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -335,7 +337,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
     } catch (failure) { setError(messageOf(failure)); return; }
     const currentGoal = confirmedGoal(stateRef.current, contextFingerprint(contextRef.current));
     if (latest.basis.goalFingerprint && (!currentGoal || latest.basis.goalId !== currentGoal.id || latest.basis.contextFingerprint !== contextFingerprint(contextRef.current))) { setError("核对期间目标或授权已变化，未采纳旧方案。"); return; }
-    if (state.activePlan && state.activePlan.id !== latest.id && !window.confirm("采纳为新版本？旧方案、任务进度和学习提交会完整保留；新版本任务独立跟踪，不自动声称完成。")) return;
+    if (state.activePlan && state.activePlan.id !== latest.id && !await confirmAction("采纳为新版本？旧方案、任务进度和学习提交会完整保留；新版本任务独立跟踪，不自动声称完成。", { title: "采纳新学习方案", confirmLabel: "采纳新版本" })) return;
     if (mutate((current) => adoptCoachPlan(current, latest.id))) { agent?.track({ id: `plan:${latest.id}`, kind: "plan-adopted", label: `本人采纳方案：${latest.payload.title}；${latest.payload.durationWeeks} 周 / 每周 ${latest.payload.weeklyHours} 小时。`, origin: "growth" }); setNotice("已采纳学习方案，可到学习监督选择任务并提交证据。"); setTaskId(""); }
   };
   const saveSubmission = () => {
@@ -368,9 +370,9 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         turns: next.interview.turns.map((turn, index) => index === next.interview!.turns.length - 1 && payload.feedback ? { ...turn, feedback: payload.feedback } : turn) } };
     });
   };
-  const startInterview = () => {
+  const startInterview = async () => {
     if (disabled || !state.settings.goal.trim()) { setError("请先填写本阶段目标。"); return; }
-    if (interview && !window.confirm("开始新一场面试？旧场次的回答、草稿和反馈会保留在历史，不会覆盖。")) return;
+    if (interview && !await confirmAction("开始新一场面试？旧场次的回答、草稿和反馈会保留在历史，不会覆盖。", { title: "开始新模拟面试", confirmLabel: "开始新场次" })) return;
     const session: NonNullable<CoachState["interview"]> = { id: crypto.randomUUID(), status: "active", totalRounds: state.settings.interviewRounds, contextFingerprint: fingerprint, goalFingerprint: goalFingerprint(state.settings), adaptive: adaptiveInterview, turns: [] };
     if (mutate((current) => ({ ...current, interviewHistory: current.interview ? [...(current.interviewHistory ?? []), current.interview] : current.interviewHistory, interview: session }))) { setAnswer(""); requestInterview(session); }
   };
@@ -388,7 +390,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
     setNotice("已发起 JSON 备份下载。备份可能包含个人信息，请妥善保管。");
   };
   const reset = async () => {
-    if (!window.confirm("只清除当前简历视图的职业成长记录？将移除计划、学习提交和面试，不影响原简历与岗位库。此操作不可撤销，请先下载备份。")) return;
+    if (!await confirmAction("只清除当前简历视图的职业成长记录？将移除计划、学习提交和面试，不影响原简历与岗位库。此操作不可撤销，请先下载备份。", { title: "清除职业成长记录", confirmLabel: "确认清除", danger: true })) return;
     invalidate();
     try { await clear(); recovery.set(initialCoachView()); setNotice("已清除当前成长记录；原简历和岗位库未被改动。"); setError(undefined); } catch (failure) { setError(messageOf(failure)); }
   };
@@ -423,7 +425,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         requested={modeRequest?.trainingRequirement} onUseRequirement={useTrainingRequirement}
         disabled={disabled || Boolean(persistenceError)} onBind={bindTrainingTarget} onReview={reviewTrainingEvidence} />}
       {!ready && <p role="status">正在读取本地成长记录…</p>}
-      {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { if (window.confirm("已下载需要保留的草稿？重新读取会替换当前内容。")) { invalidate(); void reload(); } }}>重新读取记录</button></div>}
+      {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { void (async () => { if (await confirmAction("已下载需要保留的草稿？重新读取会替换当前内容。", { title: "重新读取记录", confirmLabel: "重新读取" })) { invalidate(); void reload(); } })(); }}>重新读取记录</button></div>}
       {error && <div className="coach-alert" role="alert"><strong>{t("这一步尚未完成", "This step is incomplete")}</strong><p>{error}</p><button type="button" onClick={onOpenConfig}>{t("检查模型配置", "Check model configuration")}</button></div>}
       {resumeCandidate && resumeCandidate.scope===scope && <section className="coach-alert"><strong>核对原任务后恢复</strong><p>{resumeCandidate.task.id} · {resumeCandidate.task.status} · 已用模型 {resumeCandidate.task.rootLedger?.usage.modelCalls??resumeCandidate.task.usage.modelCalls} 次；恢复沿用原账本。</p><details><summary>查看本次完整请求与已有输出</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify({request:resumeCandidate.request,partialOutput:resumeCandidate.task.partialOutput,outputArtifacts:resumeCandidate.task.outputArtifacts},null,2)}</pre></details><label><input type="checkbox" checked={resumeConsent} disabled={busy} onChange={event=>setResumeConsent(event.target.checked)} />我已核对以上目标、资料和当前底座，授权恢复原任务</label><button type="button" disabled={busy||!resumeConsent} onClick={()=>void run(resumeCandidate.request,resumeCandidate.apply,true,resumeCandidate.task.id)}>恢复原任务（保留已用额度）</button></section>}
       {notice && <p className="coach-notice" role="status">{notice}</p>}
@@ -473,7 +475,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         })}</section></> : <Empty title="先采纳一份学习方案" text="学习监督只跟踪你明确采纳的任务。到学习方案生成并采纳后，再提交证据、复盘和自评完成。" action={<button type="button" className="coach-primary" onClick={() => setMode("plan")}>去制定学习方案<ArrowRight size={16} /></button>} />)}
       {mode === "interview" && <>
         {!state.settings.goal.trim() && <div className="coach-prerequisite"><Target size={16} /><span>设置目标岗位或想练习的方向，再开始面试。</span><button type="button" onClick={() => setSetupOpen(true)}>设置目标</button></div>}
-        <div className="coach-compose"><p>每轮一题，本场上限 {interview?.totalRounds ?? state.settings.interviewRounds} 轮。</p><label className="coach-consent"><input type="checkbox" checked={adaptiveInterview} disabled={disabled} onChange={event => setAdaptiveInterview(event.target.checked)} />新一场启用自适应追问与提前总结</label><div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled} onClick={startInterview}><MessageSquare size={17} />{interview ? "重新开始面试" : "开始模拟面试"}</button>{interview?.status === "active" && <button type="button" onClick={() => { invalidate(true); mutate((current) => ({ ...current, interview: current.interview ? { ...current.interview, status: "stopped" } : undefined })); }}>停止本轮面试</button>}</div></div>
+        <div className="coach-compose"><p>每轮一题，本场上限 {interview?.totalRounds ?? state.settings.interviewRounds} 轮。</p><label className="coach-consent"><input type="checkbox" checked={adaptiveInterview} disabled={disabled} onChange={event => setAdaptiveInterview(event.target.checked)} />新一场启用自适应追问与提前总结</label><div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled} onClick={() => { void startInterview(); }}><MessageSquare size={17} />{interview ? "重新开始面试" : "开始模拟面试"}</button>{interview?.status === "active" && <button type="button" onClick={() => { invalidate(true); mutate((current) => ({ ...current, interview: current.interview ? { ...current.interview, status: "stopped" } : undefined })); }}>停止本轮面试</button>}</div></div>
         {interviewChanged && <p className="coach-alert" role="alert">面试使用的简历或岗位授权已变化。请恢复原资料授权后继续，或下载记录后重新开始；不会把新旧上下文静默混合。</p>}
         {!interview && <Empty title="把“我做过”讲成有证据的回答" text="练习项目细节、方案取舍和异常处理。先自行回答，再看模型基于文本提供的评分依据。" />}
         {interview && <section className="coach-result"><div className="coach-section-heading"><h3>本轮面试</h3><span className="coach-badge">已作答 {interview.turns.length}/{interview.totalRounds} · {({ active: "进行中", completed: "已完成", stopped: "已停止" })[interview.status]}</span></div>

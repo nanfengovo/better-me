@@ -139,7 +139,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
               <button type="button" className="btn-chrome-focus" onClick={handleFocus} title={t("置顶真实浏览器窗口", "Bring browser to front")}>
                 {t("置顶窗口", "Bring to Front")}
               </button>
-              <button type="button" className="btn-chrome-refresh" disabled={loading} onClick={handleRestart} title={t("重启接管窗口", "Restart Chrome")}>
+              <button type="button" className="btn-chrome-refresh" disabled={loading} onClick={handleRestart} aria-label={t("重启接管窗口", "Restart Chrome")} title={t("重启接管窗口", "Restart Chrome")}>
                 <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
               </button>
             </>
@@ -149,7 +149,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
               {loading ? t("启动中…", "Launching…") : t("一键启动真实 Chrome", "1-Click Launch Chrome")}
             </button>
           )}
-          <button type="button" className="btn-chrome-refresh" disabled={loading} onClick={refreshStatus} title={t("刷新状态", "Refresh status")}>
+          <button type="button" className="btn-chrome-refresh" disabled={loading} onClick={refreshStatus} aria-label={t("刷新状态", "Refresh status")} title={t("刷新状态", "Refresh status")}>
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
@@ -200,7 +200,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
                 {t("重新接管", "Restart")}
               </button>
-              <button type="button" className="btn-chrome-refresh-full" disabled={loading} onClick={refreshStatus} title={t("重新检测连接", "Check connection")}>
+              <button type="button" className="btn-chrome-refresh-full" disabled={loading} onClick={refreshStatus} aria-label={t("重新检测连接", "Check connection")} title={t("重新检测连接", "Check connection")}>
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
               </button>
             </>

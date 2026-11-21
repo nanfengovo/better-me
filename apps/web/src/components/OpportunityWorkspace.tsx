@@ -18,7 +18,7 @@ import { OpportunityEventReviewPanel } from "./OpportunityEventReview";
 import { summarizeOpportunityEvaluations } from "../lib/opportunity-evaluation";
 import { captureIdentityLease } from "../lib/identity";
 import { OpportunityCard3D } from "./OpportunityCard3D";
-import { Button, EmptyState, FilterBar, PageHeader, StatusPill } from "../design-system";
+import { Button, EmptyState, FilterBar, PageHeader, SelectMenu, StatusPill } from "../design-system";
 
 export type OpportunitySeed = { token: string; title?: string; description: string; sourceUrl?: string; sourcePlatform?: string; sourceJobId?: string; company?: string; collectedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
 type Props = {
@@ -99,6 +99,7 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [draftDirty, setDraftDirty] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(() => createDraft());
   const [formCollectedAt, setFormCollectedAt] = useState<string | undefined>();
@@ -129,10 +130,10 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
   }
   const followupDirty = !!selected && (notes !== selected.application.notes || nextAction !== selected.application.nextAction || nextActionAt !== inputDate(selected.application.nextActionAt) || channel !== selected.application.channel || contactName !== selected.application.contactName || contactDetails !== selected.application.contactDetails);
   useEffect(() => {
-    if (!editing && !followupDirty && !communicationDirty && !reviewDirty && !deliveryDirty) return;
+    if (!draftDirty && !followupDirty && !communicationDirty && !reviewDirty && !deliveryDirty) return;
     const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect);
-  }, [editing, followupDirty, communicationDirty, reviewDirty, deliveryDirty]);
+  }, [draftDirty, followupDirty, communicationDirty, reviewDirty, deliveryDirty]);
 
   useEffect(() => {
     const changed = (event: StorageEvent) => {
@@ -145,7 +146,7 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
   useEffect(() => {
     if (!seed) return;
     if (editing) { setNotice(uiTextRef.current("先保存或取消当前岗位编辑，再重新从 JD 保存。", "Save or cancel the current job edit before saving from the JD again.")); onSeedConsumed(); return; }
-    setDraft(createDraft(undefined, seed)); setEditingId(null); setFormCollectedAt(seed.collectedAt); setFormPublishedAt(seed.sourcePublishedAt); setEditing(true); setSelectedId(null); onSeedConsumed();
+    setDraft(createDraft(undefined, seed)); setDraftDirty(true); setEditingId(null); setFormCollectedAt(seed.collectedAt); setFormPublishedAt(seed.sourcePublishedAt); setEditing(true); setSelectedId(null); onSeedConsumed();
   }, [seed, editing, onSeedConsumed]);
   useEffect(() => {
     const node = dialog.current;
@@ -199,18 +200,18 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
       setCommunicationDirty(false);
     }
   }
-  async function canLeave() { return !(editing || followupDirty || communicationDirty || reviewDirty || deliveryDirty) || await confirmAction(t("有未保存的岗位信息、投递行动卡、跟进或沟通内容，确认放弃这些修改？", "Discard unsaved job details, application action cards, follow-ups or communication notes?"), { title: t("未保存的求职记录", "Unsaved job search records"), confirmLabel: t("放弃修改", "Discard changes") }); }
+  async function canLeave() { return !((editing && draftDirty) || followupDirty || communicationDirty || reviewDirty || deliveryDirty) || await confirmAction(t("有未保存的岗位信息、投递行动卡、跟进或沟通内容，确认放弃这些修改？", "Discard unsaved job details, application action cards, follow-ups or communication notes?"), { title: t("未保存的求职记录", "Unsaved job search records"), confirmLabel: t("放弃修改", "Discard changes") }); }
   async function reload() {
     if (!await canLeave()) return;
-    const result = readOpportunityLibrary(); setLibrary(result.library); setError(result.error ?? ""); setRecoveryRaw(result.recoveryRaw); setConflict(false); setEditing(false); setSelectedId(null);
+    const result = readOpportunityLibrary(); setLibrary(result.library); setError(result.error ?? ""); setRecoveryRaw(result.recoveryRaw); setConflict(false); setEditing(false); setDraftDirty(false); setSelectedId(null);
   }
   function openJob(job: Opportunity) {
-    setEditing(false); setSelectedId(job.id); setNotes(job.application.notes); setNextAction(job.application.nextAction); setNextActionAt(inputDate(job.application.nextActionAt)); setChannel(job.application.channel); setContactName(job.application.contactName); setContactDetails(job.application.contactDetails); setCommunicationDirty(false); setNotice("");
+    setEditing(false); setDraftDirty(false); setSelectedId(job.id); setNotes(job.application.notes); setNextAction(job.application.nextAction); setNextActionAt(inputDate(job.application.nextActionAt)); setChannel(job.application.channel); setContactName(job.application.contactName); setContactDetails(job.application.contactDetails); setCommunicationDirty(false); setNotice("");
   }
-  function openCreate() { setDraft(createDraft()); setEditingId(null); setFormCollectedAt(undefined); setFormPublishedAt(undefined); setSelectedId(null); setEditing(true); setNotice(""); }
+  function openCreate() { setDraft(createDraft()); setDraftDirty(false); setEditingId(null); setFormCollectedAt(undefined); setFormPublishedAt(undefined); setSelectedId(null); setEditing(true); setNotice(""); }
   async function closeDialog() {
     if (!await canLeave()) return;
-    setEditing(false); setSelectedId(null); setCommunicationDirty(false);
+    setEditing(false); setDraftDirty(false); setSelectedId(null); setCommunicationDirty(false);
   }
   function saveDraft(event: React.FormEvent) {
     event.preventDefault();
@@ -229,11 +230,11 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
       };
       if (editingId) {
         const next = updateOpportunity(library, editingId, input);
-        if (commit(next)) { setEditing(false); const job = next.jobs.find((item) => item.id === editingId); if (job) openJob(job); }
+        if (commit(next)) { setEditing(false); setDraftDirty(false); const job = next.jobs.find((item) => item.id === editingId); if (job) openJob(job); }
       } else {
         const result = addOpportunity(library, input);
         if (result.duplicate) { setError(t("这个来源链接已经收藏。为保护你刚填写的内容，当前表单仍保留；请取消后打开已有岗位，或改用另一个来源链接。", "This source link is already saved. Your form is kept. Cancel to open the existing job, or use a different source link.")); return; }
-        if (commit(result.library)) { setEditing(false); openJob(result.job); }
+        if (commit(result.library)) { setEditing(false); setDraftDirty(false); openJob(result.job); }
       }
     } catch (err) { setError(err instanceof Error ? err.message : t("请检查岗位信息。", "Please check the job details.")); }
   }
@@ -278,7 +279,7 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
     return false;
   }
   function exportCsv() { downloadOpportunityFile(exportOpportunitiesCsv(jobs), "better-me-opportunities.csv", "text/csv;charset=utf-8"); }
-  function updateDraft<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((current) => ({ ...current, [key]: value })); }
+  function updateDraft<K extends keyof Draft>(key: K, value: Draft[K]) { setDraftDirty(true); setDraft((current) => ({ ...current, [key]: value })); }
   const distributions = new Map<string, number>();
   for (const job of jobs) { const place = locationText(job); distributions.set(place, (distributions.get(place) ?? 0) + 1); }
 
@@ -317,9 +318,24 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
         clearLabel: t("清除搜索", "Clear search"),
       }}
       controls={<>
-        <select aria-label={t("筛选投递阶段", "Filter application stage")} value={filters.stage ?? "all"} onChange={(event) => setFilters({ ...filters, stage: event.target.value as OpportunityFilters["stage"] })}><option value="all">{t("全部阶段", "All stages")}</option>{Object.entries(STAGES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <select aria-label={t("筛选岗位状态", "Filter job status")} value={filters.status ?? "all"} onChange={(event) => setFilters({ ...filters, status: event.target.value as OpportunityFilters["status"] })}><option value="all">{t("全部开放状态", "All job statuses")}</option>{Object.entries(JOB_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <select aria-label={t("筛选招聘类型", "Filter hiring type")} value={filters.employmentType ?? "all"} onChange={(event) => setFilters({ ...filters, employmentType: event.target.value as OpportunityFilters["employmentType"] })}><option value="all">{t("社招 / 校招 / 实习", "Experienced / graduate / internship")}</option>{Object.entries(EMPLOYMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <SelectMenu
+          ariaLabel={t("筛选投递阶段", "Filter application stage")}
+          value={filters.stage ?? "all"}
+          options={[{ value: "all", label: t("全部阶段", "All stages") }, ...Object.entries(STAGES).map(([value, label]) => ({ value, label }))]}
+          onChange={(value) => setFilters({ ...filters, stage: value as OpportunityFilters["stage"] })}
+        />
+        <SelectMenu
+          ariaLabel={t("筛选岗位状态", "Filter job status")}
+          value={filters.status ?? "all"}
+          options={[{ value: "all", label: t("全部开放状态", "All job statuses") }, ...Object.entries(JOB_STATUS).map(([value, label]) => ({ value, label }))]}
+          onChange={(value) => setFilters({ ...filters, status: value as OpportunityFilters["status"] })}
+        />
+        <SelectMenu
+          ariaLabel={t("筛选招聘类型", "Filter hiring type")}
+          value={filters.employmentType ?? "all"}
+          options={[{ value: "all", label: t("社招 / 校招 / 实习", "Experienced / graduate / internship") }, ...Object.entries(EMPLOYMENT).map(([value, label]) => ({ value, label }))]}
+          onChange={(value) => setFilters({ ...filters, employmentType: value as OpportunityFilters["employmentType"] })}
+        />
       </>}
       actions={<>
         <Button variant="ghost" size="sm" onClick={() => setFilters({})}>{t("清除筛选", "Clear filters")}</Button>

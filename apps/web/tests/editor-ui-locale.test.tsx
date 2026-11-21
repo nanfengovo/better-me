@@ -200,7 +200,7 @@ test("preview toolbar follows UI locale while resume paper keeps its own locale"
   }
   await mount(h(Harness), "en");
   assert.ok(button("Export PDF / Print"));
-  assert.equal(dom.document.querySelector("#resume-template option")!.textContent, "Classic");
+  assert.equal(dom.document.querySelector("#resume-template")!.textContent?.trim(), "Classic");
   const paper = dom.document.querySelector(".resume-document")!;
   assert.match(paper.textContent!, /合成姓名/); assert.match(paper.textContent!, /工作经历/);
   const paperBefore = paper.textContent;

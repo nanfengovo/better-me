@@ -71,7 +71,7 @@ export function ClaimKindSelector({
   const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
@@ -80,11 +80,20 @@ export function ClaimKindSelector({
         setIsAddingCustom(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setIsOpen(false);
+        setIsAddingCustom(false);
+      }
+    };
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("touchstart", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("touchstart", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 

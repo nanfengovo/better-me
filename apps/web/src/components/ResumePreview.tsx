@@ -5,7 +5,7 @@ import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type Projecte
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
 import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle, FileSearch, Scissors } from "lucide-react";
-import { Button, SegmentedControl, SplitButton, type SplitButtonMenuEntry } from "../design-system";
+import { Button, SegmentedControl, SelectMenu, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
@@ -311,9 +311,22 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
         <div className="preview-toolbar-main">
           <div className="preview-template-control">
             <label htmlFor="resume-template"><Layout size={15} aria-hidden="true" />{t("模板", "Template")}</label>
-            <select id="resume-template" value={templateId} onChange={(event) => { if (onTemplateChange) onTemplateChange(event.target.value); else if (view && onViewChange) onViewChange({ ...view, templateId: event.target.value, updatedAt: new Date().toISOString() }); }}>
-              {TEMPLATE_SOURCES.map((source) => <optgroup key={source.id} label={source[locale]}>{RESUME_TEMPLATES.filter((item) => item.source === source.id).map((item) => <option key={item.id} value={item.id}>{getTemplateUiMetadata(item.id, locale).name}</option>)}</optgroup>)}
-            </select>
+            <SelectMenu
+              id="resume-template"
+              ariaLabel={t("选择简历模板", "Select resume template")}
+              value={templateId}
+              groups={TEMPLATE_SOURCES.map((source) => ({
+                label: source[locale],
+                options: RESUME_TEMPLATES.filter((item) => item.source === source.id).map((item) => ({
+                  value: item.id,
+                  label: getTemplateUiMetadata(item.id, locale).name,
+                })),
+              }))}
+              onChange={(nextId) => {
+                if (onTemplateChange) onTemplateChange(nextId);
+                else if (view && onViewChange) onViewChange({ ...view, templateId: nextId, updatedAt: new Date().toISOString() });
+              }}
+            />
           </div>
           <div className="preview-export-actions">
             <div className="preview-help" ref={helpRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsHelpOpen(false); }}>

@@ -979,9 +979,14 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label htmlFor={`experience-type-${exp.id}`} className="mb-1 block text-[11px] font-semibold text-slate-600">{t("经历类型", "Experience type")}</label>
-                          <select id={`experience-type-${exp.id}`} value={exp.type} onChange={(event) => updateExperiences((experiences) => experiences.map((item) => item.id === exp.id ? { ...item, type: event.target.value as Experience["type"] } : item))} className="w-full rounded-md border border-[var(--color-line)] bg-white px-2.5 py-1 text-xs outline-none focus:border-[var(--color-accent)]">
-                            {EXPERIENCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                          </select>
+                          <SelectMenu
+                            id={`experience-type-${exp.id}`}
+                            fullWidth
+                            ariaLabel={t("经历类型", "Experience type")}
+                            value={exp.type}
+                            options={EXPERIENCE_TYPES.map((item) => ({ value: item.value, label: item.label }))}
+                            onChange={(nextType) => updateExperiences((experiences) => experiences.map((item) => item.id === exp.id ? { ...item, type: nextType as Experience["type"] } : item))}
+                          />
                         </div>
                         {viewMode !== "en" && (
                         <div>

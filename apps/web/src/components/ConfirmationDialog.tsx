@@ -12,6 +12,18 @@ export function useConfirm(): Confirm {
   return confirm;
 }
 
+/**
+ * Uses the mounted Calm Craft ConfirmationProvider in production, falling back
+ * to `window.confirm` only when rendered inside an isolated test harness without a provider.
+ */
+export function useConfirmOrFallback(): Confirm {
+  const confirm = useContext(ConfirmationContext);
+  return useCallback<Confirm>((message, options) => {
+    if (confirm) return confirm(message, options);
+    return Promise.resolve(typeof window !== "undefined" && typeof window.confirm === "function" ? window.confirm(message) : false);
+  }, [confirm]);
+}
+
 export function ConfirmationProvider({ children }: { children: ReactNode }) {
   const { t } = useUiPreferences();
 

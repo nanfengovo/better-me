@@ -13,6 +13,7 @@ import { CareerCapabilityTask } from "./CareerCapabilityTask";
 import { AgentBaseControls } from "./AgentBaseControls";
 import { useAgentRouting } from "../lib/agent-routing";
 import { AgentTaskLedger } from "./AgentTaskLedger";
+import { useConfirmOrFallback } from "./ConfirmationDialog";
 
 const origins: Record<AgentOrigin, string> = { writing: "简历伴写", companion: "Agent 伴侣", growth: "职业成长", understanding: "项目理解" };
 const statuses: Record<AgentTask["status"], string> = { running: "运行中", waiting: "等待你参与", completed: "已完成", failed: "本轮失败 · 可回到来源重试", cancelled: "已停止", interrupted: "页面重载 · 待手动恢复" };
@@ -43,6 +44,7 @@ export function AgentModelControls({ config, disabled, client = defaultChatGptCl
 }
 export function BetterMeAgentCenter({ onNavigate }: { onNavigate: (origin: AgentOrigin) => void }) {
   const { agent, snapshot } = useBetterMeAgent();
+  const confirmAction = useConfirmOrFallback();
   const sidebar = useAgentSidebar();
   const shown = sidebar ? sidebar.open && sidebar.tab === "memory" : snapshot?.centerOpen;
   const [tab, setTab] = useState<"tasks" | "memory" | "history" | "growth">("tasks");
@@ -76,7 +78,7 @@ export function BetterMeAgentCenter({ onNavigate }: { onNavigate: (origin: Agent
     {(issue || error) && <section className="agent-storage-alert" role="alert"><strong>{issue?.title ?? "本次操作未完成"}</strong><p>{issue?.message ?? error}</p><div className="agent-storage-actions">
       {issue?.retryable && <button type="button" disabled={recovering || snapshot.saving} onClick={() => void recover()}>{recovering ? "正在恢复…" : "重连并重试保存"}</button>}
       <button type="button" onClick={exportRecords}>下载本页记录</button>
-      <details><summary>其他恢复方式</summary><p>重新读取会用已保存记录替换本页 Agent 状态，并停止本页请求。请先下载备份；不会重发模型请求。</p><button type="button" disabled={recovering || snapshot.saving} onClick={() => { if (window.confirm("已下载需要保留的本页记录？重新读取会停止本页请求，并载入已保存记录；不会自动重发。")) perform(() => agent.reload()); }}>重新读取已保存记录</button></details>
+      <details><summary>其他恢复方式</summary><p>重新读取会用已保存记录替换本页 Agent 状态，并停止本页请求。请先下载备份；不会重发模型请求。</p><button type="button" disabled={recovering || snapshot.saving} onClick={() => { void (async () => { if (await confirmAction("已下载需要保留的本页记录？重新读取会停止本页请求，并载入已保存记录；不会自动重发。", { title: "重新读取已保存记录", confirmLabel: "重新读取" })) perform(() => agent.reload()); })(); }}>重新读取已保存记录</button></details>
     </div></section>}
     <nav aria-label="统一 Agent 视图">{([['tasks', '任务'], ['memory', '共识记忆'], ['history', '对话历史'], ['growth', '持续成长']] as const).map(([id, label]) => <button type="button" key={id} data-agent-guide={id === "tasks" ? "agent-tasks" : undefined} aria-pressed={tab === id} onClick={() => { setTab(id); setLimit(30); }}>{label}</button>)}</nav>
     <div className="betterme-agent-center-body">

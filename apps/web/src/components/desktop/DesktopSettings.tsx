@@ -7,6 +7,7 @@ import { DesktopWallpaperSettings } from "./DesktopWallpaperSettings";
 import { DesktopShortcutSettings } from "./DesktopShortcutSettings";
 import { DesktopMcpSettings } from "./DesktopMcpSettings";
 import { ProductMark } from "../ProductMark";
+import { SelectMenu } from "../../design-system";
 
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return <div className="os-setting-row"><span>{label}</span><div>{children}</div></div>;
@@ -68,9 +69,31 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
           {(["light", "dark"] as const).map(mode => <button key={mode} type="button" aria-pressed={theme === mode} onClick={() => setTheme(mode)}><span className={`os-appearance-preview ${mode}`}><i /><b /></span><span>{mode === "light" ? t("浅色", "Light") : t("深色", "Dark")}</span></button>)}
         </div>
         <h2>{t("个性化", "Personalization")}</h2>
-        <div className="os-settings-card">
-          <SettingRow label={t("工作台配色", "Workspace palette")}><select aria-label={t("工作台配色", "Workspace palette")} value={workspaceThemeId} onChange={e => { const item = WORKSPACE_THEMES.find(value => value.id === e.target.value); if (item) setWorkspaceThemeId(item.id); }}>{WORKSPACE_THEMES.map(item => <option key={item.id} value={item.id}>{item.name[locale]}</option>)}</select></SettingRow>
-          <SettingRow label={t("界面语言", "Interface language")}><select aria-label={t("界面语言", "Interface language")} value={locale} onChange={e => setLocale(e.target.value === "en" ? "en" : "zh")}><option value="zh">简体中文</option><option value="en">English</option></select></SettingRow>
+        <div className="os-settings-card" style={{ overflow: "visible" }}>
+          <SettingRow label={t("工作台配色", "Workspace palette")}>
+            <SelectMenu
+              align="right"
+              ariaLabel={t("工作台配色", "Workspace palette")}
+              value={workspaceThemeId}
+              options={WORKSPACE_THEMES.map(item => ({ value: item.id, label: item.name[locale] }))}
+              onChange={(nextId) => {
+                const item = WORKSPACE_THEMES.find(value => value.id === nextId);
+                if (item) setWorkspaceThemeId(item.id);
+              }}
+            />
+          </SettingRow>
+          <SettingRow label={t("界面语言", "Interface language")}>
+            <SelectMenu
+              align="right"
+              ariaLabel={t("界面语言", "Interface language")}
+              value={locale}
+              options={[
+                { value: "zh", label: "简体中文" },
+                { value: "en", label: "English" },
+              ]}
+              onChange={(nextLocale) => setLocale(nextLocale === "en" ? "en" : "zh")}
+            />
+          </SettingRow>
         </div>
         <p className="os-setting-note">{t("仅改变工作空间外观，简历纸张与导出保持不变。", "Resume paper and exports keep their own design.")}</p>
       </>}

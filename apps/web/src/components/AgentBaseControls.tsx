@@ -28,7 +28,9 @@ export function AgentBaseControls({ legacy, onLegacy, model, disabled, client = 
     setNotice(""); setConsent(false);
     if (value === "current" || value === "chatgpt") {
       if (policy && policy.mode !== "legacy") {
-        void routing?.update({ ...policy, mode: "legacy" }).then(() => onLegacy(value)).catch(() => undefined);
+        void routing?.update({ ...policy, mode: "legacy" }).then(() => onLegacy(value)).catch((err: unknown) => {
+          setNotice(err instanceof Error ? err.message : t("底座切换未保存，请检查本机服务后重试。", "Could not save source change; check the local host and retry."));
+        });
       } else onLegacy(value);
       setDraft(undefined); return;
     }
@@ -47,7 +49,7 @@ export function AgentBaseControls({ legacy, onLegacy, model, disabled, client = 
     </select></label>
     <p id={helpId}>{t(`要使用已保存的 API 连接，选「当前明确配置模型 · ${model || "未配置"}」。切换来源可能中断正在运行的请求，不会给已绑定的工作区换模型。`,`To use your saved API connection, select the configured model (${model || "not set"}). Switching may interrupt active requests and cannot rebind an existing workspace.`)}</p>
     {policy && !draft && <button type="button" onClick={() => { setDraft({ ...policy }); setConsent(false); }}>{t("调整首选与备用顺序", "Configure preferred and backup order")}</button>}
-    {draft && <form onSubmit={event => { event.preventDefault(); if (!consent || !routing) return; void routing.update(draft).then(() => { setDraft(undefined); setNotice(t("本账号底座配置已保存；没有发送资料或调用模型。", "Source configuration saved for this account; no materials were sent or models called.")); }).catch(() => undefined); }}>
+    {draft && <form onSubmit={event => { event.preventDefault(); if (!consent || !routing) return; void routing.update(draft).then(() => { setDraft(undefined); setNotice(t("本账号底座配置已保存；没有发送资料或调用模型。", "Source configuration saved for this account; no materials were sent or models called.")); }).catch((err: unknown) => { setNotice(err instanceof Error ? err.message : t("底座配置保存失败，请刷新状态后重试。", "Failed to save source configuration; refresh status and retry.")); }); }}>
       <label>{t("运行策略", "Routing mode")}<select value={draft.mode} onChange={event => { setDraft({ ...draft, mode: event.target.value as AgentRoutingPolicy["mode"] }); setConsent(false); }}><option value="manual">{t("手动固定底座", "Pinned manual source")}</option><option value="auto">{t("自动选择与启动前备援", "Automatic selection with pre-launch backup")}</option><option value="legacy">{t("明确配置模型 / ChatGPT", "Configured API model / ChatGPT")}</option></select></label>
       {draft.mode !== "legacy" && <><label>{t("首选底座", "Preferred source")}<select value={draft.preferred} onChange={event => { const preferred = event.target.value; setDraft({ ...draft, preferred, backups: draft.backups.filter(id => id !== preferred) }); setConsent(false); }}>{items.map(item => <option key={item.id} value={item.id}>{item.name} · {nativeToolStatus(item)}</option>)}</select></label>
         {draft.mode === "auto" && <><p>{t("同一授权链内先检查原生登录，再检查明确批准的 API 通道；安装、协议、账号和隔离失败分别显示。", "Checks native login before explicitly approved API backups; installation, protocol, account and sandbox failures are shown separately.")}</p><ol aria-label={t("底座备用顺序", "Backup source order")}>{draft.backups.map((id, index) => <li key={id}><span>{name(id)}</span><button type="button" aria-label={t(`上移 ${name(id)}`, `Move ${name(id)} up`)} disabled={index === 0} onClick={() => { const backups = [...draft.backups]; [backups[index - 1], backups[index]] = [backups[index]!, backups[index - 1]!]; setDraft({ ...draft, backups }); setConsent(false); }}>{t("上移", "Move up")}</button><button type="button" aria-label={t(`移除 ${name(id)}`, `Remove ${name(id)}`)} onClick={() => { setDraft({ ...draft, backups: draft.backups.filter(value => value !== id) }); setConsent(false); }}>{t("移除", "Remove")}</button></li>)}</ol>

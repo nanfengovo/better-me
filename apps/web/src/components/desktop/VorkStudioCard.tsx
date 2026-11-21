@@ -96,6 +96,7 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
             className="os-vork-refresh-btn"
             onClick={() => { void loadStatus(); }}
             disabled={statusLoading}
+            aria-label="刷新引擎状态"
             title="刷新引擎状态"
           >
             <RefreshCw size={12} className={statusLoading ? "animate-spin" : ""} />

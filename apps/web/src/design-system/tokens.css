@@ -26,6 +26,17 @@
     --bm-shadow-float: 0 0 0 1px color-mix(in srgb, var(--ui-border-strong) 70%, transparent), 0 14px 36px rgba(15, 23, 42, 0.13), 0 3px 10px rgba(15, 23, 42, 0.06);
     --bm-glass-bg: color-mix(in srgb, var(--ui-surface) 88%, transparent);
     --bm-focus-ring: 0 0 0 2px var(--ui-surface), 0 0 0 4px var(--ui-focus);
+
+    /* Semantic Z-Index Scale (prevents modals, popovers, companion, and Dock collisions) */
+    --z-chrome: 40;
+    --z-dock: 45;
+    --z-menubar: 50;
+    --z-popover: 70;
+    --z-companion: 80;
+    --z-drawer: 100;
+    --z-modal: 110;
+    --z-command: 120;
+    --z-toast: 130;
   }
 
   html[data-theme="dark"] {

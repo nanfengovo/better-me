@@ -194,7 +194,7 @@ export function AtlasPrimarySearchBar({
               {onDiscoverOfficialJobs && <button type="button" className="atlas-official-discovery" aria-haspopup="dialog" onClick={onDiscoverOfficialJobs}>
                 <Search size={15} />{t("按简历发现官网岗位", "Discover employer jobs")}
               </button>}
-              <button type="button" onClick={() => { setFiltersOpen(!filtersOpen); setCommandOpen(true); }} aria-controls="atlas-search-filters" aria-expanded={filtersOpen} aria-haspopup="dialog">
+              <button type="button" onClick={() => { const next = !filtersOpen; setFiltersOpen(next); setCommandOpen(next); }} aria-controls="atlas-search-filters" aria-expanded={filtersOpen} aria-haspopup="dialog">
                 <SlidersHorizontal size={15} />
                 筛选与设置
                 {searchFilterCount > 0 && <span className="atlas-filter-count">{searchFilterCount}</span>}
