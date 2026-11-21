@@ -1075,7 +1075,7 @@ export function App() {
     <UnifiedCareerTaskSurface workspaceKey={doc.documentId ?? "default"} sourceResumeId={activeResume.id} sourceResumeName={activeResume.name} sourceFingerprint={careerSourceFingerprint} resumeFields={resumeEditContext} llmConfig={llmConfig} onSave={handleSaveCareerTask} onCommitFact={handleCommitCareerFact} onReconcile={reconcileCareerWorkspace} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
     <div className="studio-workspace">
-      {page !== "resume" && page !== "agent" && page !== "atlas" && page !== "autopilot" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
+      {page !== "resume" && page !== "agent" && page !== "atlas" && page !== "autopilot" && page !== "opportunities" && page !== "resources" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
       <div className="resume-workspace-body" hidden={page !== "resume"} onMouseUpCapture={captureResumeTextSelection} onKeyUpCapture={captureResumeTextSelection}>
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />

@@ -39,6 +39,26 @@
 .atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-prefill-chips { display:flex; flex-wrap:wrap; width:100%; min-width:0; }
 .atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-filters { align-items:start; }
 .atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-filters > label { align-self:start; justify-content:flex-start; }
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(3) {
+  border-left: 0;
+}
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(n+3) {
+  border-top: 1px solid var(--color-line);
+}
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-label {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value {
+  justify-content: flex-start;
+}
 @container atlas (max-width:700px) {
   .atlas-workspace.atlas-command-center .atlas-search-fields > .atlas-search { flex-basis:calc(100% - 110px); }
   .atlas-workspace.atlas-command-center .atlas-search-utilities { flex:1; }

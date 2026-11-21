@@ -1201,7 +1201,12 @@ function AgentWorkspaceSession({
     <div hidden={interviewRecovery.value.open} style={{display:interviewRecovery.value.open?"none":"contents"}}>
     {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
     {(recovery.error || (!showCareerCoach && taskView !== "handoff")) && <WorkspaceRecoveryNotice {...recovery} />}
-    <AgentTaskNavigation onOpenArea={onOpenArea} onTailor={careerTaskConfig ? () => openCareerTask() : undefined} tailoring={sidebar ? sidebar.open && sidebar.conversation === "task" : showCareerTask} onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
+    <AgentTaskNavigation onOpenArea={onOpenArea} onTailor={careerTaskConfig ? () => openCareerTask() : undefined} tailoring={sidebar ? sidebar.open && sidebar.conversation === "task" : showCareerTask} onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={(() => {
+      if (!currentJob) return undefined;
+      const parts = [currentJob.company?.trim(), currentJob.title?.trim()].filter((v): v is string => Boolean(v && v.length > 1));
+      if (!parts.length && !currentJob.description?.trim()) return undefined;
+      return parts.length ? [...new Set(parts)].join(" · ") : (currentJob.title?.trim() || currentJob.company?.trim() || undefined);
+    })()} />
     {taskView === "job" && !showCareerTask && (browserJob || beforeBrowserImport || hasUnassignedDraft) && (
       <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs" aria-live="polite">
         {browserJob && <>
@@ -1264,6 +1269,71 @@ function AgentWorkspaceSession({
 
               {/* Scrollable Form Body */}
               <div className="flex-1 min-h-0 overflow-y-auto agent-custom-scrollbar p-5 space-y-4">
+                {!isEditingJob && !inputDescription.trim() && (
+                  <div className={`rounded-2xl border p-3.5 space-y-2.5 ${
+                    isDark
+                      ? "bg-[var(--ui-surface-soft,#2c2e37)] border-[var(--ui-border,#484b58)]"
+                      : "bg-[var(--ui-surface-soft,#f6f7f2)] border-[var(--ui-border,#e2e7dc)]"
+                  }`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className={`inline-flex items-center gap-1.5 font-semibold ${isDark ? "text-emerald-300" : "text-[var(--ui-accent,#1f5a47)]"}`}>
+                        <ShieldCheck size={13} aria-hidden="true" />
+                        {t("职业事实库上下文已就绪", "FactBase Context Ready")}
+                      </span>
+                      <span className={`tabular-nums ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-[var(--ui-text-muted,#64748b)]"}`}>
+                        {t(
+                          `已载入 ${resume?.experiences.length ?? 0} 段经历 · ${resume?.experiences.reduce((sum, exp) => sum + exp.claims.length, 0) ?? 0} 条核验要点`,
+                          `${resume?.experiences.length ?? 0} experiences · ${resume?.experiences.reduce((sum, exp) => sum + exp.claims.length, 0) ?? 0} claims loaded`,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputTitle(t("高级全栈 / AI 应用工程师", "Senior Full-Stack / AI Engineer"));
+                          setInputCompany(t("示例研发团队", "Sample Engineering Team"));
+                          setInputDescription(t(
+                            "岗位职责：\n1. 负责核心 Web 工作台架构设计与前端工程化交付，优化高密度交互体验；\n2. 设计并落地 AI Agent 协同工作流，保障上下文事实保真与低延迟响应；\n3. 与产品及设计团队协作，建立高质感组件体系与自动化验证链路。\n\n任职要求：\n1. 3 年以上 TypeScript / React 全栈或大型前端工程实践；\n2. 熟悉状态管理、性能优化与可访问性标准，注重代码可维护性；\n3. 有 AI 产品落地、数据可视化或桌面端/Electron 经验者优先。",
+                            "Responsibilities:\n1. Architect core web workbench and design system with responsive high-craft interactions.\n2. Build grounded AI Agent workflows with strict factual verification.\n3. Partner with product and design on automated testing and performance.\n\nQualifications:\n1. 3+ years of TypeScript / React engineering experience.\n2. Strong foundation in state management, performance, and accessibility.\n3. Experience with AI applications, data visualization, or Electron preferred.",
+                          ));
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                          isDark
+                            ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface,#27282f)] text-[var(--ui-text,#edeef4)] hover:border-emerald-400/50"
+                            : "border-[var(--ui-border,#dce3d8)] bg-white text-[var(--ui-text,#1e293b)] hover:border-[var(--ui-accent,#1f5a47)]"
+                        }`}
+                      >
+                        <Sparkles size={12} aria-hidden="true" />
+                        {t("载入示例 JD 快速体验", "Load sample JD")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectTask("resume")}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                          isDark
+                            ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface,#27282f)] text-[var(--ui-text,#edeef4)] hover:border-emerald-400/50"
+                            : "border-[var(--ui-border,#dce3d8)] bg-white text-[var(--ui-text,#1e293b)] hover:border-[var(--ui-accent,#1f5a47)]"
+                        }`}
+                      >
+                        <FileText size={12} aria-hidden="true" />
+                        {t("先打磨当前简历亮点", "Polish active resume first")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectTask("practice")}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                          isDark
+                            ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface,#27282f)] text-[var(--ui-text,#edeef4)] hover:border-emerald-400/50"
+                            : "border-[var(--ui-border,#dce3d8)] bg-white text-[var(--ui-text,#1e293b)] hover:border-[var(--ui-accent,#1f5a47)]"
+                        }`}
+                      >
+                        <MessageSquare size={12} aria-hidden="true" />
+                        {t("直接进入模拟面试", "Jump to mock interview")}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Full JD Textarea */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">

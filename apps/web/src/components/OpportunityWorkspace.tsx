@@ -299,63 +299,73 @@ function locationText(job: Opportunity) { return [job.location.country, job.loca
     />
     {(error || notice) && <div role={error ? "alert" : "status"} className={`opportunity-notice ${error ? "error" : ""}`}><span>{error || notice}</span><button onClick={reload}>{t("重新读取", "Reload")}</button>{recoveryRaw !== undefined && <><button onClick={() => downloadOpportunityFile(recoveryRaw, "better-me-opportunities-recovery.txt", "text/plain;charset=utf-8")}>{t("下载损坏原文", "Download damaged original")}</button><button onClick={async () => { if (!await confirmAction(t("已下载或确认保留损坏原文？确认后会把当前空机会库写入，并把损坏数据另存为恢复副本。", "Have you downloaded or chosen to keep the damaged original? Confirmation saves an empty library and protects the damaged data separately."), { title: t("恢复空白机会库", "Create an empty opportunity library"), confirmLabel: t("建立空白库", "Create empty library"), danger: true })) return; try { const result = replaceCorruptOpportunityLibrary(emptyOpportunityLibrary(), true); setLibrary(result); setRecoveryRaw(undefined); setError(""); setNotice(t("已建立空白机会库，原始损坏数据已保留为恢复副本。", "An empty library was created. The damaged original is kept as a recovery copy.")); } catch (err) { setError(err instanceof Error ? err.message : t("恢复失败，原数据仍保留。", "Recovery failed. The original data is kept.")); } }}>{t("确认恢复空白库", "Create an empty library")}</button></>}</div>}
     <div className="opportunity-stats"><div><span>{t("当前岗位", "Current jobs")}</span><strong>{stats.total}</strong></div><div><span>{t("公司", "Companies")}</span><strong>{stats.companies}</strong></div><div><span>{t("面试中", "Interviewing")}</span><strong>{stats.stages.interview ?? 0}</strong></div><div><span>Offer</span><strong>{stats.stages.offer ?? 0}</strong></div></div>
-    <details className="opportunity-evaluation" onToggle={event => setShowEvaluation(event.currentTarget.open)}>
+    {library.jobs.length > 0 && <details className="opportunity-evaluation" onToggle={event => setShowEvaluation(event.currentTarget.open)}>
       <summary>{t("行动效果评审", "Review action outcomes")}</summary>
       {evaluationSummary && <div className="opportunity-evaluation-content"><p>{t(`已授权匿名样本 ${evaluationSummary.samples} 条 · ${evaluationSummary.readyForReview ? "达到人工扩展评审条件" : "仍需更多实际观察"}`, `${evaluationSummary.samples} authorized samples · ${evaluationSummary.readyForReview ? "Ready for human scale-up review" : "More real observations needed"}`)}</p>
         <div className="opportunity-evaluation-table"><table><thead><tr><th>{t("实际行动", "Actual action")}</th><th>{t("正向", "Positive")}</th><th>{t("中性", "Neutral")}</th><th>{t("负向", "Negative")}</th><th>{t("未知", "Unknown")}</th><th>{t("改选", "Changed")}</th></tr></thead><tbody>{evaluationSummary.comparisons.map(row => <tr key={row.action}><th>{row.action === "apply" ? t("直接投递", "Apply") : row.action === "practice" ? t("先练习", "Practise") : t("先补证", "Evidence")}</th><td>{row.positive}</td><td>{row.neutral}</td><td>{row.negative}</td><td>{row.unknown}</td><td>{row.corrections}</td></tr>)}</tbody></table></div>
         <p>{t(`独立复测：达成 ${evaluationSummary.retests.met}，未达成 ${evaluationSummary.retests.missed}，待核对 ${evaluationSummary.retests.unreviewed}，未知 ${evaluationSummary.retests.unknown}。改选后正向反馈 ${evaluationSummary.positiveCorrections} 条。`, `Independent retests: ${evaluationSummary.retests.met} met, ${evaluationSummary.retests.missed} missed, ${evaluationSummary.retests.unreviewed} awaiting review, ${evaluationSummary.retests.unknown} unknown. ${evaluationSummary.positiveCorrections} changed actions with positive feedback.`)}</p>
         <button type="button" className="studio-button" disabled={evaluationSummary.samples === 0} onClick={() => downloadOpportunityFile(exportOpportunityEvaluations(library), "better-me-evaluation-samples.json")}>{t("下载已授权匿名评审样本", "Download authorized anonymous evaluation samples")}</button></div>}
-    </details>
+    </details>}
     <OpportunitySourcePanel onImport={importPublicJobs} disabled={conflict || recoveryRaw !== undefined} onOpenNetworkSettings={onOpenNetworkSettings} />
-    <div className="opportunity-toolbar"><div className="opportunity-markets" aria-label={t("机会市场", "Job market")}>{Object.entries(MARKETS).map(([value, label]) => <button key={value} aria-pressed={(filters.market ?? "all") === value} className={(filters.market ?? "all") === value ? "active" : ""} onClick={() => setFilters((current) => ({ ...current, market: value as OpportunityFilters["market"] }))}>{label}<span>{value === "all" ? allStats.total : allStats.markets[value as keyof typeof allStats.markets] ?? 0}</span></button>)}</div><div className="opportunity-view-toggle"><button type="button" aria-pressed={!compact && !board} className={!compact && !board ? "active" : ""} onClick={() => { setBoard(false); setCompact(value => !value); }}>{compact ? t("3D 卡片", "3D cards") : t("紧凑列表", "Compact list")}</button><button aria-label={t("岗位列表", "Job list")} aria-pressed={compact && !board} className={compact && !board ? "active" : ""} onClick={() => { setBoard(false); setCompact(true); }}><LayoutList size={16} /></button><button aria-label={t("投递看板", "Application board")} aria-pressed={board} className={board ? "active" : ""} onClick={() => setBoard(true)}><SlidersHorizontal size={16} /></button></div></div>
-    <FilterBar
-      ariaLabel={t("筛选机会列表", "Filter opportunities")}
-      search={{
-        value: filters.search ?? "",
-        onChange: (value) => setFilters({ ...filters, search: value }),
-        placeholder: t("搜索公司、岗位、技能…", "Search companies, roles, skills…"),
-        ariaLabel: t("搜索公司、岗位和正文", "Search companies, jobs and descriptions"),
-        clearLabel: t("清除搜索", "Clear search"),
-      }}
-      controls={<>
-        <SelectMenu
-          ariaLabel={t("筛选投递阶段", "Filter application stage")}
-          value={filters.stage ?? "all"}
-          options={[{ value: "all", label: t("全部阶段", "All stages") }, ...Object.entries(STAGES).map(([value, label]) => ({ value, label }))]}
-          onChange={(value) => setFilters({ ...filters, stage: value as OpportunityFilters["stage"] })}
-        />
-        <SelectMenu
-          ariaLabel={t("筛选岗位状态", "Filter job status")}
-          value={filters.status ?? "all"}
-          options={[{ value: "all", label: t("全部开放状态", "All job statuses") }, ...Object.entries(JOB_STATUS).map(([value, label]) => ({ value, label }))]}
-          onChange={(value) => setFilters({ ...filters, status: value as OpportunityFilters["status"] })}
-        />
-        <SelectMenu
-          ariaLabel={t("筛选招聘类型", "Filter hiring type")}
-          value={filters.employmentType ?? "all"}
-          options={[{ value: "all", label: t("社招 / 校招 / 实习", "Experienced / graduate / internship") }, ...Object.entries(EMPLOYMENT).map(([value, label]) => ({ value, label }))]}
-          onChange={(value) => setFilters({ ...filters, employmentType: value as OpportunityFilters["employmentType"] })}
-        />
-      </>}
-      actions={<>
-        <Button variant="ghost" size="sm" onClick={() => setFilters({})}>{t("清除筛选", "Clear filters")}</Button>
-        <Button variant="secondary" size="sm" onClick={exportCsv}><ArrowDownToLine size={13} />{t("导出当前 CSV", "Export current CSV")}</Button>
-      </>}
-    />
-    <ApplicationFollowups jobs={jobs} onOpen={(job) => { void (async () => { if (await canLeave()) openJob(job); })(); }} />
-    <DeliveryAttentionQueue jobs={library.jobs} onOpen={(job) => { void (async () => { if (await canLeave()) openJob(job); })(); }} />
-    <div className="opportunity-content"><div className="opportunity-results">
+    {library.jobs.length > 0 && <>
+      <div className="opportunity-toolbar"><div className="opportunity-markets" aria-label={t("机会市场", "Job market")}>{Object.entries(MARKETS).map(([value, label]) => <button key={value} aria-pressed={(filters.market ?? "all") === value} className={(filters.market ?? "all") === value ? "active" : ""} onClick={() => setFilters((current) => ({ ...current, market: value as OpportunityFilters["market"] }))}>{label}<span>{value === "all" ? allStats.total : allStats.markets[value as keyof typeof allStats.markets] ?? 0}</span></button>)}</div><div className="opportunity-view-toggle"><button type="button" aria-pressed={!compact && !board} className={!compact && !board ? "active" : ""} onClick={() => { setBoard(false); setCompact(value => !value); }}>{compact ? t("3D 卡片", "3D cards") : t("紧凑列表", "Compact list")}</button><button aria-label={t("岗位列表", "Job list")} aria-pressed={compact && !board} className={compact && !board ? "active" : ""} onClick={() => { setBoard(false); setCompact(true); }}><LayoutList size={16} /></button><button aria-label={t("投递看板", "Application board")} aria-pressed={board} className={board ? "active" : ""} onClick={() => setBoard(true)}><SlidersHorizontal size={16} /></button></div></div>
+      <FilterBar
+        ariaLabel={t("筛选机会列表", "Filter opportunities")}
+        search={{
+          value: filters.search ?? "",
+          onChange: (value) => setFilters({ ...filters, search: value }),
+          placeholder: t("搜索公司、岗位、技能…", "Search companies, roles, skills…"),
+          ariaLabel: t("搜索公司、岗位和正文", "Search companies, jobs and descriptions"),
+          clearLabel: t("清除搜索", "Clear search"),
+        }}
+        controls={<>
+          <SelectMenu
+            ariaLabel={t("筛选投递阶段", "Filter application stage")}
+            value={filters.stage ?? "all"}
+            options={[{ value: "all", label: t("全部阶段", "All stages") }, ...Object.entries(STAGES).map(([value, label]) => ({ value, label }))]}
+            onChange={(value) => setFilters({ ...filters, stage: value as OpportunityFilters["stage"] })}
+          />
+          <SelectMenu
+            ariaLabel={t("筛选岗位状态", "Filter job status")}
+            value={filters.status ?? "all"}
+            options={[{ value: "all", label: t("全部开放状态", "All job statuses") }, ...Object.entries(JOB_STATUS).map(([value, label]) => ({ value, label }))]}
+            onChange={(value) => setFilters({ ...filters, status: value as OpportunityFilters["status"] })}
+          />
+          <SelectMenu
+            ariaLabel={t("筛选招聘类型", "Filter hiring type")}
+            value={filters.employmentType ?? "all"}
+            options={[{ value: "all", label: t("社招 / 校招 / 实习", "Experienced / graduate / internship") }, ...Object.entries(EMPLOYMENT).map(([value, label]) => ({ value, label }))]}
+            onChange={(value) => setFilters({ ...filters, employmentType: value as OpportunityFilters["employmentType"] })}
+          />
+        </>}
+        actions={<>
+          <Button variant="ghost" size="sm" onClick={() => setFilters({})}>{t("清除筛选", "Clear filters")}</Button>
+          <Button variant="secondary" size="sm" onClick={exportCsv}><ArrowDownToLine size={13} />{t("导出当前 CSV", "Export current CSV")}</Button>
+        </>}
+      />
+      <ApplicationFollowups jobs={jobs} onOpen={(job) => { void (async () => { if (await canLeave()) openJob(job); })(); }} />
+      <DeliveryAttentionQueue jobs={library.jobs} onOpen={(job) => { void (async () => { if (await canLeave()) openJob(job); })(); }} />
+    </>}
+    <div className="opportunity-content" style={!library.jobs.length ? { gridTemplateColumns: "1fr" } : undefined}><div className="opportunity-results">
       {!jobs.length ? (
         <EmptyState
           icon={<BriefcaseBusiness size={24} />}
           title={library.jobs.length ? t("没有符合筛选的岗位", "No jobs match these filters") : t("从一个值得关注的机会开始", "Start with an opportunity worth exploring")}
-          description={library.jobs.length ? t("调整市场、关键词或投递阶段，再看看。", "Adjust the market, keywords or application stage and try again.") : t("保存官网或招聘平台的岗位，记录来源、材料和跟进。不需要配置 AI。", "Save jobs from company sites or job platforms, with sources, materials and follow-ups. No AI configuration required.")}
-          actions={<Button variant="primary" size="sm" onClick={library.jobs.length ? () => setFilters({}) : openCreate}>{library.jobs.length ? t("查看全部机会", "View all opportunities") : t("收藏第一个岗位", "Save your first job")}<ChevronRight size={14} /></Button>}
+          description={library.jobs.length ? t("调整市场、关键词或投递阶段，再看看。", "Adjust the market, keywords or application stage and try again.") : t("保存官网或招聘平台的岗位，记录来源、定制材料和跟进节奏；无需配置 AI 即可使用。", "Save jobs from company sites or job platforms with sources, tailored materials, and follow-up cadence. Works locally with zero AI setup.")}
+          actions={library.jobs.length ? (
+            <Button variant="primary" size="sm" onClick={() => setFilters({})}>{t("查看全部机会", "View all opportunities")}<ChevronRight size={14} /></Button>
+          ) : (
+            <>
+              <Button variant="primary" size="sm" disabled={recoveryRaw !== undefined || conflict} onClick={openCreate}><Plus size={14} />{t("收藏第一个岗位", "Save your first job")}</Button>
+              <Button variant="secondary" size="sm" onClick={onOpenJd}><FileText size={14} />{t("导入 JD 匹配", "Import JD")}</Button>
+              <Button variant="ghost" size="sm" onClick={() => fileInput.current?.click()}><Upload size={14} />{t("导入备份 JSON", "Import JSON")}</Button>
+            </>
+          )}
         />
       )
         : board ? <div className="opportunity-board" aria-label={t("按投递阶段分组", "Group by application stage")}>{Object.entries(STAGES).map(([stage, label]) => { const group = jobs.filter((job) => job.application.stage === stage); return <section key={stage} className="opportunity-column"><h2><span>{label}</span><small>{group.length}</small></h2>{group.map((job) => <button className="opportunity-board-card" key={job.id} onClick={() => openJob(job)}><small>{job.company}</small><strong>{job.title}</strong><span><MapPin size={12} />{locationText(job)}</span><SourcePublicationBadges sourceLabel={job.sourcePlatform} publishedAt={job.sourcePublishedAt} publishedRaw={job.sourcePublishedText} /><em>{job.application.nextAction || t("添加下一步", "Add a next step")}</em></button>)}{!group.length && <p className="opportunity-column-empty">{t("暂无岗位", "No jobs yet")}</p>}</section>; })}</div>
           : <div className={`opportunity-list opportunity-3d-grid${compact ? " is-compact" : ""}`}>{jobs.map((job) => <OpportunityCard3D compact={compact} key={job.id} job={job} location={locationText(job)} modeLabel={MODES[job.workMode]} statusLabel={JOB_STATUS[job.status]} stageLabel={STAGES[job.application.stage]} salaryFallback={t("薪资未披露", "Salary not disclosed")} nextActionFallback={t("待设置下一步跟进", "No next step yet")} detailsLabel={t("打开详情", "Open details")} frontLabel={t("返回正面", "Show front")} backLabel={t("查看背面", "Show back")} deadlineLabel={t("截止", "Deadline")} removeLabel={t("取消收藏", "Unsave")} disabled={conflict} stageOptions={Object.entries(STAGES) as Array<[Opportunity["application"]["stage"], string]>} onOpen={() => openJob(job)} onStageChange={(stage) => { void changeStage(job, stage); }} onRemove={() => { void removeSavedJob(job); }} />)}</div>}
-    </div><aside className="opportunity-context"><div className="opportunity-context-card"><Globe2 size={19} /><h2>{t("工作地点分布", "Job locations")}</h2>{[...distributions.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([place, count]) => <div className="opportunity-place" key={place}><span>{place}</span><strong>{count}</strong></div>)}{!jobs.length && <span className="opportunity-muted">{t("保存岗位后显示分布", "Locations appear after you save jobs")}</span>}</div></aside></div>
+    </div>{library.jobs.length > 0 && <aside className="opportunity-context"><div className="opportunity-context-card"><Globe2 size={19} /><h2>{t("工作地点分布", "Job locations")}</h2>{[...distributions.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([place, count]) => <div className="opportunity-place" key={place}><span>{place}</span><strong>{count}</strong></div>)}{!jobs.length && <span className="opportunity-muted">{t("保存岗位后显示分布", "Locations appear after you save jobs")}</span>}</div></aside>}</div>
     <dialog className="opportunity-dialog" aria-labelledby="opportunity-dialog-title" ref={dialog} onCancel={(event) => { event.preventDefault(); closeDialog(); }} onClick={(event) => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeDialog(); } }}>
       <div className="opportunity-dialog-header"><div><small>{editing ? "SAVE AN OPPORTUNITY" : selected?.company}</small><h2 id="opportunity-dialog-title">{editing ? editingId ? t("编辑岗位信息", "Edit job details") : t("收藏一个岗位", "Save a job") : selected?.title}</h2></div><button aria-label={t("关闭岗位详情", "Close job details")} className="studio-button icon-button" onClick={closeDialog}><X size={18} /></button></div>
       {selected && !editing && <OpportunityEventReviewPanel key={`review:${selected.id}`} job={selected} stages={STAGES} disabled={conflict || recoveryRaw !== undefined}

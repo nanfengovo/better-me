@@ -53,7 +53,7 @@ export const AtlasJobCardContent = memo(function AtlasJobCardContent({
             <span className="atlas-badge-publication" title={pubBadge.tooltip}>{pubBadge.label}</span>
           </>}
           {presentations.length > 1 && <span>{t(`另 ${presentations.length - 1} 个来源见详情`, `${presentations.length - 1} more sources in details`)}</span>}
-          {hasAnchor && <span className="atlas-badge-distance" title={distanceBadge.tooltip}>{distanceBadge.label}</span>}
+          {hasAnchor && <span className="atlas-badge-distance" data-unlocated={item.distance?.km === undefined ? "true" : undefined} title={distanceBadge.tooltip}>{distanceBadge.label}</span>}
         </div>
         <span className="atlas-card-hint">{item.locations.some(location => location.kind === "remote-region")
           ? t("远程适用范围，非办公地址；来源核验见详情", "Remote eligibility, not an office; source verification in details")

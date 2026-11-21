@@ -329,10 +329,12 @@
 .atlas-workspace[data-pane-layout="wide"] .atlas-job-card-tags{grid-column:1 / -1;grid-row:4;display:flex!important}
 .atlas-badge-platform{display:inline-flex;align-items:center;gap:3px;padding:1.5px 6.5px;border-radius:4px;font-size:10px;line-height:1.35;font-weight:550;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;white-space:nowrap}
 .atlas-badge-publication{display:inline-flex;align-items:center;gap:3px;padding:1.5px 6.5px;border-radius:4px;font-size:10px;line-height:1.35;font-weight:550;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;white-space:nowrap}
-.atlas-badge-distance{display:inline-flex;align-items:center;gap:3px;padding:1.5px 6.5px;border-radius:4px;font-size:10px;line-height:1.35;font-weight:550;color:#d97706;background:#fffbeb;border:1px solid #fde68a;white-space:nowrap}
+.atlas-badge-distance{display:inline-flex;align-items:center;gap:3px;padding:1.5px 6.5px;border-radius:4px;font-size:10px;line-height:1.35;font-weight:550;color:#b45309;background:#fffbeb;border:1px solid #fde68a;white-space:nowrap}
+.atlas-badge-distance[data-unlocated="true"]{color:var(--color-ink-muted);background:transparent;border-color:color-mix(in srgb,var(--color-line) 80%,transparent);font-weight:450;opacity:.78}
 [data-theme="dark"] .atlas-badge-platform{color:#f87171;background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.35)}
 [data-theme="dark"] .atlas-badge-publication{color:#60a5fa;background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.35)}
 [data-theme="dark"] .atlas-badge-distance{color:#fbbf24;background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.35)}
+[data-theme="dark"] .atlas-badge-distance[data-unlocated="true"]{color:var(--color-ink-muted);background:transparent;border-color:var(--color-line);opacity:.72}
 .atlas-workspace[data-pane-layout="wide"] .atlas-job-salary{grid-column:2;grid-row:1 / span 2;align-self:start;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;white-space:nowrap;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:3px}
 .atlas-workspace[data-pane-layout="wide"] .atlas-job-salary.is-negotiable{background:color-mix(in srgb,var(--color-panel) 82%,var(--color-paper));color:var(--color-ink-muted);border-color:var(--color-line);font-weight:500}
 [data-theme="dark"] .atlas-workspace[data-pane-layout="wide"] .atlas-job-salary{background:rgba(16,185,129,0.12);color:#34d399;border-color:rgba(16,185,129,0.35)}

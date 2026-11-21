@@ -20,10 +20,13 @@
 .atlas-workspace.atlas-experience .atlas-searchbar .atlas-auth-hub-trigger { color: var(--color-accent) !important; border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-line)) !important; background: var(--color-accent-soft) !important; }
 .atlas-workspace.atlas-experience .atlas-data-banner strong { font-size: 11px; font-weight: 550; }
 .atlas-workspace.atlas-experience .atlas-map-card { isolation: isolate; }
-.atlas-workspace.atlas-experience[data-pane-layout="wide"] .atlas-main-grid { min-height: 420px; }
-.atlas-workspace.atlas-experience .atlas-map-footer { padding-block: 11px; }
-.atlas-workspace.atlas-experience .atlas-stat-grid strong { font-size: 20px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.atlas-workspace.atlas-experience .atlas-stat-grid span { font-size: 10px; line-height: 1.6; }
+.atlas-workspace.atlas-experience[data-pane-layout="wide"] .atlas-main-grid { min-height: 360px; }
+.atlas-workspace.atlas-experience .atlas-map-footer { padding: 8px 14px; }
+.atlas-workspace.atlas-experience .atlas-stat-grid { gap: 8px; }
+.atlas-workspace.atlas-experience .atlas-stat-grid > div { padding: 4px 6px; }
+.atlas-workspace.atlas-experience .atlas-stat-grid strong { font-size: 16px; font-weight: 620; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.atlas-workspace.atlas-experience .atlas-stat-grid span { font-size: 10px; line-height: 1.4; }
+.atlas-workspace.atlas-experience .atlas-map-coordinate-note { margin-top: 4px; font-size: 10.5px; line-height: 1.4; }
 .atlas-workspace.atlas-experience .atlas-results-heading { background: linear-gradient(120deg, var(--color-panel), color-mix(in srgb, var(--color-accent) 3%, var(--color-panel))); }
 .atlas-workspace.atlas-experience .atlas-results h2 > span { background: var(--color-accent-soft); color: var(--color-accent); border: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent); padding: 2px 8px; font-size: 11px; }
 .atlas-workspace.atlas-experience .atlas-results-heading-actions > button { min-height: 30px; border-radius: 9px; }
