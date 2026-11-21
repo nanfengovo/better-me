@@ -8,20 +8,40 @@ import { useUiPreferences } from "../lib/ui-preferences";
 import "./identity.css";
 import { CasdoorAccess } from "./CasdoorAccess";
 
+const STATIC_PREVIEW_PRINCIPAL: BetterMePrincipal = {
+  id: "00000000-0000-4000-8000-000000000001",
+  username: "preview",
+  displayName: "Preview",
+};
+
+function isStaticPublicPreview(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.desktopApi?.isElectron) return false;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".invalid")) return false;
+  return import.meta.env.VITE_STATIC_PREVIEW === "true" || host.endsWith(".github.io");
+}
+
 /** Identity is fixed for an App lifetime. A switch starts a fresh JS realm, not a reused cache. */
 export function IdentityGate({ children }: { children: ReactNode }) {
   const { t } = useUiPreferences();
-  const [user, setUser] = useState<BetterMePrincipal>();
-  const [ready, setReady] = useState(false), [expired, setExpired] = useState(false), [error, setError] = useState("");
+  const staticPreview = isStaticPublicPreview();
+  const [user, setUser] = useState<BetterMePrincipal | undefined>(() => {
+    if (!staticPreview) return undefined;
+    activatePrincipal(STATIC_PREVIEW_PRINCIPAL);
+    return STATIC_PREVIEW_PRINCIPAL;
+  });
+  const [ready, setReady] = useState(staticPreview), [expired, setExpired] = useState(false), [error, setError] = useState("");
   const [register, setRegister] = useState(false), [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [bootDone, setBootDone] = useState(false);
+  const [bootDone, setBootDone] = useState(staticPreview);
   const workspace = useRef<HTMLDivElement>(null);
   const finishBoot = useCallback(() => {
     setBootDone(true);
     window.requestAnimationFrame(() => workspace.current?.focus({ preventScroll: true }));
   }, []);
   useEffect(() => {
+    if (staticPreview) return;
     let active = true;
     void identityRequest("session").then(result => {
       if (!active) return;
@@ -34,9 +54,9 @@ export function IdentityGate({ children }: { children: ReactNode }) {
     };
     window.addEventListener("betterme:identity-expired", invalid);
     return () => { active = false; window.removeEventListener("betterme:identity-expired", invalid); };
-  }, []);
+  }, [staticPreview]);
   useEffect(() => {
-    if (!user || expired) return;
+    if (staticPreview || !user || expired) return;
     let active = true, checking = false;
     const check = async () => {
       if (!active || checking) return;
@@ -54,7 +74,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
     const timer = window.setInterval(focus, 30_000);
     window.addEventListener("focus", focus);
     return () => { active = false; clearInterval(timer); window.removeEventListener("focus", focus); };
-  }, [user, expired]);
+  }, [staticPreview, user, expired]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget, data = new FormData(form);
     setBusy(true); setError("");

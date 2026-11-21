@@ -96,7 +96,7 @@ jobs:
             echo "PAGES_BASE_PATH must be / or a path such as /better-me/." >&2
             exit 1
           fi
-          pnpm --filter @better-me/web exec vite build --base="$pages_base_path"
+          VITE_STATIC_PREVIEW=true pnpm --filter @better-me/web exec vite build --base="$pages_base_path"
       - name: Verify geography provenance and MapLibre worker in the Pages artifact
         run: node scripts/check-atlas-distribution.mjs apps/web/dist
       - name: Upload static site
@@ -198,7 +198,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    needs: [quality, build, docker, desktop]
+    needs: [quality, build]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
