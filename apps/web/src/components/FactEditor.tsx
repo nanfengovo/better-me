@@ -1265,101 +1265,127 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                               )}
 
                               {/* Metric Sub-Form */}
-                              {(claim.kind === "metric" || claim.metric) && (
-                                <details className="workspace-metric-details" open={issueNavigation?.issue.claimId === claim.id || undefined}>
-                                  <summary>{t("量化数值、基线与因果说明", "Metric value, baseline and attribution")}</summary>
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    <div>
-                                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        {t("数值 (Value)", "Value")}</label>
-                                      <input
-                                        type="number"
-                                        data-issue-field="value"
-                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 数值`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Value`)}
-                                        aria-describedby={isIssueField(exp.id, claim.id, "value") ? "content-issue-guidance" : undefined}
-                                        step="any"
-                                        value={claim.metric && Number.isFinite(claim.metric.value) ? claim.metric.value : ""}
-                                        onChange={(e) =>
-                                          updateClaim(exp.id, claim.id, (c) => ({
-                                            ...c,
-                                            metric: {
-                                              value: e.target.value === "" ? Number.NaN : Number(e.target.value),
-                                              unit: c.metric?.unit ?? "",
-                                              baseline: c.metric?.baseline,
-                                              causal: c.metric?.causal,
-                                              confirmed: false,
-                                            },
-                                          }))
-                                        }
-                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "value") ? "issue-field-highlight" : ""}`}
-                                        placeholder={t("填写原始数值", "Enter the original value")}
-                                      />
+                              {(claim.kind === "metric" || claim.metric) && (() => {
+                                const hasVal = Boolean(claim.metric && Number.isFinite(claim.metric.value));
+                                const valText = hasVal ? `${claim.metric!.value}${claim.metric!.unit || ""}` : "";
+                                const hasProof = Boolean(claim.metric?.baseline?.trim() || claim.metric?.causal?.trim());
+                                const isVerified = Boolean(claim.metric?.confirmed && hasVal && hasProof);
+                                const summaryChips = [
+                                  valText,
+                                  claim.metric?.baseline?.trim() ? t("含基线", "Baseline") : "",
+                                  claim.metric?.causal?.trim() ? t("含因果", "Cause") : "",
+                                ].filter(Boolean);
+                                return (
+                                  <details
+                                    className="workspace-metric-details bm-metric-panel"
+                                    data-state={isVerified ? "verified" : "pending"}
+                                    open={issueNavigation?.issue.claimId === claim.id || undefined}
+                                  >
+                                    <summary>
+                                      <span className="bm-metric-dot" aria-hidden="true" />
+                                      <span className="bm-metric-title">{t("量化数值、基线与因果说明", "Metric value, baseline and attribution")}</span>
+                                      <span className="bm-metric-meta">
+                                        {summaryChips.length > 0 ? (
+                                          summaryChips.map((chip) => <span key={chip} className="bm-metric-chip">{chip}</span>)
+                                        ) : (
+                                          <span className="bm-metric-chip" data-empty="true">{t("待补齐", "Incomplete")}</span>
+                                        )}
+                                      </span>
+                                      <ChevronDown size={13} className="bm-metric-chevron" aria-hidden="true" />
+                                    </summary>
+                                    <div className="bm-metric-body grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                      <div>
+                                        <label className="bm-metric-label">
+                                          {t("数值 (Value)", "Value")}</label>
+                                        <input
+                                          type="number"
+                                          data-issue-field="value"
+                                          aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 数值`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Value`)}
+                                          aria-describedby={isIssueField(exp.id, claim.id, "value") ? "content-issue-guidance" : undefined}
+                                          step="any"
+                                          value={claim.metric && Number.isFinite(claim.metric.value) ? claim.metric.value : ""}
+                                          onChange={(e) =>
+                                            updateClaim(exp.id, claim.id, (c) => ({
+                                              ...c,
+                                              metric: {
+                                                value: e.target.value === "" ? Number.NaN : Number(e.target.value),
+                                                unit: c.metric?.unit ?? "",
+                                                baseline: c.metric?.baseline,
+                                                causal: c.metric?.causal,
+                                                confirmed: false,
+                                              },
+                                            }))
+                                          }
+                                          className={`bm-metric-input tabular-nums ${isIssueField(exp.id, claim.id, "value") ? "issue-field-highlight" : ""}`}
+                                          placeholder={t("填写原始数值", "Enter value")}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="bm-metric-label">
+                                          {t("单位 (Unit)", "Unit")}</label>
+                                        <input
+                                          type="text"
+                                          data-issue-field="unit"
+                                          aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 单位`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Unit`)}
+                                          aria-describedby={isIssueField(exp.id, claim.id, "unit") ? "content-issue-guidance" : undefined}
+                                          value={claim.metric?.unit ?? ""}
+                                          onChange={(e) =>
+                                            updateClaim(exp.id, claim.id, (c) => ({
+                                              ...c,
+                                              metric: {
+                                                value: c.metric?.value ?? Number.NaN,
+                                                unit: e.target.value,
+                                                baseline: c.metric?.baseline,
+                                                causal: c.metric?.causal,
+                                                confirmed: false,
+                                              },
+                                            }))
+                                          }
+                                          className={`bm-metric-input ${isIssueField(exp.id, claim.id, "unit") ? "issue-field-highlight" : ""}`}
+                                          placeholder={t("%, 台, ms", "%, devices, ms")}
+                                        />
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className="bm-metric-label">
+                                          {t("对比基线 (Baseline)", "Comparison baseline")}</label>
+                                        <input
+                                          type="text"
+                                          data-issue-field="baseline"
+                                          aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 对比基线`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Comparison baseline`)}
+                                          aria-describedby={isIssueField(exp.id, claim.id, "baseline") ? "content-issue-guidance" : undefined}
+                                          value={claim.metric?.baseline ?? ""}
+                                          onChange={(e) =>
+                                            updateClaim(exp.id, claim.id, (c) => ({
+                                              ...c,
+                                              metric: {
+                                                value: c.metric?.value ?? Number.NaN,
+                                                unit: c.metric?.unit ?? "",
+                                                baseline: e.target.value,
+                                                causal: c.metric?.causal,
+                                                confirmed: false,
+                                              },
+                                            }))
+                                          }
+                                          className={`bm-metric-input ${isIssueField(exp.id, claim.id, "baseline") ? "issue-field-highlight" : ""}`}
+                                          placeholder={t("写明真实原值、比较对象和统计口径", "Original value, comparison & method")}
+                                        />
+                                      </div>
+                                      <div className="col-span-2 sm:col-span-4">
+                                        <label className="bm-metric-label" htmlFor={`claim-causal-${claim.id}`}>{t("因果说明（与对比基线至少补充一项）", "Cause and action (provide this or a comparison baseline)")}</label>
+                                        <textarea
+                                          id={`claim-causal-${claim.id}`}
+                                          aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 因果说明`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Cause and action`)}
+                                          value={claim.metric?.causal ?? ""}
+                                          rows={2}
+                                          onChange={(event) => updateClaim(exp.id, claim.id, (current) => ({ ...current, metric: { value: current.metric?.value ?? Number.NaN, unit: current.metric?.unit ?? "", baseline: current.metric?.baseline, causal: event.target.value, confirmed: false } }))}
+                                          className="bm-metric-input bm-metric-textarea"
+                                          placeholder={t("写清实际采取的措施，以及它如何带来可核对的结果；不要推测因果关系", "Describe actions taken and how they produced a verifiable result")}
+                                        />
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        {t("单位 (Unit)", "Unit")}</label>
-                                      <input
-                                        type="text"
-                                        data-issue-field="unit"
-                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 单位`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Unit`)}
-                                        aria-describedby={isIssueField(exp.id, claim.id, "unit") ? "content-issue-guidance" : undefined}
-                                        value={claim.metric?.unit ?? ""}
-                                        onChange={(e) =>
-                                          updateClaim(exp.id, claim.id, (c) => ({
-                                            ...c,
-                                            metric: {
-                                              value: c.metric?.value ?? Number.NaN,
-                                              unit: e.target.value,
-                                              baseline: c.metric?.baseline,
-                                              causal: c.metric?.causal,
-                                              confirmed: false,
-                                            },
-                                          }))
-                                        }
-                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "unit") ? "issue-field-highlight" : ""}`}
-                                        placeholder={t("%, 台, ms", "%, devices, ms")}
-                                      />
-                                    </div>
-                                    <div className="col-span-2">
-                                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        {t("对比基线 (Baseline)", "Comparison baseline")}</label>
-                                      <input
-                                        type="text"
-                                        data-issue-field="baseline"
-                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 对比基线`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Comparison baseline`)}
-                                        aria-describedby={isIssueField(exp.id, claim.id, "baseline") ? "content-issue-guidance" : undefined}
-                                        value={claim.metric?.baseline ?? ""}
-                                        onChange={(e) =>
-                                          updateClaim(exp.id, claim.id, (c) => ({
-                                            ...c,
-                                            metric: {
-                                              value: c.metric?.value ?? Number.NaN,
-                                              unit: c.metric?.unit ?? "",
-                                              baseline: e.target.value,
-                                              causal: c.metric?.causal,
-                                              confirmed: false,
-                                            },
-                                          }))
-                                        }
-                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "baseline") ? "issue-field-highlight" : ""}`}
-                                        placeholder={t("写明真实原值、比较对象和统计口径", "State the actual original value, comparison and measurement method")}
-                                      />
-                                    </div>
-                                    <div className="col-span-2 sm:col-span-4">
-                                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5" htmlFor={`claim-causal-${claim.id}`}>{t("因果说明（与对比基线至少补充一项）", "Cause and action (provide this or a comparison baseline)")}</label>
-                                      <textarea
-                                        id={`claim-causal-${claim.id}`}
-                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 因果说明`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Cause and action`)}
-                                        value={claim.metric?.causal ?? ""}
-                                        rows={2}
-                                        onChange={(event) => updateClaim(exp.id, claim.id, (current) => ({ ...current, metric: { value: current.metric?.value ?? Number.NaN, unit: current.metric?.unit ?? "", baseline: current.metric?.baseline, causal: event.target.value, confirmed: false } }))}
-                                        className="w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs"
-                                        placeholder={t("写清实际采取的措施，以及它如何带来可核对的结果；不要推测因果关系", "Describe the actions actually taken and how they produced a verifiable result; do not assume causation")}
-                                      />
-                                    </div>
-                                  </div>
-                                </details>
-                              )}
+                                  </details>
+                                );
+                              })()}
                             </div>
                           ))}
                         </div>

@@ -924,6 +924,127 @@
     font-weight: 600;
   }
 
+  /* ── 8. Compact Metric Attribution Panel ── */
+  .bm-metric-panel.workspace-metric-details {
+    border: 0;
+    border-radius: var(--bm-radius-control);
+    padding: 0;
+    background: color-mix(in srgb, var(--ui-warning) 5%, var(--ui-surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-warning) 20%, var(--ui-border));
+    color: var(--ui-text);
+    font-size: 12px;
+    transition: background-color var(--bm-dur-hover) var(--bm-ease-out), box-shadow var(--bm-dur-hover) var(--bm-ease-out);
+  }
+  .bm-metric-panel.workspace-metric-details[data-state="verified"] {
+    background: color-mix(in srgb, var(--ui-accent) 4%, var(--ui-surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 18%, var(--ui-border));
+  }
+  .bm-metric-panel.workspace-metric-details > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    min-height: 34px;
+    padding: 6px 10px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--bm-radius-control);
+    transition: background-color var(--bm-dur-hover) var(--bm-ease-out);
+  }
+  .bm-metric-panel.workspace-metric-details > summary::-webkit-details-marker {
+    display: none;
+  }
+  .bm-metric-panel.workspace-metric-details > summary:hover {
+    background: color-mix(in srgb, var(--ui-text) 3.5%, transparent);
+  }
+  .bm-metric-panel.workspace-metric-details > summary:focus-visible {
+    outline: none;
+    box-shadow: var(--bm-focus-ring);
+  }
+  .bm-metric-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--ui-warning);
+  }
+  .bm-metric-panel[data-state="verified"] .bm-metric-dot {
+    background: var(--ui-accent);
+  }
+  .bm-metric-title {
+    font-size: 11.5px;
+    font-weight: 550;
+    color: var(--ui-text-secondary);
+    min-width: 0;
+  }
+  .bm-metric-meta {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .bm-metric-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 550;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-text-secondary);
+    background: var(--ui-surface);
+    box-shadow: inset 0 0 0 1px var(--ui-border);
+  }
+  .bm-metric-chip[data-empty="true"] {
+    color: var(--ui-warning);
+    background: color-mix(in srgb, var(--ui-warning) 10%, var(--ui-surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-warning) 24%, transparent);
+  }
+  .bm-metric-chevron {
+    flex-shrink: 0;
+    color: var(--ui-text-muted);
+    transition: transform var(--bm-dur-hover) var(--bm-ease-out);
+  }
+  .bm-metric-panel[open] > summary .bm-metric-chevron {
+    transform: rotate(180deg);
+    color: var(--ui-text);
+  }
+  .bm-metric-body {
+    padding: 10px 11px 11px;
+    border-top: 1px solid color-mix(in srgb, var(--ui-border) 85%, transparent);
+  }
+  .bm-metric-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10.5px;
+    font-weight: 550;
+    color: var(--ui-text-secondary);
+  }
+  .bm-metric-input {
+    width: 100%;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid var(--ui-border);
+    border-radius: 7px;
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    font-size: 12px;
+    line-height: 1.45;
+    outline: none;
+    transition: border-color var(--bm-dur-hover) var(--bm-ease-out), box-shadow var(--bm-dur-hover) var(--bm-ease-out);
+  }
+  .bm-metric-input:focus {
+    border-color: color-mix(in srgb, var(--ui-accent) 60%, var(--ui-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 10%, transparent);
+  }
+  .bm-metric-textarea {
+    resize: none;
+    min-height: 54px;
+  }
+
   /* Calm floating Agent launcher */
   html .agent-sidebar-launcher {
     border: 0;

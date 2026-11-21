@@ -52,7 +52,7 @@ async function check(pattern: RegExp) {
   const item = label?.querySelector("input[type=checkbox]"); assert.ok(item, `missing checkbox ${pattern}`); await settle(() => (item as unknown as HTMLInputElement).click());
 }
 async function choose(pattern: RegExp, value: string) { const item = field(pattern, "select") as InstanceType<typeof win.HTMLSelectElement>; await settle(() => { item.value = value; item.dispatchEvent(new win.Event("change", { bubbles: true })); }); }
-async function waitFor(predicate: () => boolean, timeoutMs = 2000) {
+async function waitFor(predicate: () => boolean, timeoutMs = 6000) {
   // Real SQLite replay validation awaits several WebCrypto jobs. Immediate
   // turns are not a time budget: 50 spins can finish before a valid async job,
   // especially while other test files compete for workers. Yield to timers
