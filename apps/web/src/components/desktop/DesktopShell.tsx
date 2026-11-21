@@ -14,10 +14,10 @@ import { useInstalledMicroApps, type InstalledMicroApp } from "../../lib/micro-a
 import { SandboxedAppHost } from "../SandboxedAppHost";
 import { ProductMark } from "../ProductMark";
 
-export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, onAiConfig, onNetwork, resumeTab = "content", onContent, accountControls, focused = false }: {
+export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, onAiConfig, onNetwork, resumeTab = "content", onContent, accountControls, jobWatchControls, focused = false }: {
   children: ReactNode; page: DesktopPage; onNavigate: (page: DesktopPage) => void;
   onDesign: () => void; onHistory: () => void; onAiConfig: () => void; onNetwork: () => void;
-  resumeTab?: "content" | "design"; onContent?: () => void; accountControls?: ReactNode; focused?: boolean;
+  resumeTab?: "content" | "design"; onContent?: () => void; accountControls?: ReactNode; jobWatchControls?: ReactNode; focused?: boolean;
 }) {
   const sidebar = useAgentSidebar();
   const { t, locale, wallpaper = "aurora", wallpaperOpacity = 1, wallpaperBlur = 0, reduceMotion = false } = useUiPreferences();
@@ -38,7 +38,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   useEffect(() => {
     const open = (event: Event) => {
       const section = (event as CustomEvent).detail;
-      if (!["connections", "tools", "research", "desktop", "appearance", "accessibility"].includes(section)) return;
+      if (!["connections", "tools", "research", "desktop", "appearance", "accessibility", "shortcuts"].includes(section)) return;
       setSettingsRequest(previous => ({ section, id: (previous?.id ?? 0) + 1 }));
       setSettingsOpen(true);
     };
@@ -104,7 +104,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
       <DynamicIsland />
       <div className="os-menubar-glass os-menubar-status">
         <StatusDots />
-        <div className="os-menu-shortcuts"><button type="button" data-onboarding="atlas" onClick={() => navigate("atlas")}><Globe size={13} />{t("地图", "Atlas")}</button><button type="button" onClick={() => setSettingsOpen(true)} aria-label={t("打开系统设置", "Open system settings")}><Settings2 size={14} /></button></div>
+        <div className="os-menu-shortcuts">{jobWatchControls}<button type="button" data-onboarding="atlas" onClick={() => navigate("atlas")}><Globe size={13} />{t("地图", "Atlas")}</button><button type="button" onClick={() => setSettingsOpen(true)} aria-label={t("打开系统设置", "Open system settings")}><Settings2 size={14} /></button></div>
         <time dateTime={now.toISOString()}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(now)}</time>
       </div>
     </DesktopMenuBar>

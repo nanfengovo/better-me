@@ -375,6 +375,10 @@
   overflow: hidden;
 }
 
+.os-window.os-settings-window {
+  z-index: 35;
+}
+
 :root[data-theme="dark"] .os-window {
   border-color: rgba(255, 255, 255, 0.14) !important;
   box-shadow: 0 20px 54px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
