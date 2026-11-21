@@ -52,37 +52,44 @@ export function SplitButton({
   const rootRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const pendingEdgeRef = useRef<"first" | "last" | null>(null);
   const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
+    if (pendingEdgeRef.current) {
+      const enabled = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
+      const idx = pendingEdgeRef.current === "last" ? enabled.length - 1 : 0;
+      enabled[idx]?.focus();
+      pendingEdgeRef.current = null;
+    }
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      if (rootRef.current?.contains(event.target as Node)) {
+        event.stopPropagation();
         toggleRef.current?.focus();
       }
     };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
-  function focusItem(edge: "first" | "last") {
-    requestAnimationFrame(() => {
-      const enabled = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
-      if (!enabled.length) return;
-      (edge === "last" ? enabled[enabled.length - 1] : enabled[0])?.focus();
-    });
-  }
-
   return (
-    <div ref={rootRef} className={className ? `bm-split-wrap ${className}` : "bm-split-wrap"}>
+    <div
+      ref={rootRef}
+      className={className ? `bm-split-wrap ${className}` : "bm-split-wrap"}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setOpen(false);
+      }}
+    >
       <div className="bm-split" data-variant={variant} data-size={size}>
         <button
           type="button"
@@ -105,16 +112,18 @@ export function SplitButton({
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
-          onClick={() => {
-            const next = !open;
-            setOpen(next);
-            if (next) focusItem("first");
-          }}
+          onClick={() => setOpen((value) => !value)}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
               event.preventDefault();
-              setOpen(true);
-              focusItem(event.key === "ArrowUp" ? "last" : "first");
+              const edge = event.key === "ArrowUp" ? "last" : "first";
+              if (open) {
+                const enabled = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
+                enabled[edge === "last" ? enabled.length - 1 : 0]?.focus();
+              } else {
+                pendingEdgeRef.current = edge;
+                setOpen(true);
+              }
             }
           }}
         >
