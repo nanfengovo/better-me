@@ -8,6 +8,7 @@ import {
 } from "../../services/vork-client";
 import { prepareWallpaper } from "../../lib/desktop-wallpaper";
 import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
+import { SelectMenu } from "../../design-system";
 
 interface VorkStudioCardProps {
   onApplied?: () => void;
@@ -134,22 +135,23 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
       {/* Controls & Action Bar */}
       <div className="os-vork-action-bar">
         <div className="os-vork-options">
-          <label className="os-vork-res-label">
+          <div className="os-vork-res-label">
             <span>渲染分辨率：</span>
-            <select
+            <SelectMenu
+              ariaLabel="渲染分辨率"
               value={`${resolution[0]}x${resolution[1]}`}
-              onChange={(e) => {
-                const [w, h] = e.target.value.split("x").map(Number);
+              disabled={rendering}
+              options={[
+                { value: "1920x1080", label: "1080P (1920×1080 · 约 8~12 秒)" },
+                { value: "2560x1440", label: "2K (2560×1440 · 约 16~22 秒)" },
+                { value: "1280x720", label: "720P (1280×720 · 约 4~6 秒极速)" },
+              ]}
+              onChange={(nextValue) => {
+                const [w, h] = nextValue.split("x").map(Number);
                 setResolution([w ?? 1920, h ?? 1080]);
               }}
-              className="os-vork-select"
-              disabled={rendering}
-            >
-              <option value="1920x1080">1080P (1920×1080 · 约 8~12 秒)</option>
-              <option value="2560x1440">2K (2560×1440 · 约 16~22 秒)</option>
-              <option value="1280x720">720P (1280×720 · 约 4~6 秒极速)</option>
-            </select>
-          </label>
+            />
+          </div>
         </div>
 
         <button

@@ -22,6 +22,7 @@ export function SelectMenu({
   appearance = "control",
   align = "left",
   fullWidth = false,
+  disabled = false,
   className,
   triggerClassName,
 }: {
@@ -34,6 +35,7 @@ export function SelectMenu({
   appearance?: "title" | "control" | "ghost";
   align?: "left" | "right";
   fullWidth?: boolean;
+  disabled?: boolean;
   className?: string;
   triggerClassName?: string;
 }) {
@@ -130,12 +132,15 @@ export function SelectMenu({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           const nextOpen = !open;
           setOpen(nextOpen);
           if (nextOpen) focusOption("selected");
         }}
         onKeyDown={(event) => {
+          if (disabled) return;
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
             setOpen(true);

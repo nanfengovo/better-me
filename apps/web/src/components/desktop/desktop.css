@@ -1402,8 +1402,72 @@ html[data-dock-position="right"] .os-stage {
 }
 
 .os-vork-render-btn:disabled {
-  opacity: 0.7;
-  cursor: wait;
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+/* Light-mode Calm Craft harmonization for Vork Labs card inside System Settings */
+html[data-theme="light"] .os-vork-studio-card {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--ui-surface, #fff) 94%, var(--ui-accent-soft, #e6f0ea)) 0%, var(--ui-surface-soft, #f4f5f0) 100%);
+  border: 1px solid var(--ui-border, #dce2d6);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+html[data-theme="light"] .os-vork-badge {
+  background: var(--ui-accent-soft, #e6f0ea);
+  border-color: color-mix(in srgb, var(--ui-accent, #1f5a47) 26%, transparent);
+  color: var(--ui-accent, #1f5a47);
+}
+html[data-theme="light"] .os-vork-badge-icon { color: var(--ui-accent, #1f5a47); }
+html[data-theme="light"] .os-vork-title { color: var(--ui-text, #17261f); }
+html[data-theme="light"] .os-vork-subtitle,
+html[data-theme="light"] .os-vork-section-label,
+html[data-theme="light"] .os-vork-res-label { color: var(--ui-text-secondary, #4f6157); }
+html[data-theme="light"] .os-vork-status-pill {
+  background: var(--ui-surface, #ffffff);
+  border-color: var(--ui-border, #dce2d6);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+html[data-theme="light"] .os-vork-engine-name { color: var(--ui-text, #17261f); }
+html[data-theme="light"] .os-vork-gpu-name { color: var(--ui-accent, #1f5a47); }
+html[data-theme="light"] .os-vork-refresh-btn { color: var(--ui-text-muted, #6b7280); }
+html[data-theme="light"] .os-vork-refresh-btn:hover { color: var(--ui-text, #17261f); background: var(--ui-hover, rgba(0,0,0,0.05)); }
+html[data-theme="light"] .os-vork-scene-card {
+  background: var(--ui-surface, #ffffff);
+  border-color: var(--ui-border, #dce2d6);
+}
+html[data-theme="light"] .os-vork-scene-card:hover {
+  background: var(--ui-surface-raised, #ffffff);
+  border-color: color-mix(in srgb, var(--ui-accent, #1f5a47) 45%, var(--ui-border));
+}
+html[data-theme="light"] .os-vork-scene-card.is-selected {
+  background: var(--ui-accent-soft, #e6f0ea);
+  border-color: var(--ui-accent, #1f5a47);
+  box-shadow: inset 0 0 0 1px var(--ui-accent, #1f5a47);
+}
+html[data-theme="light"] .os-vork-scene-cat { color: var(--ui-accent, #1f5a47); }
+html[data-theme="light"] .os-vork-scene-name { color: var(--ui-text, #17261f); }
+html[data-theme="light"] .os-vork-scene-desc { color: var(--ui-text-muted, #64748b); }
+html[data-theme="light"] .os-vork-action-bar { border-top-color: var(--ui-border, #dce2d6); }
+html[data-theme="light"] .os-vork-render-btn {
+  background: var(--ui-action, #1f5a47);
+  border-color: var(--ui-action, #1f5a47);
+  color: var(--ui-on-action, #ffffff);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ui-action, #1f5a47) 24%, transparent);
+}
+html[data-theme="light"] .os-vork-render-btn:hover:not(:disabled) {
+  background: var(--ui-action-hover, #174738);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ui-action, #1f5a47) 32%, transparent);
+}
+html[data-theme="light"] .os-vork-success-banner {
+  background: var(--ui-accent-soft, #e6f0ea);
+  border-color: color-mix(in srgb, var(--ui-accent, #1f5a47) 32%, transparent);
+  color: var(--ui-text, #17261f);
+}
+html[data-theme="light"] .os-vork-success-text strong { color: var(--ui-accent, #1f5a47); }
+html[data-theme="light"] .os-vork-error-banner {
+  background: var(--ui-danger-soft, #fef2f2);
+  border-color: var(--ui-danger-border, #fecaca);
+  color: var(--ui-danger, #b91c1c);
 }
 
 .os-vork-success-banner {

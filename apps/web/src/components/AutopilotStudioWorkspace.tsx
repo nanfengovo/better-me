@@ -446,7 +446,7 @@ export function AutopilotWorkbenchPrototype({
               className="w-9 h-9 rounded-full bg-[#060A0F] border-2 flex items-center justify-center relative shrink-0"
             >
               <span className="font-mono font-black text-xs text-white">
-                {operatorName.slice(0, 2).toUpperCase()}
+                {/[\u4e00-\u9fff]/.test(operatorName.slice(0, 1)) ? operatorName.slice(0, 1) : operatorName.slice(0, 2).toUpperCase()}
               </span>
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#060A0F]" />
             </div>
@@ -535,7 +535,7 @@ export function AutopilotWorkbenchPrototype({
             <span className="opacity-30">·</span>
             <span className="text-amber-500 font-semibold shrink-0">{sourcedJobsCount}{t(" 带来源", " sourced")}</span>
             <span className="opacity-30">·</span>
-            <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点 ${claimCount}`, `${claimCount} fact claims`)}</span>
+            <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点${claimCount}`, `${claimCount} fact claims`)}</span>
             {kernelTelemetry.authenticated && (
               <>
                 <span className="opacity-30">·</span>
