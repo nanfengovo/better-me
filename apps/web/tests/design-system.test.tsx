@@ -24,7 +24,7 @@ for (const [key, value] of Object.entries(globals)) {
 
 const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
-const { Button, CommandPalette, HoldButton, SegmentedControl, SelectMenu, SplitButton, StatusPill, reorderList } = await import("../src/design-system/index.ts");
+const { Button, CommandPalette, EmptyState, FilterBar, HoldButton, PageHeader, SegmentedControl, SelectMenu, SplitButton, StatusPill, reorderList } = await import("../src/design-system/index.ts");
 
 let root: ReturnType<typeof createRoot> | undefined;
 
@@ -231,4 +231,47 @@ test("HoldButton cancels on early release and confirms only after holding for ho
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
   assert.equal(confirmed, 1);
   assert.equal(btn.dataset.holding, undefined);
+});
+
+test("PageHeader, FilterBar, and EmptyState render semantic calm-craft skeleton hooks", async () => {
+  let query = "React";
+  await mount(
+    h("div", null,
+      h(PageHeader, {
+        eyebrow: "WORKSPACE",
+        title: "机会空间",
+        description: "集中管理目标岗位与跟进计划",
+        meta: h(StatusPill, { tone: "neutral" }, "3 个岗位"),
+        actions: h(Button, { variant: "primary", size: "sm" }, "收藏岗位"),
+      }),
+      h(FilterBar, {
+        ariaLabel: "筛选机会",
+        search: {
+          value: query,
+          onChange: (next) => { query = next; },
+          placeholder: "搜索公司或岗位",
+          clearLabel: "清除搜索",
+        },
+        controls: h("select", { "aria-label": "阶段" }, h("option", { value: "all" }, "全部")),
+      }),
+      h(EmptyState, {
+        compact: true,
+        align: "start",
+        title: "暂无岗位",
+        description: "先收藏一个真实岗位",
+        actions: h(Button, { variant: "secondary", size: "xs" }, "添加"),
+      }),
+    ),
+  );
+
+  assert.equal(dom.document.querySelector(".bm-page-header-title")?.textContent, "机会空间");
+  assert.equal(dom.document.querySelector(".bm-page-header-eyebrow")?.textContent, "WORKSPACE");
+  const clearBtn = dom.document.querySelector<HTMLButtonElement>(".bm-filter-search-clear")!;
+  assert.ok(clearBtn);
+  await flush(() => clearBtn.click());
+  assert.equal(query, "");
+  const empty = dom.document.querySelector<HTMLElement>(".bm-empty-state")!;
+  assert.equal(empty.dataset.compact, "true");
+  assert.equal(empty.dataset.align, "start");
+  assert.equal(empty.querySelector(".bm-empty-title")?.textContent, "暂无岗位");
 });

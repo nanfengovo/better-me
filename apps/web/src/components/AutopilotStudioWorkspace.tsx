@@ -73,6 +73,7 @@ import {
   opportunityToPipelineItem,
   stageLabel,
 } from "./autopilot/autopilot-pipeline-mappers";
+import { Button, EmptyState, PageHeader, StatusPill } from "../design-system";
 
 export {
   AGENT_KERNELS,
@@ -499,34 +500,14 @@ export function AutopilotWorkbenchPrototype({
         </div>
 
         {/* 中间：全链路自动化工坊核心标题 */}
-        <div className="text-center font-mono tracking-tight select-none">
-          <div className="text-[10px] tracking-widest font-bold flex items-center justify-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span className={theme === "light" ? "text-cyan-800" : "text-cyan-400/90"}>
-              @BETTERME-OS // THE CAREER ENGINEERING WORKSPACE
-            </span>
-            <span className={theme === "light" ? "px-1.5 py-0.2 rounded bg-slate-200 text-[9px] text-slate-700 border border-slate-300 font-bold" : "px-1.5 py-0.2 rounded bg-slate-800 text-[9px] text-slate-400 border border-slate-700 font-bold"}>
-              20-NODE DAG
-            </span>
-          </div>
-
-          <h1 className="text-base md:text-lg xl:text-xl font-black italic tracking-tight mt-0.5 whitespace-nowrap">
-            <span className="text-cyan-500">BETTERME AUTOPILOT ·</span>{" "}
-            <span className={theme === "light" ? "text-slate-900" : "text-white"}>
-              {t("求职全链路自动化工坊", "End-to-end job-search automation studio")}
-            </span>
-          </h1>
-
-          <div className="text-[10px] tracking-wider flex items-center justify-center gap-2 mt-0.5 font-mono whitespace-nowrap">
-            <span className="text-emerald-500 font-bold">{t("20 节点拓扑闭环", "20-node closed loop")}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-amber-500 font-bold">{t("事实证据链锚定", "Anchored to a fact evidence chain")}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-cyan-500 font-bold">{t("投递后异步挂起", "Async hold after applying")}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-purple-500 font-bold">{t("沙箱微应用生态", "Sandboxed micro-app ecosystem")}</span>
-          </div>
-        </div>
+        <PageHeader
+          compact
+          headingLevel={1}
+          className="border-0 p-0 m-0"
+          eyebrow={<span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />BETTERME AUTOPILOT · 20-NODE DAG</span>}
+          title={t("求职全链路自动化工坊", "End-to-end job-search automation studio")}
+          meta={<StatusPill tone={jobs.length > 0 ? "accent" : "neutral"}>{jobs.length} {t("岗位", "jobs")} · {claimCount} {t("事实", "claims")}</StatusPill>}
+        />
 
         {/* 右侧：遥测指标舱 + 刷新 + 前往系统设置 + 主题切换 */}
         <div className="flex items-center gap-2 shrink-0">
@@ -1011,40 +992,25 @@ export function AutopilotWorkbenchPrototype({
                         {t("正在读取本地已保存的真实岗位…", "Loading locally saved opportunities…")}
                       </div>
                     ) : (
-                      <div className={`p-4 rounded-xl border space-y-2.5 ${
-                        theme === "light" ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-black/45 border-white/10 text-slate-300"
-                      }`}>
-                        <div className={`text-sm font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
-                          {t("当前还没有接入真实岗位", "No real opportunities saved yet")}
-                        </div>
-                        <p className="text-[11px] leading-relaxed opacity-90">
-                          {t("本工坊严格只绑定本地真实机会库与 FactBase 事实经历；在保存首批岗位前，不注入任何模拟公司、薪资、ATS 分数或背调结论。", "This studio binds strictly to your saved opportunities and local FactBase—no demo companies, salaries, ATS scores, or synthetic checks are generated.")}
-                        </p>
-                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <EmptyState
+                        compact
+                        align="start"
+                        icon={<Orbit size={18} />}
+                        title={t("当前还没有接入真实岗位", "No real opportunities saved yet")}
+                        description={t("本工坊严格只绑定本地真实机会库与 FactBase 事实经历；在保存首批岗位前，不注入任何模拟公司、薪资、ATS 分数或背调结论。", "This studio binds strictly to your saved opportunities and local FactBase—no demo companies, salaries, ATS scores, or synthetic checks are generated.")}
+                        actions={<>
                           {onOpenOpportunitySources && (
-                            <button
-                              type="button"
-                              onClick={onOpenOpportunitySources}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow transition"
-                            >
+                            <Button variant="primary" size="xs" onClick={onOpenOpportunitySources}>
                               {t("接入真实岗位", "Connect real opportunities")}
-                            </button>
+                            </Button>
                           )}
                           {onRefreshOpportunities && (
-                            <button
-                              type="button"
-                              onClick={onRefreshOpportunities}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                                theme === "light"
-                                  ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
-                                  : "bg-white/10 border-white/15 text-slate-200 hover:bg-white/15"
-                              }`}
-                            >
+                            <Button variant="secondary" size="xs" onClick={onRefreshOpportunities}>
                               {t("刷新机会库", "Refresh library")}
-                            </button>
+                            </Button>
                           )}
-                        </div>
-                      </div>
+                        </>}
+                      />
                     )}
 
                     {/* 能力流程导航 */}

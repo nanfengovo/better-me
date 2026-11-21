@@ -77,6 +77,7 @@ import { AgentFitAnalyticsHeader } from "./agent-workspace/AgentFitAnalyticsHead
 
 import { RequirementEvidencePanel } from "./RequirementEvidencePanel";
 import type { EvidenceWorkspace } from "../lib/requirement-evidence";
+import { Button, PageHeader } from "../design-system";
 
 export interface AgentWorkspaceProps {
   evidenceWorkspace?: EvidenceWorkspace;
@@ -1247,33 +1248,18 @@ function AgentWorkspaceSession({
             /* ── VIEW 1: Dedicated Job Setup & Link Extraction Screen (Full Left Pane Height) ── */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Setup View Top Header */}
-              <div
-                className={`px-4 py-3 border-b shrink-0 flex items-center justify-between gap-3 ${
-                  isDark ? "border-[var(--ui-border,#484b58)]" : "border-slate-200"
-                }`}
-              >
-                <div className="min-w-0">
-                  <h3 className={`text-sm font-semibold truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                    {isEditingJob ? t("编辑目标岗位", "Edit target role") : t("目标岗位", "Target role")}
-                  </h3>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                    {t("粘贴招聘链接或 JD 原文", "Paste a job link or description")}
-                  </p>
-                </div>
-                {isEditingJob && currentJob?.description ? (
-                  <button
-                    type="button"
-                    onClick={handleCancelJobEdit}
-                    className={`text-[11px] px-2.5 py-1.5 rounded-lg border cursor-pointer transition shrink-0 ${
-                      isDark
-                        ? "text-[var(--ui-text-muted,#a7adbd)] hover:text-white border-[var(--ui-border,#484b58)]"
-                        : "text-slate-600 hover:text-slate-900 border-slate-200 bg-white"
-                    }`}
-                  >
+              <PageHeader
+                compact
+                headingLevel={3}
+                icon={<Bot size={15} />}
+                title={isEditingJob ? t("编辑目标岗位", "Edit target role") : t("目标岗位", "Target role")}
+                description={t("粘贴招聘链接或 JD 原文", "Paste a job link or description")}
+                actions={isEditingJob && currentJob?.description ? (
+                  <Button variant="secondary" size="xs" onClick={handleCancelJobEdit}>
                     {t("取消修改", "Cancel")}
-                  </button>
-                ) : null}
-              </div>
+                  </Button>
+                ) : undefined}
+              />
 
               {/* Scrollable Form Body */}
               <div className="flex-1 min-h-0 overflow-y-auto agent-custom-scrollbar p-5 space-y-4">
