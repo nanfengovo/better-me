@@ -12,6 +12,15 @@
 .rail-bottom { display:flex; align-items:center; flex-direction:column; gap:20px; margin-top:auto; }
 .rail-local { color:#90a082; }
 .studio-workspace { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+/* The active page fills the window on a direct visit to the resume workspace. */
+.resume-workspace-body { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
+.secondary-workspace { display:flex; flex:1; min-height:0; overflow:hidden; }
+.resume-workspace-body[hidden], .secondary-workspace[hidden] { display:none; }
+.resume-view-picker { display:inline-flex; align-items:center; gap:6px; margin:0; flex-wrap:wrap; }
+.resume-view-picker select { min-width:110px; max-width:180px; border:1px solid #dfe5d6; background:#fffefb; border-radius:6px; padding:4px 7px; color:#586a4e; font-size:11px; outline:none; }
+.resume-view-picker button { padding:3px 7px; font-size:10px; font-weight:500; color:#67785a; cursor:pointer; border:1px solid #e0e7d5; border-radius:5px; background:#fff; transition:background .15s, border-color .15s; }
+.resume-view-picker button:hover:not(:disabled) { background:#eff4e8; color:#2c4b37; border-color:#b9cbb0; }
+.resume-view-picker button:disabled { opacity:.4; cursor:default; }
 .studio-header { height:66px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 32px; border-bottom:1px solid #e8eae3; background:#fcfcf8; }
 .studio-brand { display:flex; gap:13px; align-items:center; color:#858f83; font-size:11px; white-space:nowrap; }
 .studio-brand strong { font-size:17px; color:#243d32; font-family:Georgia,serif; font-weight:500; letter-spacing:-.4px; }
@@ -151,10 +160,14 @@
 .recovery-card p { font-size:12px; line-height:1.8; margin:12px 0 20px; }
 @media(min-width:1700px) { .studio-header,.studio-document-bar { padding-left:45px; padding-right:45px; } .studio-main { padding:0 45px; } .studio-notices { padding-left:45px; padding-right:45px; } }
 @media(max-width:1200px) { .studio-header { padding:0 20px; } .studio-document-bar { padding:22px 20px 20px; } .studio-main { padding:0 20px; } .studio-notices { padding-left:20px; padding-right:20px; } .studio-brand { gap:8px; } .document-badge { display:none; } .document-title-row input { width:160px; } .studio-footer { padding:11px 20px; } .studio-header .subtle { display:none; } }
+@media(max-width:940px) { .secondary-workspace { overflow:visible; } }
+@media(max-width:620px) { .resume-view-picker select { max-width:150px; } }
 @media(max-width:940px) { .studio-app { height:auto; min-height:100dvh; overflow:visible; } .studio-rail { width:58px; padding:20px 5px; position:sticky; top:0; height:100dvh; } .studio-rail button { width:43px; } .studio-workspace { overflow:visible; } .studio-main { grid-template-columns:1fr; gap:16px; } .studio-splitter { display:none; } .studio-editor-pane { height:650px; } .studio-preview-pane { height:850px; } .studio-document-bar { align-items:flex-start; } .document-actions { max-width:320px; } .header-location { display:none; } .persistence-notice { flex-wrap:wrap; } }
 @media(max-width:620px) { .studio-header { height:54px; padding:0 13px; } .studio-brand>span,.studio-brand>svg { display:none; } .header-actions { gap:10px; } .studio-document-bar { flex-direction:column; padding:20px 13px; gap:16px; } .document-actions { max-width:none; width:100%; justify-content:flex-start; gap:6px; } .studio-button { padding:7px 9px; font-size:10px; } .document-title-row input { width:210px; font-size:24px; } .studio-main { padding:0 12px; } .studio-notices { padding-left:12px; padding-right:12px; } .studio-footer { gap:10px; flex-wrap:wrap; padding:12px; } .studio-preview-pane { height:750px; } .studio-editor-pane { height:700px; } .format-selection-hint { display:none; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; scroll-behavior:auto!important; } }
 @media print {
+  .resume-workspace-body { display:block!important; height:auto!important; min-height:0!important; overflow:visible!important; }
+  .secondary-workspace,.resume-view-picker { display:none!important; }
   .studio-app,.studio-workspace,.studio-main,.studio-preview-pane { display:block!important; height:auto!important; min-height:0!important; max-height:none!important; width:100%!important; overflow:visible!important; margin:0!important; padding:0!important; background:none!important; }
   .studio-rail,.studio-header,.studio-document-bar,.studio-editor-pane,.studio-notices,.studio-footer { display:none!important; }
 }

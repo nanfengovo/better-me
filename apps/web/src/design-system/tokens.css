@@ -1,0 +1,42 @@
+/* BetterMe Design System — Semantic Tokens ("Calm Craft OS")
+   Screen-only; resume paper (.resume-sheet & templates/*.css) stays isolated. */
+@media screen {
+  :root {
+    /* Concentric Radii */
+    --bm-radius-window: 20px;
+    --bm-radius-panel: 14px;
+    --bm-radius-card: 10px;
+    --bm-radius-control: 8px;
+    --bm-radius-pill: 6px;
+
+    /* Motion Physics */
+    --bm-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --bm-dur-press: 80ms;
+    --bm-dur-hover: 140ms;
+    --bm-dur-panel: 180ms;
+
+    /* Tactile Surfaces & Specular Highlights (Light) */
+    --bm-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    --bm-highlight-primary: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+    --bm-shadow-btn: 0 1px 2px rgba(15, 23, 42, 0.05), 0 0 0 1px var(--ui-border);
+    --bm-shadow-btn-hover: 0 2px 5px rgba(15, 23, 42, 0.08), 0 0 0 1px var(--ui-border-strong);
+    --bm-shadow-primary: 0 1px 2px rgba(15, 23, 42, 0.14), 0 4px 12px color-mix(in srgb, var(--ui-action) 24%, transparent);
+    --bm-shadow-primary-hover: 0 2px 4px rgba(15, 23, 42, 0.18), 0 6px 16px color-mix(in srgb, var(--ui-action) 30%, transparent);
+    --bm-shadow-segmented: 0 1px 3px rgba(15, 23, 42, 0.09), 0 0 0 0.5px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    --bm-shadow-float: 0 0 0 1px color-mix(in srgb, var(--ui-border-strong) 70%, transparent), 0 14px 36px rgba(15, 23, 42, 0.13), 0 3px 10px rgba(15, 23, 42, 0.06);
+    --bm-glass-bg: color-mix(in srgb, var(--ui-surface) 88%, transparent);
+    --bm-focus-ring: 0 0 0 2px var(--ui-surface), 0 0 0 4px var(--ui-focus);
+  }
+
+  html[data-theme="dark"] {
+    --bm-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    --bm-highlight-primary: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+    --bm-shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--ui-border);
+    --bm-shadow-btn-hover: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--ui-border-strong);
+    --bm-shadow-primary: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px color-mix(in srgb, var(--ui-action) 28%, transparent);
+    --bm-shadow-primary-hover: 0 2px 6px rgba(0, 0, 0, 0.48), 0 6px 18px color-mix(in srgb, var(--ui-action) 36%, transparent);
+    --bm-shadow-segmented: 0 1px 3px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --bm-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 18px 44px rgba(0, 0, 0, 0.55);
+    --bm-glass-bg: color-mix(in srgb, var(--ui-surface-raised) 90%, transparent);
+  }
+}

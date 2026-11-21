@@ -57,11 +57,9 @@
   html .studio-app.compact-chrome .issues-summary-copy > svg { flex-shrink: 0; }
   html .studio-app.compact-chrome .issues-summary-copy > span:last-child { flex-basis: 100%; padding-left: 22px; line-height: 1.6; }
   html .studio-app.compact-chrome .issues-summary > button { min-height: 44px; padding: 0 4px; }
-  html .studio-app.compact-chrome .studio-main[data-workspace-layout=single] { flex: none; height: auto; min-height: 0; padding: 12px 16px 0; grid-template-rows: auto auto; gap: 12px; }
+  html .studio-app.compact-chrome .studio-main[data-workspace-layout=single] { padding: 12px 16px 0; gap: 12px; }
   html .studio-app.compact-chrome .workspace-view-tabs { position: sticky; top: 0; z-index: 15; padding: 4px; border: 1px solid var(--ui-border); border-radius: 14px; background: var(--ui-surface-soft); box-shadow: 0 4px 12px #00000008; }
   html .studio-app.compact-chrome .workspace-view-tabs button { flex: 1; font-size: 13px; }
-  html .studio-app.compact-chrome .studio-main[data-workspace-layout=single] > .studio-editor-pane { height: auto; overflow: visible; }
-  html .studio-app.compact-chrome :is(.studio-panel-slot,.fact-editor,.fact-editor-scroller) { height: auto; max-height: none; overflow: visible; flex: none; }
   html .studio-app.compact-chrome .fact-editor { border: 0; box-shadow: none; border-radius: 16px; }
   html .studio-app.compact-chrome .fact-editor > div:first-child { padding: 12px; gap: 10px; border-radius: 16px 16px 0 0; }
   html .studio-app.compact-chrome .fact-editor > div:first-child > div { width: 100%; }
@@ -75,7 +73,6 @@
   html .studio-app.compact-chrome .jd-workspace-invite { margin: 0 12px 12px; padding: 14px 12px; border-radius: 12px; }
   html .studio-app.compact-chrome .jd-workspace-invite strong { font-size: 13px; }
   html .studio-app.compact-chrome .jd-workspace-invite small { font-size: 11px; }
-  html .studio-app.compact-chrome .studio-main[data-workspace-layout=single] > .studio-preview-pane { height: max(600px, 85dvh); }
   html .studio-app.compact-chrome .studio-footer { padding: 20px 16px; font-size: 11px; }
   html .studio-app.compact-chrome .studio-footer > span:last-child { display: none; }
   html .studio-app.compact-chrome :is(.autosave-popover,.agent-status-dropdown,.workspace-menu-panel) { position: fixed; top: 72px; left: 16px; right: 16px; width: auto; max-width: none; max-height: calc(100dvh - 180px); overflow-y: auto; }

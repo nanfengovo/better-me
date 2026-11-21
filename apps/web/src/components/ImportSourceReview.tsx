@@ -1,5 +1,7 @@
 /** @jsxRuntime automatic */
+import { ChevronDown, Download, Sparkles, Check } from "lucide-react";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { Button } from "../design-system";
 import type { Experience, FactBase, ResumeImportSource } from "@better-me/core";
 
 type FactClaim = Experience["claims"][number];
@@ -103,6 +105,14 @@ export function supplementFactBaseFromImportSource(factBase: FactBase): FactBase
           claims: [],
         });
       }
+      continue;
+    }
+
+    // Skip personal profile metadata lines (e.g., "男 | 年龄：24岁", "电话：... | 邮箱：...")
+    if (
+      /^(?:男|女|性别|年龄|出生|籍贯|民族|政治面貌|婚姻状况|现居|期望城市|电话|手机|邮箱|微信|GitHub|LinkedIn)\b/i.test(line) ||
+      /(?:年龄\s*[：:]\s*\d+|性别\s*[：:]|岁\s*$)/.test(line)
+    ) {
       continue;
     }
 
@@ -228,37 +238,47 @@ export function ImportSourceReview({
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <details className="no-print rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-700" open={source.unparsedLines.length > 0 || brokenWrapCount > 0}>
-    <summary className="cursor-pointer font-semibold break-words">
-      {t("导入原文与待补录 · ", "Imported source & items to review · ")}
-      {source.unparsedLines.length
-        ? t(`${source.unparsedLines.length} 段待核对`, `${source.unparsedLines.length} ${source.unparsedLines.length === 1 ? "section" : "sections"} to review`)
-        : brokenWrapCount > 0
-          ? t(`${brokenWrapCount} 处断行待合并`, `${brokenWrapCount} wrapped lines to merge`)
-          : t("查看原文", "View source")}
+  const hasPending = source.unparsedLines.length > 0 || brokenWrapCount > 0 || unconfirmedMetricCount > 0;
+
+  return <details className="bm-notice-bar no-print">
+    <summary>
+      <span className="bm-notice-dot" data-tone={hasPending ? "warn" : "clean"} aria-hidden="true" />
+      <span className="break-words">
+        {t("导入原文与待补录 · ", "Imported source & items to review · ")}
+        {source.unparsedLines.length
+          ? t(`${source.unparsedLines.length} 段待核对`, `${source.unparsedLines.length} ${source.unparsedLines.length === 1 ? "section" : "sections"} to review`)
+          : brokenWrapCount > 0
+            ? t(`${brokenWrapCount} 处断行待合并`, `${brokenWrapCount} wrapped lines to merge`)
+            : t("查看原文", "View source")}
+        {source.unparsedLines.length > 0 && brokenWrapCount > 0 && t(` · ${brokenWrapCount} 处断行`, ` · ${brokenWrapCount} wrapped`)}
+        {unconfirmedMetricCount > 0 && t(` · ${unconfirmedMetricCount} 项待确认指标`, ` · ${unconfirmedMetricCount} unconfirmed metrics`)}
+      </span>
+      <ChevronDown size={14} className="bm-notice-chevron" aria-hidden="true" />
     </summary>
-    <div className="mt-3 space-y-3">
-      <p className="break-words">{t("来源：", "Source: ")}{source.fileName}{t("。以下是导入时的提取文本快照，随本地文档和 JSON 备份保存，不进入对外简历。原文件、原版式及后续修改未包含在此快照中，请保留原 PDF / Word。", ". This extracted text snapshot is saved with the local document and JSON backup and is excluded from the resume. It does not include the original file, layout or later edits. Keep the original PDF / Word file.")}</p>
-      {factBase && onUpdateFactBase && (source.unparsedLines.length > 0 || brokenWrapCount > 0 || unconfirmedMetricCount > 0) && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950">
-          <span className="font-medium">
+    <div className="bm-notice-body">
+      <p className="break-words" style={{ color: "var(--ui-text-muted)", margin: 0 }}>{t("来源：", "Source: ")}{source.fileName}{t("（仅本地存档，不进入对外简历）", " (local reference only, excluded from resume)")}</p>
+      {factBase && onUpdateFactBase && hasPending && (
+        <div className="bm-notice-action-strip">
+          <span style={{ fontWeight: 550 }}>
             {t(
               `检测到 ${source.unparsedLines.length} 段未入库内容（含个人项目/教育经历）${brokenWrapCount > 0 ? `、${brokenWrapCount} 处 PDF 断行` : ""}${unconfirmedMetricCount > 0 ? `、${unconfirmedMetricCount} 条待确认业绩指标` : ""}：`,
               `Detected ${source.unparsedLines.length} unparsed lines${brokenWrapCount > 0 ? `, ${brokenWrapCount} wrapped lines` : ""}${unconfirmedMetricCount > 0 ? `, ${unconfirmedMetricCount} unconfirmed metrics` : ""}:`
             )}
           </span>
           {(source.unparsedLines.length > 0 || brokenWrapCount > 0) && (
-            <button
-              type="button"
+            <Button
+              variant="tinted"
+              size="xs"
               onClick={() => onUpdateFactBase(supplementFactBaseFromImportSource(factBase))}
-              className="rounded-md bg-emerald-600 px-2.5 py-1 font-semibold text-white hover:bg-emerald-700"
             >
-              {t("✨ 一键补录待核对内容并修复断行", "✨ Supplement all & fix line wraps")}
-            </button>
+              <Sparkles size={12} aria-hidden="true" />
+              {t("一键补录待核对内容并修复断行", "Supplement all & fix line wraps")}
+            </Button>
           )}
           {unconfirmedMetricCount > 0 && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="xs"
               onClick={() =>
                 onUpdateFactBase({
                   ...factBase,
@@ -268,20 +288,20 @@ export function ImportSourceReview({
                   })),
                 })
               }
-              className="rounded-md border border-emerald-600 bg-white px-2.5 py-1 font-semibold text-emerald-800 hover:bg-emerald-100"
             >
-              {t(`✓ 核实并展示全部业绩指标（${unconfirmedMetricCount} 项）`, `✓ Confirm & show all metrics (${unconfirmedMetricCount})`)}
-            </button>
+              <Check size={12} aria-hidden="true" />
+              {t(`核实并展示全部业绩指标（${unconfirmedMetricCount} 项）`, `Confirm & show all metrics (${unconfirmedMetricCount})`)}
+            </Button>
           )}
         </div>
       )}
       {source.unparsedLines.length > 0 && <section aria-label={t("待补录原文", "Source text to review")}>
-        <p className="font-semibold text-amber-800">{t("以下内容尚未成为结构化事实，请对照原文件核对后补录；标有“AI 部分提取”的片段是模型输出，需要另行核实。", "This content is not yet structured into facts. Check the original file before adding it. Segments marked AI partial extraction are model output and require separate verification.")}</p>
-        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded border border-amber-200 bg-amber-50 p-3">{source.unparsedLines.join("\n")}</pre>
+        <p style={{ fontWeight: 600, color: "var(--ui-warning)", margin: 0 }}>{t("未入库原文（核对后可补录）", "Unparsed source lines (review before adding)")}</p>
+        <pre className="bm-notice-pre" data-tone="warn">{source.unparsedLines.join("\n")}</pre>
       </section>}
-      <details><summary className="cursor-pointer">{t("展开完整提取原文", "Expand all extracted source text")}</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-3">{source.rawText}</pre></details>
-      {source.ocrText && <details><summary className="cursor-pointer">{t("视觉模型转录（未核实，请对照原图）", "Visual model transcription (unverified; compare with the original image)")}</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-3">{source.ocrText}</pre></details>}
-      <button type="button" onClick={downloadSource} className="rounded border border-slate-200 px-3 py-1.5 font-medium">{t("下载导入原文", "Download imported source text")}</button>
+      <details><summary className="cursor-pointer">{t("展开完整提取原文", "Expand all extracted source text")}</summary><pre className="bm-notice-pre">{source.rawText}</pre></details>
+      {source.ocrText && <details><summary className="cursor-pointer">{t("视觉模型转录（未核实，请对照原图）", "Visual model transcription (unverified; compare with the original image)")}</summary><pre className="bm-notice-pre">{source.ocrText}</pre></details>}
+      <div><Button variant="secondary" size="xs" onClick={downloadSource}><Download size={12} aria-hidden="true" />{t("下载导入原文", "Download imported source text")}</Button></div>
     </div>
   </details>;
 }

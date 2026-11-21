@@ -12,6 +12,7 @@ import type {
 import { TextFormattingField } from "./TextFormattingField";
 import { TagListEditor } from "./TagListEditor";
 import { ClaimKindSelector } from "./ClaimKindSelector";
+import { Button, SelectMenu, useSortableList } from "../design-system";
 import { useConfirm } from "./ConfirmationDialog";
 import { selectEditorFollowTarget } from "../lib/editor-follow";
 import type { PreviewFollowTarget } from "../lib/preview-follow";
@@ -24,6 +25,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  GripVertical,
   Tag,
   Camera,
   MessageSquare,
@@ -48,10 +50,19 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
   const { t, locale } = useUiPreferences();
   const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
     { value: "work", label: t("工作经历", "Work experience") },
-    { value: "opensource", label: t("开源经历", "Open-source experience") },
+    { value: "opensource", label: t("项目 / 开源经历", "Project / open-source") },
     { value: "education", label: t("教育经历", "Education") },
-    { value: "other", label: t("项目 / 其他经历", "Projects / other experience") },
+    { value: "other", label: t("其他经历", "Other experience") },
   ];
+  const EXPERIENCE_BADGE_LABELS: Record<Experience["type"], string> = {
+    work: t("工作", "Work"),
+    opensource: t("项目", "Project"),
+    education: t("教育", "Education"),
+    other: t("其他", "Other"),
+  };
+  const sortableExperiences = useSortableList(factBase.experiences, (nextExperiences) => {
+    onChange({ ...factBase, experiences: nextExperiences });
+  });
 
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<"experiences" | "profile">("experiences");
@@ -442,11 +453,19 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
 
         {/* Bilingual / Locale Toggle */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-ink-muted)]" aria-describedby="editor-fields-help">
-          <select className="editor-language-select" aria-label={t("编辑语言", "Editing language")} value={viewMode} onChange={event => setViewMode(event.target.value as ViewMode)}>
-            <option value="zh">{t("仅中文", "Chinese only")}</option>
-            <option value="en">{t("仅英文", "English only")}</option>
-            <option value="bilingual">{t("中英双语", "Chinese & English")}</option>
-          </select>
+          <SelectMenu
+            appearance="ghost"
+            align="right"
+            triggerClassName="editor-language-select"
+            ariaLabel={t("编辑语言", "Editing language")}
+            value={viewMode}
+            options={[
+              { value: "zh", label: t("仅中文", "Chinese only") },
+              { value: "en", label: t("仅英文", "English only") },
+              { value: "bilingual", label: t("中英双语", "Chinese & English") },
+            ]}
+            onChange={(next) => setViewMode(next as ViewMode)}
+          />
           <p id="editor-fields-help" className="sr-only">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
         </div>
       </div>
@@ -836,68 +855,92 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
               <p className="sr-only">
                 {t("新增内容保持空白，补齐必填字段后保存。未核实的量化不会投影到最终简历。", "New entries start blank. Complete required fields before saving. Unverified metrics stay out of the final resume.")}</p>
               <div className="flex items-center gap-2">
-                <select aria-label={t("新增经历类型", "New experience type")} value={newExperienceType} onChange={(event) => setNewExperienceType(event.target.value as Experience["type"])} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-accent)]">
-                  {EXPERIENCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              <button
-                type="button"
-                onClick={addExperience}
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[var(--color-accent-hover)] transition"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t("新增经历", "Add experience")}</button>
+                <SelectMenu
+                  appearance="control"
+                  ariaLabel={t("新增经历类型", "New experience type")}
+                  value={newExperienceType}
+                  options={EXPERIENCE_TYPES}
+                  onChange={(value) => setNewExperienceType(value as Experience["type"])}
+                />
+                <Button variant="tinted" size="sm" onClick={addExperience}>
+                  <Plus size={14} aria-hidden="true" />
+                  {t("新增经历", "Add experience")}
+                </Button>
               </div>
             </div>
 
             {factBase.experiences.map((exp, index) => {
               const isCollapsed = collapsedExps[exp.id] ?? (index > 0);
+              const sortItemProps = sortableExperiences.getItemProps(exp.id, index);
+              const sortHandleProps = sortableExperiences.getHandleProps(exp.id, index);
+              const showFactCount = exp.type !== "education" || exp.claims.length > 0;
 
               return (
                 <article
                   key={exp.id}
+                  ref={sortItemProps.ref}
+                  style={sortItemProps.style}
+                  data-dragging={sortItemProps["data-dragging"]}
+                  data-sorting={sortItemProps["data-sorting"]}
                   data-editor-anchor={`experience:${exp.id}`}
-                  className="rounded-xl border border-[var(--color-line)] bg-white shadow-xs overflow-hidden transition"
+                  className="bm-sortable-item rounded-xl border border-[var(--color-line)] bg-white shadow-xs overflow-hidden"
                 >
                   {/* Experience Card Header */}
-                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleExpCollapse(exp.id)}
-                      className="flex items-center gap-2.5 text-left flex-1"
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
-                      )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-slate-900">
-                            {(viewMode === "en" ? exp.org.en || exp.org.zh : exp.org.zh || exp.org.en) || t("机构 / 学校待填写", "Organization / school not entered")}
-                          </span>
-                          <span className="rounded bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 uppercase">
-                            {exp.type}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {(viewMode === "en" ? exp.title.en || exp.title.zh : exp.title.zh || exp.title.en) || t("职位 / 学位待填写", "Role / degree not entered")}
-                          {exp.projectName?.zh ? ` · ${exp.projectName.zh}` : ""} (
-                          {exp.start || t("起始月份待填", "Start month not entered")} ~ {exp.end === null ? t("至今", "Present") : exp.end || t("结束月份待填", "End month not entered")})
-                        </p>
-                      </div>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">
-                        {exp.claims.length} {t("条事实", "facts")}</span>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <button
                         type="button"
+                        className="bm-drag-handle"
+                        aria-label={t("拖动或按上下方向键调整顺序", "Drag or use arrow keys to reorder")}
+                        title={t("拖动排序（支持方向键 ↑ ↓）", "Drag to reorder (or press ↑ ↓)")}
+                        {...sortHandleProps}
+                      >
+                        <GripVertical size={14} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpCollapse(exp.id)}
+                        className="flex items-center gap-2 text-left min-w-0 flex-1"
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-slate-900 truncate">
+                              {(viewMode === "en" ? exp.org.en || exp.org.zh : exp.org.zh || exp.org.en) || t("机构 / 学校待填写", "Organization / school not entered")}
+                            </span>
+                            <span className="bm-exp-badge" data-type={exp.type}>
+                              {EXPERIENCE_BADGE_LABELS[exp.type]}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 truncate">
+                            {(viewMode === "en" ? exp.title.en || exp.title.zh : exp.title.zh || exp.title.en) || t("职位 / 学位待填写", "Role / degree not entered")}
+                            {exp.projectName?.zh ? ` · ${exp.projectName.zh}` : ""} (
+                            {exp.start || t("起始月份待填", "Start month not entered")} ~ {exp.end === null ? t("至今", "Present") : exp.end || t("结束月份待填", "End month not entered")})
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {showFactCount && (
+                        <span className="text-xs text-slate-400 tabular-nums">
+                          {exp.claims.length} {t("条事实", "facts")}
+                        </span>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="xs"
+                        iconOnly
                         onClick={() => deleteExperience(exp.id)}
-                        className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                        aria-label={t("删除此经历", "Delete this experience")}
                         title={t("删除此经历", "Delete this experience")}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        <Trash2 size={14} aria-hidden="true" />
+                      </Button>
                     </div>
                   </div>
 
@@ -1090,13 +1133,10 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                             {t("成果与职责", "Achievements & responsibilities")}</h4>
-                          <button
-                            type="button"
-                            onClick={() => addClaim(exp.id)}
-                            className="flex items-center gap-1 rounded border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition shadow-2xs"
-                          >
-                            <Plus className="h-3 w-3" />
-                            {t("添加要点", "Add entry")}</button>
+                          <Button variant="secondary" size="xs" onClick={() => addClaim(exp.id)}>
+                            <Plus size={12} aria-hidden="true" />
+                            {t("添加要点", "Add entry")}
+                          </Button>
                         </div>
 
                         <div className="space-y-3">

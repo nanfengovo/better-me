@@ -2,6 +2,36 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { extractResumePrefill } from "../src/components/atlas/resume-prefill";
 import type { FactBase, ProjectedResume } from "@better-me/core";
+import { createDefaultResumeView, projectResume } from "@better-me/core";
+import { resumeDiscoveryCriteria } from "../src/lib/resume-discovery-criteria";
+import { fixtureResume } from "./fixtures/resume-recommendations";
+
+test("official search takes skills from the active resume version and reduces a street address to its city", () => {
+  const facts = structuredClone(fixtureResume);
+  facts.profile.location = { zh: "上海市浦东新区示例路123号" };
+  facts.profile.constraints = ["想去外企", "不喜欢出差"];
+  facts.experiences.push({ ...structuredClone(facts.experiences[0]!), id: "unselected", techStack: ["Kubernetes"], claims: [] });
+  const view = createDefaultResumeView(facts);
+  view.experienceSelection = "selected";
+  view.includedExperienceIds = ["test-exp"];
+  const criteria = resumeDiscoveryCriteria(projectResume(facts, view), facts);
+  assert.equal(criteria.location, "上海市");
+  assert.equal(criteria.targetRole, "后端开发工程师");
+  assert.deepEqual(criteria.skills, ["C#", ".NET", "Docker"]);
+  assert.ok(criteria.preferForeignEmployer && criteria.preferLowTravel);
+});
+
+test("a skills-only upload exposes disclosed keywords and skips contact text and skills attributed to others", () => {
+  const facts = structuredClone(fixtureResume);
+  facts.experiences = [];
+  facts.profile.targetRoles = [{ zh: "工程师 contact@example.org" }, { zh: "软件工程师" }];
+  facts.profile.traits = ["C#、Python、Vue、React", "团队用 Redis 缓存订单", "计划学习 Kubernetes"];
+  facts.profile.location = { zh: "Example Lane 19, Apartment 4" };
+  const criteria = resumeDiscoveryCriteria(projectResume(facts, createDefaultResumeView(facts)), facts);
+  assert.equal(criteria.location, undefined);
+  assert.equal(criteria.targetRole, "软件工程师");
+  assert.deepEqual(criteria.skills, ["C#", "Python", "Vue", "React"]);
+});
 
 test("extractResumePrefill handles empty or missing inputs gracefully", () => {
   const result = extractResumePrefill(null, null);

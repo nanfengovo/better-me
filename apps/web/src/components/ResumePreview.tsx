@@ -4,7 +4,8 @@ import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId, useMe
 import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
-import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, ChevronDown, HelpCircle } from "lucide-react";
+import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle } from "lucide-react";
+import { Button, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
@@ -32,12 +33,6 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const [exportNotes, setExportNotes] = useState<string[]>([]);
   const [docxExporting, setDocxExporting] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-  const exportTriggerRef = useRef<HTMLButtonElement>(null);
-  const exportPanelRef = useRef<HTMLDivElement>(null);
-  const exportKeyboardRef = useRef<"first" | "last" | null>(null);
-  const exportMenuId = useId();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const helpRef = useRef<HTMLDivElement>(null);
   const helpTriggerRef = useRef<HTMLButtonElement>(null);
@@ -118,49 +113,34 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   }, [followEnabled]);
 
   useEffect(() => {
-    if (!isExportMenuOpen && !isHelpOpen) return;
-    if (isExportMenuOpen && exportKeyboardRef.current) {
-      const items = exportMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
-      const index = exportKeyboardRef.current === "last" ? (items?.length ?? 1) - 1 : 0;
-      items?.[index]?.focus();
-      exportKeyboardRef.current = null;
-    }
+    if (!isHelpOpen) return;
     const close = (event: PointerEvent) => {
-      if (!exportMenuRef.current?.contains(event.target as Node)) setIsExportMenuOpen(false);
       if (!helpRef.current?.contains(event.target as Node)) setIsHelpOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (isExportMenuOpen) {
-        setIsExportMenuOpen(false);
-        if (exportMenuRef.current?.contains(event.target as Node)) { event.stopPropagation(); exportTriggerRef.current?.focus(); }
-      }
-      if (isHelpOpen) {
-        setIsHelpOpen(false);
-        if (helpRef.current?.contains(event.target as Node)) { event.stopPropagation(); helpTriggerRef.current?.focus(); }
-      }
+      setIsHelpOpen(false);
+      if (helpRef.current?.contains(event.target as Node)) { event.stopPropagation(); helpTriggerRef.current?.focus(); }
     };
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
-  }, [isExportMenuOpen, isHelpOpen]);
+  }, [isHelpOpen]);
 
   useLayoutEffect(() => {
-    const panel = isExportMenuOpen ? exportPanelRef.current : isHelpOpen ? helpPanelRef.current : null;
+    const panel = isHelpOpen ? helpPanelRef.current : null;
     if (!panel) return;
     const place = () => {
-      if (isHelpOpen && helpTriggerRef.current && helpPanelRef.current) {
+      if (helpTriggerRef.current && helpPanelRef.current) {
         const toolbar = helpTriggerRef.current.closest(".preview-toolbar");
         if (toolbar) helpPanelRef.current.style.top = `${helpTriggerRef.current.getBoundingClientRect().bottom - toolbar.getBoundingClientRect().top + 9}px`;
       }
     };
     place();
-    // A stacked workspace can put its toolbar at the viewport's lower edge.
-    // An explicit open should reveal the entire surface without a hidden menu.
     panel.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
-  }, [isExportMenuOpen, isHelpOpen]);
+  }, [isHelpOpen]);
 
   // Animate only an explicit template change. Typing, zooming and saving keep
   // the same paper DOM and never restart a presentation animation.
@@ -297,48 +277,71 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
           </div>
           <div className="preview-export-actions">
             <div className="preview-help" ref={helpRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsHelpOpen(false); }}>
-              <button ref={helpTriggerRef} type="button" className="preview-icon-button" aria-label={t("预览与导出说明", "Preview and export information")} aria-expanded={isHelpOpen} aria-controls={helpId} onClick={() => { setIsHelpOpen((value) => !value); setIsExportMenuOpen(false); }}><HelpCircle size={16} /></button>
+              <Button ref={helpTriggerRef} variant="ghost" size="sm" iconOnly className="preview-icon-button" aria-label={t("预览与导出说明", "Preview and export information")} aria-expanded={isHelpOpen} aria-controls={helpId} onClick={() => setIsHelpOpen((value) => !value)}><HelpCircle size={15} /></Button>
               {isHelpOpen && <div ref={helpPanelRef} id={helpId} className="preview-help-panel" role="region" aria-label={t("预览与导出说明", "Preview and export information")}>
                 <strong>{template.name}</strong><p>{template.description}</p>
                 <p>{t("缩放仅影响预览。DOCX 为可编辑单栏文档，默认省略照片；预览显示支持的本地照片时，可选择带照片的 DOCX。PDF 保留所选模板。", "Zoom affects preview only. The editable, single-column DOCX omits photos by default. If a supported local photo is visible, you can export a DOCX with it. PDF keeps the selected template.")}</p>
                 <p>{printHint}</p>
               </div>}
             </div>
-            <div className="preview-export" ref={exportMenuRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsExportMenuOpen(false); }}>
-              <div className="preview-export-split">
-                <button type="button" onClick={() => { void handlePdfExport(); }} disabled={pdfExporting} aria-busy={pdfExporting} className="preview-export-primary" title={printHint} aria-description={printHint} aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{pdfExporting ? t("正在导出…", "Exporting…") : t("导出", "Export")}</span></button>
-                <button ref={exportTriggerRef} type="button" className="preview-export-toggle" aria-label={t("更多导出格式", "More export formats")} aria-haspopup="menu" aria-expanded={isExportMenuOpen} aria-controls={exportMenuId} onClick={() => { setIsExportMenuOpen((value) => !value); setIsHelpOpen(false); }} onKeyDown={(event) => {
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-                    const edge = event.key === "ArrowUp" ? "last" : "first";
-                    if (isExportMenuOpen) {
-                      const items = exportMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
-                      items?.[edge === "last" ? items.length - 1 : 0]?.focus();
-                    } else {
-                      exportKeyboardRef.current = edge;
-                      setIsExportMenuOpen(true);
-                    }
-                    setIsHelpOpen(false);
-                  }
-                }}><ChevronDown size={15} aria-hidden="true" /></button>
-              </div>
-              {isExportMenuOpen && <div ref={exportPanelRef} id={exportMenuId} className="preview-export-menu" role="menu" aria-label={t("更多导出格式", "More export formats")} onKeyDown={(event) => {
-                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-                event.preventDefault();
-                const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
-                const current = items.indexOf(document.activeElement as HTMLButtonElement);
-                const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-                items[next]?.focus();
-              }}>
-                <div className="preview-menu-heading">{t("其他格式", "Other formats")}</div>
-                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(false); }} disabled={docxExporting} aria-busy={docxExporting}><FileDown size={17} /><span>{docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX")}<small>{t("可编辑文档 · 无照片", "Editable document · no photo")}</small></span><span className="preview-format-extension">.docx</span></button>
-                {hasExportablePhoto && <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(true); }} disabled={docxExporting}><FileDown size={17} /><span>{t("下载带照片的 DOCX", "Download photo DOCX")}<small>{t("包含预览中的本地照片", "Includes the local photo shown in preview")}</small></span><span className="preview-format-extension">.docx</span></button>}
-                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleCopyMarkdown(); }}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? t("已复制 MD", "MD copied") : t("复制 MD", "Copy MD")}<small>{t("复制为 Markdown", "Copy as Markdown")}</small></span></button>
-                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); handleDownloadMarkdown(); }}><FileDown size={17} /><span>{t("下载 MD", "Download MD")}<small>{t("纯文本与基本格式", "Text and basic formatting")}</small></span><span className="preview-format-extension">.md</span></button>
-                <div className="preview-menu-divider" role="separator" />
-                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); handleRenderCvExport(); }}><FileDown size={17} /><span>{t("导出 RenderCV YAML", "Export RenderCV YAML")}<small>{t("用于本地 RenderCV", "For local RenderCV")}</small></span><span className="preview-format-extension">.yaml</span></button>
-              </div>}
-            </div>
+            <SplitButton
+              variant="primary"
+              size="sm"
+              primaryLabel={pdfExporting ? t("正在导出…", "Exporting…") : t("导出", "Export")}
+              primaryAriaLabel={t("导出 PDF / 打印", "Export PDF / Print")}
+              primaryTitle={printHint}
+              primaryIcon={<Printer size={14} aria-hidden="true" />}
+              primaryDisabled={pdfExporting}
+              primaryBusy={pdfExporting}
+              onPrimaryClick={() => { setIsHelpOpen(false); void handlePdfExport(); }}
+              menuLabel={t("更多导出格式", "More export formats")}
+              menuHeading={t("其他格式", "Other formats")}
+              items={[
+                {
+                  id: "docx",
+                  label: docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX"),
+                  description: t("可编辑文档 · 无照片", "Editable document · no photo"),
+                  badge: ".docx",
+                  icon: <FileDown size={15} />,
+                  disabled: docxExporting,
+                  busy: docxExporting,
+                  onSelect: () => { void handleDocxExport(false); },
+                },
+                ...(hasExportablePhoto ? [{
+                  id: "docx-photo",
+                  label: t("下载带照片的 DOCX", "Download photo DOCX"),
+                  description: t("包含预览中的本地照片", "Includes the local photo shown in preview"),
+                  badge: ".docx",
+                  icon: <FileDown size={15} />,
+                  disabled: docxExporting,
+                  onSelect: () => { void handleDocxExport(true); },
+                }] : []),
+                {
+                  id: "copy-md",
+                  label: copied ? t("已复制 MD", "MD copied") : t("复制 MD", "Copy MD"),
+                  description: t("复制为 Markdown", "Copy as Markdown"),
+                  icon: copied ? <Check size={15} /> : <Copy size={15} />,
+                  onSelect: () => { void handleCopyMarkdown(); },
+                },
+                {
+                  id: "download-md",
+                  label: t("下载 MD", "Download MD"),
+                  description: t("纯文本与基本格式", "Text and basic formatting"),
+                  badge: ".md",
+                  icon: <FileDown size={15} />,
+                  onSelect: handleDownloadMarkdown,
+                },
+                { kind: "divider", id: "rendercv-divider" },
+                {
+                  id: "rendercv",
+                  label: t("导出 RenderCV YAML", "Export RenderCV YAML"),
+                  description: t("用于本地 RenderCV", "For local RenderCV"),
+                  badge: ".yaml",
+                  icon: <FileDown size={15} />,
+                  onSelect: handleRenderCvExport,
+                },
+              ] satisfies SplitButtonMenuEntry[]}
+            />
           </div>
         </div>
         <div className="preview-toolbar-secondary">
@@ -364,9 +367,9 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
       </div>
       <div className="preview-bottom no-print">
         <div className="preview-display-controls">
-          <button type="button" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></button>
-          <button type="button" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></button>
-          {(view || resume.profile.avatarUrl) && <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></button>}
+          <Button variant="ghost" size="xs" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></Button>
+          <Button variant="ghost" size="xs" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></Button>
+          {(view || resume.profile.avatarUrl) && <Button variant="ghost" size="xs" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></Button>}
         </div>
         <span id={panHelpId} className="preview-pan-help">{t("空格 + 拖动", "Space + drag")}</span>
       </div>

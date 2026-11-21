@@ -53,9 +53,12 @@ function button(label: string) {
   return found;
 }
 async function click(label: string) { await flush(() => button(label).click()); }
-async function selectLanguage(value: string) {
-  const select = dom.document.querySelector<HTMLSelectElement>(".editor-language-select")!;
-  await flush(() => { select.value = value; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+async function selectLanguage(value: "zh" | "en" | "bilingual") {
+  const trigger = dom.document.querySelector<HTMLButtonElement>(".editor-language-select")!;
+  const index = value === "zh" ? 0 : value === "en" ? 1 : 2;
+  await flush(() => trigger.click());
+  const options = [...dom.document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+  await flush(() => options[index]!.click());
 }
 function facts() {
   const factBase = createDemoFactBase("2000-01-01T00:00:00.000Z");

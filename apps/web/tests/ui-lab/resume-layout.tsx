@@ -28,7 +28,6 @@ import "../../src/index.css";
 import "../../src/studio.css";
 import "../../src/theme.css";
 import "../../src/atelier.css";
-import "../../src/components/opportunities.css";
 import "../../src/components/resume-paper.css";
 import "../../src/components/preview-toolbar.css";
 import "../../src/themes/workspace-theme.css";

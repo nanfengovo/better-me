@@ -15,6 +15,8 @@ import "./themes/workspace-theme.css";
 import "./components/responsive-workspace.css";
 import "./components/studio-workbench.css";
 import "./components/studio-materials.css";
+import "./design-system/tokens.css";
+import "./design-system/primitives.css";
 
 const loadApp = () => import("./App").then(module => ({ default: module.App }));
 function App() {

@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 import { useUiPreferences } from "../lib/ui-preferences";
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DEFAULT_HIGHLIGHT_COLOR, getHighlightColor, splitStyledText, type TextStyleRange } from "@better-me/core";
 import { Bold, Italic, Underline, Highlighter, RemoveFormatting, Type, ChevronDown } from "lucide-react";
 import { formatSelection, type TextStylePatch } from "../lib/text-formatting";
@@ -18,10 +18,16 @@ type Props = {
   writingKey?: string;
 };
 
-export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 2, describedBy, writingKey }: Props) {
+export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 1, describedBy, writingKey }: Props) {
   const { t } = useUiPreferences();
 
   const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [lastHighlightColor, setLastHighlightColor] = useState(DEFAULT_HIGHLIGHT_COLOR);
   const colorButtonRef = useRef<HTMLButtonElement>(null);

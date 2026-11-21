@@ -1,4 +1,6 @@
+/** @jsxRuntime automatic */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SelectMenu } from "../design-system";
 import { ArrowDownUp, ChevronDown } from "lucide-react";
 import { buildReplacementSelectionPrompt, completeReplacementClarification, hasReplacementChoices, parseReplacementSelection, suggestResumeReplacement,
   type CareerTaskResumeCommand, type FactBase, type LlmConfig, type ProjectedResume, type ReplacementMaterial, type ResumeView } from "@better-me/core";
@@ -80,14 +82,22 @@ function ReplacementSetup(props: Props) {
     }
   }
   return <div className="rr-body">
-    <label>{t("目标岗位", "Target job")}
-      <select aria-label={t("目标岗位", "Target job")} value={choice} onChange={e => { setChoice(e.target.value); setExtra([]); }}>
-        <option value="">{t("选择目标岗位", "Choose a target job")}</option>
-        {initialJob && <option value="@current">{initialJob.title} · {initialJob.company}</option>}
-        {library.jobs.map(j => <option key={j.id} value={"job:" + j.id}>{j.title} · {j.company}</option>)}
-        <option value="@paste">{t("粘贴岗位要求…", "Paste a job description…")}</option>
-      </select>
-    </label>
+    <div className="rr-job-field">
+      <span className="rr-field-label">{t("目标岗位", "Target job")}</span>
+      <SelectMenu
+        appearance="control"
+        fullWidth
+        ariaLabel={t("目标岗位", "Target job")}
+        value={choice}
+        options={[
+          { value: "", label: t("选择目标岗位", "Choose a target job") },
+          ...(initialJob ? [{ value: "@current", label: `${initialJob.title} · ${initialJob.company}` }] : []),
+          ...library.jobs.map(j => ({ value: "job:" + j.id, label: `${j.title} · ${j.company}` })),
+          { value: "@paste", label: t("粘贴岗位要求…", "Paste a job description…") },
+        ]}
+        onChange={next => { setChoice(next); setExtra([]); }}
+      />
+    </div>
     {library.error && <small role="alert">{library.error}</small>}
     {choice === "@paste" && <div className="rr-fields"><label>{t("岗位名称", "Job title")}<input maxLength={240} value={title} onChange={e => { setTitle(e.target.value); setPastedJob(undefined); setExtra([]); }}/></label>
       <label>{t("岗位要求原文", "Original job requirements")}<textarea rows={3} maxLength={16000} value={jd} onChange={e => { setJd(e.target.value); setPastedJob(undefined); setExtra([]); }}/></label>
