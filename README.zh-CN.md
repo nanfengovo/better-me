@@ -47,11 +47,11 @@
 
 | 维度 | 常见 AI 简历工具 | **BetterMe** |
 | :--- | :--- | :--- |
-| **数据主权** | 云端锁定，迁移困难 | **100% 本地优先** — SQLite + IndexedDB，随时导出 JSON 与历史版本检查点 |
-| **真实性边界** | 随手编造数字、静默篡改经历 | **零虚构门禁** — 未经本人核实的量化指标自动隔离，绝不混入导出简历 |
-| **排版与导出** | 少数固定样式 | **119 套版式**（自研 / RenderCV / JSON Resume）→ PDF、DOCX、Markdown、YAML |
-| **岗位探索** | 静态列表、失效链接 | **3D 岗位地图** + 官方 ATS 直连发现（Workday / Eightfold / Workable / SmartRecruiters） |
-| **桌面交互质感** | 普通后台表单 | **Calm Craft OS** — 统一原语组件、丝滑拖拽排序、全局可配置快捷键与撤销/重做 |
+| **数据主权** | 云端锁定，迁移困难 | **100% 本地优先** — SQLite + IndexedDB、标准 JSON Resume、版本检查点与本地 **MCP Server** |
+| **真实性边界** | 随手编造数字、静默篡改经历 | **零虚构门禁 + 改写数字守卫** — 未核实指标自动隔离；AI 改写引入未知数字自动拦截 |
+| **排版与导出** | 少数固定样式 | **119 套版式** → PDF、DOCX、Markdown、RenderCV YAML、**JSON Resume** 与 **双模式交互主页 HTML** |
+| **岗位探索** | 静态列表、失效链接 | **3D 岗位地图** + 官方 ATS 直连发现（Workday / Eightfold / Workable / SmartRecruiters）+ **免登录 ATS 诊断** |
+| **桌面交互质感** | 普通后台表单 | **Calm Craft OS** — `⌘ K` 全局命令面板、技能-证据图谱、实时 A4 分页线、可配置快捷键与撤销/重做 |
 
 ---
 
@@ -59,15 +59,17 @@
 
 ### 1. 有依据的简历工作室（Calm Craft OS）
 - **唯一事实源（`FactBase`）**：一份结构化履历库同时驱动多版本岗位定制简历与中英双语切换，改一处全局同步。
-- **桌面级写作手感**：60fps Pointer 丝滑拖拽排序经历卡片、自适应内容高度文本框 + 聚焦浮现富文本工具条、实时 A4 纸张联动跟随、本地化语义徽标与 6 级触感按钮体系。
-- **119 套模板与多格式导出**：一键导出高保真 **PDF**、可编辑 **DOCX**（支持可选照片）、**Markdown** 与 **RenderCV YAML**。
+- **桌面级写作手感 & ATS 视图**：60fps Pointer 丝滑拖拽排序、选中即现的局部写作气泡（含不编造数字的 `[X]` 量化占位支架）、实时 A4 页数统计与虚拟分页提示线、点击纸张段落直达编辑区，以及 **视觉 | ATS 解析** 一键切换。
+- **技能-证据图谱 & 双模式交互主页导出**：零 WebGL 负担的触感 CSS-3D 技能键帽映射真实经历证据，支持按简历视角勾选/隐藏条目；一键导出 100% 离线单文件 `.html` 个人职业主页（支持「探索图谱 / 经典打印简历」双模式、深浅色与减弱动效切换，默认脱敏个人联系方式）。
+- **119 套模板与多格式导出**：一键导出高保真 **PDF**、可编辑 **DOCX**（支持可选照片）、**Markdown**、**RenderCV YAML**，并支持标准 **JSON Resume (`jsonresume.org`)** 双向导入导出。
 
 <p align="center">
   <img src="docs/media/showcase-20261116/showcase-resume-copilot.gif" alt="BetterMe 简历编辑、119 套模板库切换与 Writing Copilot 批注联动演示" width="900" />
 </p>
 
-### 2. 全局可配置快捷键 & 文档级撤销/重做
-- **内置 12 项主流快捷键**：`⌘/Ctrl + Z` 撤销修改、`⇧ ⌘ Z / Ctrl + Y` 重做、`⌘/Ctrl + S` 立即保存、`⇧ ⌘ S` 历史版本、`⇧ ⌘ F` 专注模式、`⇧ ⌘ D` 内容/设计切换、`⌘/Ctrl + K` 按简历找岗位、`⌘/Ctrl + ,` 打开设置、`⌥/Alt + 1~4` 切换工作台。
+### 2. 全局命令面板、可配置快捷键 & 文档级撤销/重做
+- **全局命令面板（`⌘/Ctrl + K`）**：无需鼠标即可快速切换工作台、明暗主题、专注模式、导出 JSON Resume / 双模式交互主页或直达 MCP 本地连接向导。
+- **内置主流桌面快捷键**：`⌘/Ctrl + K` 命令面板、`⌘/Ctrl + J` 按简历找岗位、`⌘/Ctrl + Z` 撤销、`⇧ ⌘ Z / Ctrl + Y` 重做、`⌘/Ctrl + S` 立即保存、`⇧ ⌘ S` 历史版本、`⇧ ⌘ F` 专注模式、`⇧ ⌘ D` 内容/设计切换、`⌘/Ctrl + ,` 打开设置、`⌥/Alt + 1~4` 切换工作台。
 - **系统设置可视化录键**：打开 **系统设置 → 快捷键**，点击任意实体键帽按下新组合键即可实时录制、自动冲突检测并全局生效。
 
 <p align="center">
@@ -82,10 +84,10 @@
   <img src="docs/media/showcase-20261116/showcase-atlas-3d-radar.gif" alt="Job Atlas 3D 地图缩放、精准定位与周边全行业企业雷达探测演示" width="900" />
 </p>
 
-### 4. 受控职业 Agent、按需训练工坊与 Autopilot
-- **统一 `AgentTaskKernel`**：JD 拆解、证据伴写、模拟面试与多角色审阅委员会共享同一任务协议与 SHA-256 产物校验，支持暂停、恢复与断线核对。
-- **按需训练工坊**：围绕具体岗位短板生成针对性练习（表达改写、架构取舍、排期判断或受限 QuickJS 编程题），24 小时后独立换题复测；支持本机 Ollama 模型，无需云端 API Key。
-- **3D 机会看板 & 20 节点 Autopilot 工坊**：可视化管理投递阶段与全链路编排，受审沙箱微应用须人工授权方可执行。
+### 4. 受控职业 Agent、改写事实守卫与本地 MCP Server
+- **统一 `AgentTaskKernel` 与改写事实保真守卫**：JD 拆解、证据伴写、模拟面试与多角色审阅委员会共享同一任务协议与 SHA-256 产物校验。所有 AI 改写提议均须通过确定性新增数字守卫校验，若出现原 `FactBase` 中不存在的数字指标将被自动拦截并要求核验。
+- **BetterMe 本地 MCP Server**：通过标准 stdio 协议（`pnpm mcp:start`）将本地 `FactBase`、已核实经历证据、ATS 评分与改写事实守卫安全暴露给 **Claude Desktop**、**Cursor** 或 **Antigravity** 调用（默认脱敏 PII），可在 **系统设置 → MCP 本地连接** 一键复制客户端 JSON 配置（详见 [docs/guides/mcp-server.md](docs/guides/mcp-server.md)）。
+- **按需训练工坊 & 20 节点 Autopilot**：围绕具体岗位短板生成针对性练习（表达改写、架构取舍、排期判断或受限 QuickJS 编程题，支持本机 Ollama 模型），并可视化编排投递与求职任务，登录、验证码与最终提交全程保持人工授权。
 
 <p align="center">
   <img src="docs/media/showcase-20261116/showcase-agent-autopilot.gif" alt="AI 顾问、Career Studio 演练与证据、机会空间及 20 节点 Autopilot 工坊演示" width="900" />
@@ -113,9 +115,11 @@
 
 ## 📦 在线预览与全平台桌面安装包
 
-### 🌐 在线网页预览
-无需安装，立即在浏览器体验 UI、设计系统与 119 套简历模板（纯静态托管，不含本机后台与招聘抓取）：
-👉 **[https://nanfengovo.github.io/better-me/](https://nanfengovo.github.io/better-me/)**
+### 🌐 在线网页预览 & 免登录工具
+无需安装或登录，立即在浏览器体验 Agent OS 工作台、119 套简历模板与纯本地 ATS 诊断工具（纯静态托管，不上传数据）：
+- **Agent OS 工作台**：👉 **[https://nanfengovo.github.io/better-me/](https://nanfengovo.github.io/better-me/)**
+- **免登录 ATS & JD 纯文本诊断**：👉 **[https://nanfengovo.github.io/better-me/?view=ats](https://nanfengovo.github.io/better-me/?view=ats)**（纯浏览器确定性评分，无需 API Key）
+- **产品概览 Landing Page**：👉 **[https://nanfengovo.github.io/better-me/?view=landing](https://nanfengovo.github.io/better-me/?view=landing)**
 
 ### 💻 桌面客户端下载（macOS / Windows / Linux）
 完整内置前端工作台、`agent-host` 与 `job-service`，所有平台均附带 `SHA256SUMS` 校验文件，前往 **[GitHub Releases](https://github.com/nanfengovo/better-me/releases/latest)** 下载：

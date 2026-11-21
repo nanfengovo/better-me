@@ -47,11 +47,11 @@ Most "AI resume builders" are single-shot prompt wrappers: models invent metrics
 
 | Capability | Typical AI Resume Tools | **BetterMe** |
 | :--- | :--- | :--- |
-| **Data Ownership** | Cloud lock-in, opaque retention | **100% Local-First** — SQLite + IndexedDB, exportable JSON & checkpoints |
-| **Factual Integrity** | Hallucinated numbers & silent rewrites | **Evidence-Grounded** — unverified metrics stay isolated from exported resumes |
-| **Templates & Export** | A handful of rigid layouts | **119 layouts** (Native / RenderCV / JSON Resume) → PDF, DOCX, Markdown, YAML |
-| **Job Exploration** | Flat lists with stale links | **3D Job Atlas** + Official ATS discovery (Workday, Eightfold, Workable, SmartRecruiters) |
-| **Desktop Craft** | Generic web forms | **Calm Craft OS** — tactile UI primitives, drag-to-reorder, customizable global shortcuts & Undo/Redo |
+| **Data Ownership** | Cloud lock-in, opaque retention | **100% Local-First** — SQLite + IndexedDB, standard JSON Resume, checkpoints & local **MCP Server** |
+| **Factual Integrity** | Hallucinated numbers & silent rewrites | **Evidence-Grounded + Rewrite Guard** — unverified metrics stay isolated; novel numbers in AI rewrites are blocked |
+| **Templates & Export** | A handful of rigid layouts | **119 layouts** → PDF, DOCX, Markdown, RenderCV YAML, **JSON Resume**, & **Dual-Mode Interactive HTML Portfolio** |
+| **Job Exploration** | Flat lists with stale links | **3D Job Atlas** + Official ATS discovery (Workday, Eightfold, Workable, SmartRecruiters) + **Zero-Auth ATS Diagnostics** |
+| **Desktop Craft** | Generic web forms | **Calm Craft OS** — `⌘ K` Command Palette, Skill-to-Evidence Atlas, A4 page-break guides, customizable shortcuts & Undo/Redo |
 
 ---
 
@@ -59,15 +59,17 @@ Most "AI resume builders" are single-shot prompt wrappers: models invent metrics
 
 ### 1. Evidence-Grounded Resume Studio (`Calm Craft OS`)
 - **Single Source of Truth (`FactBase`)**: Maintain experiences, verified metrics, causal context, and bilingual fields once; project into multiple role-targeted resume views without duplicating edits.
-- **Tactile Desktop Editing**: Smooth 60fps pointer drag-and-drop sorting for experiences, auto-growing text inputs with focus-reveal formatting toolbars, live A4 pagination follow, and zero-hallucination metric guards.
-- **119 Templates & Multi-Format Export**: Switch seamlessly across curated, RenderCV, and JSON Resume themes; export print-ready **PDF**, editable **DOCX** (with optional photo), **Markdown**, and **RenderCV YAML**.
+- **Tactile Desktop Editing & Live ATS View**: 60fps pointer drag-and-drop sorting, inline selection writing bubble (with non-fabricating `[X]` metric scaffolds), real-time A4 page counter & dashed page-break guides, click-to-edit directly from the A4 paper, and a **Visual | ATS Parser** preview switcher.
+- **Skill-to-Evidence Atlas & Dual-Mode Interactive HTML Export**: Explore skills as tactile CSS-3D keycaps linked to verified experience claims, toggle inclusion per resume view, and export a 100% self-contained single-file `.html` portfolio (interactive atlas + classic print-ready CV, contact PII redacted by default, zero external CDNs).
+- **119 Templates & Multi-Format Export**: Switch seamlessly across curated, RenderCV, and JSON Resume themes; export print-ready **PDF**, editable **DOCX** (with optional photo), **Markdown**, **RenderCV YAML**, and bidirectional standard **JSON Resume (`jsonresume.org`)**.
 
 <p align="center">
   <img src="docs/media/showcase-20261116/showcase-resume-copilot.gif" alt="BetterMe Resume Studio, 119 templates, and evidence-anchored AI copilot" width="900" />
 </p>
 
-### 2. Customizable Global Shortcuts & Document Undo/Redo
-- **Built-in Desktop Shortcuts**: `⌘/Ctrl + Z` Undo, `⇧ ⌘ Z / Ctrl + Y` Redo, `⌘/Ctrl + S` Save, `⇧ ⌘ S` Version History, `⇧ ⌘ F` Focus Mode, `⇧ ⌘ D` Content/Design toggle, `⌘/Ctrl + K` Find Jobs, `⌘/Ctrl + ,` Settings, and `⌥/Alt + 1–4` Workspace switching.
+### 2. Command Palette, Customizable Shortcuts & Document Undo/Redo
+- **Global Command Palette (`⌘/Ctrl + K`)**: Jump across workspaces, toggle themes/focus mode, switch templates, export JSON Resume or Interactive HTML Portfolio, and open MCP setup without lifting your hands off the keyboard.
+- **Built-in Desktop Shortcuts**: `⌘/Ctrl + K` Command Palette, `⌘/Ctrl + J` Find Jobs, `⌘/Ctrl + Z` Undo, `⇧ ⌘ Z / Ctrl + Y` Redo, `⌘/Ctrl + S` Save, `⇧ ⌘ S` Version History, `⇧ ⌘ F` Focus Mode, `⇧ ⌘ D` Content/Design toggle, `⌘/Ctrl + ,` Settings, and `⌥/Alt + 1–4` Workspace switching.
 - **Live Keycap Recorder**: Rebind any shortcut inside **Settings → Keyboard Shortcuts** with instant conflict detection and global effect.
 
 <p align="center">
@@ -82,10 +84,10 @@ Most "AI resume builders" are single-shot prompt wrappers: models invent metrics
   <img src="docs/media/showcase-20261116/showcase-atlas-3d-radar.gif" alt="BetterMe 3D Job Atlas and Nearby Company Radar" width="900" />
 </p>
 
-### 4. Controlled Career Agent, Practice Workshop & Autopilot
-- **Unified `AgentTaskKernel`**: JD breakdown, resume alignment, mock interviews, and multi-role review committees share one auditable task protocol, SHA-256 artifact storage, and pause/resume lifecycle.
-- **On-Demand Practice Workshop**: Turn real JD gaps into targeted exercises (writing, tradeoffs, scheduling, or sandboxed QuickJS coding tasks) with 24-hour independent transfer retests—works with local Ollama models.
-- **3D Opportunity Pipeline & 20-Node Autopilot**: Track applications across stages and orchestrate reviewable workflows while keeping login, CAPTCHAs, and final submissions strictly under human control.
+### 4. Controlled Career Agent, Rewrite Guard & Local MCP Server
+- **Unified `AgentTaskKernel` & Rewrite Fact-Preservation Guard**: JD breakdown, resume alignment, mock interviews, and multi-role review committees share one auditable task protocol. Every AI rewrite proposal passes through a deterministic numeric fact-preservation guard that blocks ungrounded numbers before they can enter your `FactBase`.
+- **BetterMe Local MCP Server**: Expose your local `FactBase`, verified claims, ATS scorer, and rewrite grounding guard to **Claude Desktop**, **Cursor**, or **Antigravity** over stdio (`pnpm mcp:start`), with PII redacted by default and copy-ready setup inside **Settings → MCP Connector** ([docs/guides/mcp-server.md](docs/guides/mcp-server.md)).
+- **On-Demand Practice Workshop & 20-Node Autopilot**: Turn real JD gaps into targeted exercises (writing, tradeoffs, scheduling, or sandboxed QuickJS coding tasks) with 24-hour transfer retests (works with local Ollama models), and orchestrate reviewable opportunity workflows while keeping login, CAPTCHAs, and final submissions strictly under human control.
 
 <p align="center">
   <img src="docs/media/showcase-20261116/showcase-agent-autopilot.gif" alt="AI Career Advisor, Career Studio, 3D Opportunities, and Autopilot Studio" width="900" />
@@ -113,9 +115,11 @@ Most "AI resume builders" are single-shot prompt wrappers: models invent metrics
 
 ## 📦 Download & Try Now
 
-### 🌐 Online Preview
-Try the UI, 119 resume templates, and design system directly in your browser (static build, no local backend):
-👉 **[https://nanfengovo.github.io/better-me/](https://nanfengovo.github.io/better-me/)**
+### 🌐 Online Preview & Zero-Auth Tools
+Try the Agent OS UI, 119 resume templates, and zero-login browser tools directly (static build, no local backend):
+- **Agent OS Workspace**: 👉 **[https://nanfengovo.github.io/better-me/](https://nanfengovo.github.io/better-me/)**
+- **Zero-Auth ATS & JD Diagnostics**: 👉 **[https://nanfengovo.github.io/better-me/?view=ats](https://nanfengovo.github.io/better-me/?view=ats)** (pure browser deterministic scoring, no upload, no API key)
+- **Editorial Product Overview**: 👉 **[https://nanfengovo.github.io/better-me/?view=landing](https://nanfengovo.github.io/better-me/?view=landing)**
 
 ### 💻 Desktop Installers (macOS / Windows / Linux)
 Pre-built native Electron installers with bundled local services (`agent-host` + `job-service`) and verified `SHA256SUMS` are published on **[GitHub Releases](https://github.com/nanfengovo/better-me/releases/latest)**:
