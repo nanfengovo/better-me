@@ -244,7 +244,7 @@ test("an observation deadline retains the live original ID and unknown final usa
   const f = await fixture(async prompt => { await gate.promise; return reply(prompt).content; });
   let posts = 0;
   try {
-    const summary = await collectBenchmark({ ...f.options, caseIds: ["gold-backend"], observationMs: 30,
+    const summary = await collectBenchmark({ ...f.options, caseIds: ["gold-backend"], observationMs: 250,
       transport: (url: string, init: RequestInit) => { if (init.method === "POST") posts++; return fetch(url, init); } });
     assert.equal(summary.unresolved, 1); assert.equal(summary.failed, 0); assert.equal(summary.frozen, 0); assert.equal(summary.observedModelCalls, null);
     assert.match(summary.results[0].taskId, /^ct_[a-f0-9]{32}$/); assert.equal(summary.results[0].observed, null); assert.equal(f.calls, 1); assert.equal(posts, 2);

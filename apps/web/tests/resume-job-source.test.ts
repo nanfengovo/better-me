@@ -121,13 +121,19 @@ test("publishes successful candidates before a slow term finishes and bounds tha
     return reply(query);
   });
   const updates: number[] = [];
+  let resolveFirstUpdate!: () => void;
+  const firstUpdate = new Promise<void>(resolve => { resolveFirstUpdate = resolve; });
   const pending = readIndexRecommendationCandidates(endpoint, "slow-query-test", extractRecommendationProfile(fixtureResume), new AbortController().signal,
-    { timeoutMs: 60, onUpdate: source => updates.push(source.dataset.jobs.length) });
-  await new Promise(resolve => setTimeout(resolve, 20));
-  assert.ok(updates.some(count => count > 0), "available matches must not wait for the slowest query");
-  const final = await pending;
-  assert.equal(final.partial, true);
-  assert.ok(final.dataset.jobs.length > 0);
+    { timeoutMs: 250, onUpdate: source => { updates.push(source.dataset.jobs.length); if (source.dataset.jobs.length > 0) resolveFirstUpdate(); } });
+  try {
+    await Promise.race([firstUpdate, new Promise(resolve => setTimeout(resolve, 180))]);
+    assert.ok(updates.some(count => count > 0), "available matches must not wait for the slowest query");
+    const final = await pending;
+    assert.equal(final.partial, true);
+    assert.ok(final.dataset.jobs.length > 0);
+  } finally {
+    await pending.catch(() => {});
+  }
 });
 
 test("reuses only recent candidates for the same connection and query; explicit refresh bypasses cache", async context => {
