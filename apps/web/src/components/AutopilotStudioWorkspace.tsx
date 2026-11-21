@@ -48,8 +48,10 @@ import {
   Loader2,
   CheckCircle2,
   Mic,
+  X,
 } from "lucide-react";
 import { openSystemSettings } from "../lib/settings-navigation";
+import { isStaticPublicPreview } from "../lib/runtime-mode";
 import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
 import { StudioRuntimeIcon } from "./StudioRuntimeIcon";
 import "./autopilot-studio.css";
@@ -113,7 +115,8 @@ export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
   const ownerId = currentPrincipal()?.id;
   const libraryKey = ownerId ? ["studio:opportunity-library", ownerId] : "studio:opportunity-library";
   const { data: libraryState, mutate } = useSWR(active ? libraryKey : null, () => readOpportunityLibrary(), { refreshInterval: 5_000 });
-  const { data: kernelTelemetry, mutate: mutateTelemetry } = useSWR(active && ownerId ? ["studio:kernel-telemetry", ownerId] : null, ([, summaryOwner]) => fetchAutopilotKernelTelemetry(summaryOwner), { refreshInterval: 8_000 });
+  const staticPreview = isStaticPublicPreview();
+  const { data: kernelTelemetry, mutate: mutateTelemetry } = useSWR(active && ownerId && !staticPreview ? ["studio:kernel-telemetry", ownerId] : null, ([, summaryOwner]) => fetchAutopilotKernelTelemetry(summaryOwner), { refreshInterval: 8_000 });
   useEffect(() => {
     if (!active) return;
     const sync = () => { void mutate(); void mutateTelemetry(); };
@@ -399,17 +402,25 @@ export function AutopilotWorkbenchPrototype({
             borderColor: currentAgent.primaryHex,
             boxShadow: `0 16px 40px -8px rgba(0,0,0,0.85), 0 0 28px ${currentAgent.glowRgba}`,
           }}
-          className="fixed top-4 right-4 z-50 w-96 p-3.5 rounded-2xl bg-[#0A101A]/95 border backdrop-blur-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-200"
+          className="fixed top-16 right-4 z-[130] w-96 max-w-[calc(100vw-32px)] p-3.5 rounded-2xl bg-[#0A101A]/95 border backdrop-blur-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="p-1.5 rounded-xl bg-white/[0.04] border border-white/10 shrink-0">
             <StudioRuntimeIcon agentId={currentAgent.id} className="w-8 h-7" />
           </div>
-          <div className="font-mono text-xs leading-relaxed">
+          <div className="font-mono text-xs leading-relaxed min-w-0 flex-1">
             <div style={{ color: currentAgent.primaryHex }} className="font-bold">
               {toast.title}
             </div>
             <div className="text-slate-300 mt-0.5 font-sans text-[11.5px]">{toast.desc}</div>
           </div>
+          <button
+            type="button"
+            aria-label={t("关闭提示", "Dismiss notification")}
+            onClick={() => setToast(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition shrink-0"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -521,15 +532,15 @@ export function AutopilotWorkbenchPrototype({
               <span className={`w-2 h-2 rounded-full ${jobs.length > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
               <span className="font-semibold">{jobs.length}{t(" 岗位", " jobs")}</span>
             </span>
-            <span className="opacity-30">•</span>
+            <span className="opacity-30">·</span>
             <span className="text-amber-500 font-semibold shrink-0">{sourcedJobsCount}{t(" 带来源", " sourced")}</span>
-            <span className="opacity-30">•</span>
-            <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点${claimCount}`, `${claimCount} fact claims`)}</span>
+            <span className="opacity-30">·</span>
+            <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点 ${claimCount}`, `${claimCount} fact claims`)}</span>
             {kernelTelemetry.authenticated && (
               <>
-                <span className="opacity-30">•</span>
+                <span className="opacity-30">·</span>
                 <span className="text-emerald-500 font-semibold shrink-0">
-                  {t(`内核任务${kernelTelemetry.totalTasks}`, `${kernelTelemetry.totalTasks} tasks`)}
+                  {t(`内核任务 ${kernelTelemetry.totalTasks}`, `${kernelTelemetry.totalTasks} tasks`)}
                 </span>
               </>
             )}
@@ -1863,13 +1874,16 @@ export function AutopilotWorkbenchPrototype({
           </div>
 
           <button
+            type="button"
             onClick={() => setConveyorShiftMode((p) => !p)}
             className={`px-2 py-1 rounded-lg text-[10.5px] border transition ${
               conveyorShiftMode
-                ? "bg-cyan-400/20 text-cyan-700 border-cyan-400/40 font-bold"
+                ? theme === "light"
+                  ? "bg-cyan-500/15 text-cyan-800 border-cyan-500/40 font-bold"
+                  : "bg-cyan-400/20 text-cyan-200 border-cyan-400/50 font-bold"
                 : theme === "light"
                   ? "bg-slate-100 text-slate-700 border-slate-300"
-                  : "bg-white/[0.05] text-slate-400 border-white/10"
+                  : "bg-white/[0.06] text-slate-300 border-white/15"
             }`}
           >
             {t("履带旋转: ", "Conveyor rotation: ")}{conveyorShiftMode ? "ON" : "OFF"}

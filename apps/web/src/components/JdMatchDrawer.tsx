@@ -196,12 +196,28 @@ function JdMatchDrawerSession({
     }
   }, [job, setCurrentJob, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setIsEditingJob]);
 
-  // Check agent host health on open
+  // Check agent host health on open (with unmount/close cancellation guard)
   useEffect(() => {
-    if (isOpen) {
-      void checkAgentHostHealth().then(setAgentHostOnline);
-    }
+    if (!isOpen) return;
+    let alive = true;
+    void checkAgentHostHealth().then((online) => {
+      if (alive) setAgentHostOnline(online);
+    });
+    return () => { alive = false; };
   }, [isOpen]);
+
+  // Abort any in-flight JD matching request when closing or switching workspaces
+  const matchAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (!isOpen) {
+      matchAbortRef.current?.abort();
+      matchAbortRef.current = null;
+    }
+    return () => {
+      matchAbortRef.current?.abort();
+      matchAbortRef.current = null;
+    };
+  }, [isOpen, workspaceKey]);
 
   // Handle escape key
   useEffect(() => {
@@ -225,19 +241,29 @@ function JdMatchDrawerSession({
   // Mount, navigation and history restoration never dispatch analysis.
   const runMatching = useCallback(async (jdText: string) => {
     if(loading)return;
+    matchAbortRef.current?.abort();
+    const controller = new AbortController();
+    matchAbortRef.current = controller;
     setLoading(true);setErrorNotice(null);setProposals([]);setDecisions({});setStructuredJd(null);setThreadId("");
     try {
       if(routing?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
       routing?.assertSelected();
       const result=await startJdMatch({threadId:"explicit-jd-analysis",workspaceKey:agent?.workspaceKey??workspaceKey,rootScopeKey:agent?.workspaceKey??workspaceKey,
-        rawJd:jdText,...jdMatchResumeMaterial(resume),llmConfig,consent:true,
+        rawJd:jdText,...jdMatchResumeMaterial(resume),llmConfig,consent:true,signal:controller.signal,
         ...(routing?.enabled&&routing.policy?{runtime:{kind:"unified" as const,expectedRevision:routing.policy.revision},preferredRuntimeId:routing.policy.preferred}:{}),
-        onTask:task=>setThreadId(task.id),
+        onTask:task=>{ if (!controller.signal.aborted) setThreadId(task.id); },
       });
+      if (controller.signal.aborted) return;
       setThreadId(result.threadId);setProposals(result.proposals);if(result.structuredJd)setStructuredJd(result.structuredJd);setDecisions({});
     } catch(error) {
+      if (controller.signal.aborted) return;
       setErrorNotice(error instanceof Error?error.message:t("岗位分析未完成，原任务记录与用量保留。","Analysis not completed; task history and usage retained."));
-    } finally {setLoading(false);}
+    } finally {
+      if (matchAbortRef.current === controller) {
+        matchAbortRef.current = null;
+        setLoading(false);
+      }
+    }
   },[loading,routing,agent?.workspaceKey,workspaceKey,resume,llmConfig,t,setDecisions,setProposals,setStructuredJd,setThreadId]);
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
@@ -414,7 +440,7 @@ function JdMatchDrawerSession({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 pointer-events-none overflow-hidden transition-opacity">
+    <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden transition-opacity">
       <section
         role="dialog"
         aria-modal="false"

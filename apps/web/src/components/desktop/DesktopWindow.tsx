@@ -119,11 +119,29 @@ export function DesktopWindow({
   const currentBlur = layoutState.blur ?? globalWindowBlur;
 
   // Window Z-Index
-  const [zIndex, setZIndex] = useState(() => (settings ? 40 : ++globalZIndexCounter));
-  const bringToFront = () => {
-    setZIndex(++globalZIndexCounter);
+  const [zIndex, setZIndex] = useState(() => {
+    if (settings) {
+      globalZIndexCounter = Math.max(globalZIndexCounter + 1, 40);
+      return globalZIndexCounter;
+    }
+    return ++globalZIndexCounter;
+  });
+  const bringToFront = useCallback(() => {
+    setZIndex((current) => {
+      if (current >= globalZIndexCounter) return current;
+      return ++globalZIndexCounter;
+    });
     onFocus?.();
-  };
+  }, [onFocus]);
+
+  // Ensure unhidden windows (such as System Settings) always rise above the main window.
+  const prevHiddenRef = useRef(hidden);
+  useEffect(() => {
+    if (prevHiddenRef.current && !hidden) {
+      setZIndex(++globalZIndexCounter);
+    }
+    prevHiddenRef.current = hidden;
+  }, [hidden]);
 
   // 2. Dragging & Snapping State
   const [dragging, setDragging] = useState(false);
@@ -135,6 +153,8 @@ export function DesktopWindow({
   const [showOpacityMenu, setShowOpacityMenu] = useState(false);
 
   const node = useRef<HTMLElement>(null);
+  const snapWrapRef = useRef<HTMLDivElement>(null);
+  const opacityWrapRef = useRef<HTMLDivElement>(null);
   const capture = useRef<{ element: HTMLElement; pointerId: number; layoutKey: string } | null>(null);
   const restoreModes = useRef<Record<string, SnapMode>>({});
   const dragRef = useRef<{
@@ -400,17 +420,29 @@ export function DesktopWindow({
     updateLayout({ opacity: undefined, blur: undefined });
   };
 
-  // Close popovers on click outside
+  // Close popovers on click outside their toolbar controls or on Escape
   useEffect(() => {
+    if (!showSnapMenu && !showOpacityMenu) return;
     function handleClickOutside(e: MouseEvent) {
-      if (!node.current?.contains(e.target as Node)) {
+      const target = e.target as Node | null;
+      if (snapWrapRef.current?.contains(target) || opacityWrapRef.current?.contains(target)) return;
+      setShowSnapMenu(false);
+      setShowOpacityMenu(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
         setShowSnapMenu(false);
         setShowOpacityMenu(false);
       }
     }
     window.addEventListener("mousedown", handleClickOutside);
-    return () => window.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSnapMenu, showOpacityMenu]);
 
   return (
     <>
@@ -483,7 +515,7 @@ export function DesktopWindow({
           </div>
 
           {/* Quick Layout & Snap Popover Button */}
-          <div className="os-toolbar-control-wrap">
+          <div className="os-toolbar-control-wrap" ref={snapWrapRef}>
             <button
               type="button"
               className={`os-toolbar-icon-btn ${showSnapMenu ? "is-active" : ""}`}
@@ -575,7 +607,7 @@ export function DesktopWindow({
           </div>
 
           {/* Opacity & Glass Texture Control Button */}
-          <div className="os-toolbar-control-wrap">
+          <div className="os-toolbar-control-wrap" ref={opacityWrapRef}>
             <button
               type="button"
               className={`os-toolbar-icon-btn ${showOpacityMenu ? "is-active" : ""}`}

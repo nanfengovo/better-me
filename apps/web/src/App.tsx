@@ -73,6 +73,7 @@ import { currentOpportunityResumeMaterial, opportunityDecisionEvidence } from ".
 import { isRequirementTraining, preserveRequirementReviews, requirementRetest, withRequirementEvidence, type EvidenceWorkspace } from "./lib/requirement-evidence";
 import { defaultLearningClient } from "./services/learning-client";
 import { useDocumentPersistence } from "./lib/useDocumentPersistence";
+import { isStaticPublicPreview } from "./lib/runtime-mode";
 import { useUiPreferences } from "./lib/ui-preferences";
 import { WorkspacePreferences } from "./components/WorkspacePreferences";
 import { WorkspaceMenu } from "./components/WorkspaceMenu";
@@ -212,7 +213,7 @@ export function App() {
     const mac = isMacPlatform();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof Element && (event.target.closest(".confirmation-dialog") || event.target.closest('[data-recording="true"]'))) return;
-      const modalOpen = isJdMatchOpen || isAgentDrawerOpen || isImportModalOpen || isAiConfigOpen || isNetworkSettingsOpen;
+      const modalOpen = isJdMatchOpen || isAgentDrawerOpen || isImportModalOpen || isAiConfigOpen || isNetworkSettingsOpen || isHistoryOpen || isAtsDiagnosticsOpen || isSkillAtlasOpen || inventoryOpen;
 
       if (matchesShortcut(event, shortcuts.commandPalette, mac)) {
         event.preventDefault();
@@ -307,7 +308,19 @@ export function App() {
   }
   const inventoryRecordKey = inventoryMaterial ? inventoryKey(inventoryMaterial) : undefined;
   useEffect(() => {
-    if (!inventoryRecordKey || page !== "resume") return;
+    if (!isAtsDiagnosticsOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setIsAtsDiagnosticsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isAtsDiagnosticsOpen]);
+
+  useEffect(() => {
+    if (!inventoryRecordKey || page !== "resume" || isStaticPublicPreview()) return;
     let alive = true;
     void inventoryClient.get(inventoryRecordKey).then(v => { if (alive) setInventoryReview(v?.session.phase === "confirmed" ? v : null); }, () => { if (alive) setInventoryReview(null); });
     return () => { alive = false; };
@@ -1135,7 +1148,7 @@ export function App() {
             ariaLabel={t("简历输出语言", "Resume output language")}
             title={t("只影响这份简历的预览与导出，不改变界面语言", "Only changes this resume’s preview and exports, independently of the interface language")}
           />
-          {!autoSaveSettings.enabled && <Button variant="ghost" size="sm" onClick={() => void flush()}><Check size={14} />{t("立即保存", "Save now")}</Button>}
+          {!autoSaveSettings.enabled && <Button variant="ghost" size="sm" disabled={status.kind === "pending"} onClick={() => void flush()}><Check size={14} />{t("立即保存", "Save now")}</Button>}
 
           <div className="document-menu" ref={menuRef}><Button variant="ghost" size="sm" iconOnly aria-label={t("更多简历操作", "More resume actions")} aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)}><MoreHorizontal size={16} /></Button>{isMenuOpen && <div className="document-dropdown">
             <label className="document-rename">{t("简历名称", "Resume name")}<input aria-label={t("简历名称", "Resume name")} value={activeResume.name === "Default" ? t("我的简历", "My resume") : activeResume.name} onChange={event => updateResume({ ...activeResume, name: event.target.value })} /></label>

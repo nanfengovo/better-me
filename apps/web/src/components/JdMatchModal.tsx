@@ -158,6 +158,18 @@ export function JdMatchModal({
   const [pending, setPending] = useState<JdImportResult | null>(null);
   const [acquiring, setAcquiring] = useState<"link" | "browser" | "browser-stop" | "session-start" | "session-focus" | "session-extend" | "session-read" | "session-inspect" | "session-close" | "ocr" | "images" | null>(null);
   const closingBrowser = acquiring === "session-close" || acquiring === "browser-stop";
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
   const [browserSession, setBrowserSession] = useState<JdBrowserSession | null>(null);
   const [sessionInspection, setSessionInspection] = useState<JdBrowserSessionInspection | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);

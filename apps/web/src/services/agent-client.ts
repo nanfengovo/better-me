@@ -120,8 +120,12 @@ export interface JdMatchResumeResponse {
   errors: string[];
 }
 
-const DEFAULT_AGENT_HOST_URL = agentOrigin();
-const AGENT_TOKEN = readRuntimeConnection()?.agentToken ?? "better-me-agent-token";
+function currentAgentHostUrl(): string {
+  return agentOrigin();
+}
+function currentAgentToken(): string {
+  return readRuntimeConnection()?.agentToken ?? "better-me-agent-token";
+}
 export interface LocalRuntimeInfo {
   id: string;
   name: string;
@@ -191,9 +195,9 @@ export interface StartLocalAgentRunResponse {
   statusUrl: string;
 }
 
-export async function listLocalAgentRuntimes(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalRuntimeInfo[]> {
+export async function listLocalAgentRuntimes(baseUrl = currentAgentHostUrl()): Promise<LocalRuntimeInfo[]> {
   const res = await fetch(`${baseUrl}/api/v1/agent/runtimes`, {
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    headers: { Authorization: `Bearer ${currentAgentToken()}` },
     signal: AbortSignal.timeout(3_500),
   });
   if (!res.ok) throw new Error(`agent_host_${res.status}`);
@@ -201,10 +205,10 @@ export async function listLocalAgentRuntimes(baseUrl = DEFAULT_AGENT_HOST_URL): 
   return Array.isArray(data.runtimes) ? data.runtimes : [];
 }
 
-export async function scanLocalAgentRuntimes(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalRuntimeInfo[]> {
+export async function scanLocalAgentRuntimes(baseUrl = currentAgentHostUrl()): Promise<LocalRuntimeInfo[]> {
   const res = await fetch(`${baseUrl}/api/v1/agent/runtimes/scan`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    headers: { Authorization: `Bearer ${currentAgentToken()}` },
     signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) throw new Error(`agent_host_${res.status}`);
@@ -217,19 +221,19 @@ export async function startLocalAgentRun(_params: StartLocalAgentRunParams): Pro
   throw new AgentTaskClientError("独立 CLI 执行入口已退役，请通过统一任务发送；未调用其他接口。", "runtime_run_moved_to_tasks");
 }
 
-export async function getLocalAgentRun(runId: string, baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalAgentRunStatusResponse> {
+export async function getLocalAgentRun(runId: string, baseUrl = currentAgentHostUrl()): Promise<LocalAgentRunStatusResponse> {
   const res = await fetch(`${baseUrl}/api/v1/agent/runs/${encodeURIComponent(runId)}`, {
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    headers: { Authorization: `Bearer ${currentAgentToken()}` },
     signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) throw new Error(`agent_run_status_${res.status}`);
   return res.json() as Promise<LocalAgentRunStatusResponse>;
 }
 
-export async function cancelLocalAgentRun(runId: string, baseUrl = DEFAULT_AGENT_HOST_URL): Promise<{ run: LocalAgentRun }> {
+export async function cancelLocalAgentRun(runId: string, baseUrl = currentAgentHostUrl()): Promise<{ run: LocalAgentRun }> {
   const res = await fetch(`${baseUrl}/api/v1/agent/runs/${encodeURIComponent(runId)}/cancel`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    headers: { Authorization: `Bearer ${currentAgentToken()}` },
     signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) throw new Error(`agent_run_cancel_${res.status}`);
@@ -264,8 +268,8 @@ export async function streamLocalAgentRun(params: {
   const query = new URLSearchParams();
   if (typeof params.after === "number" && params.after >= 0) query.set("after", String(params.after));
   const suffix = query.toString() ? `?${query.toString()}` : "";
-  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/runs/${encodeURIComponent(params.runId)}/events${suffix}`, {
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}`, Accept: "text/event-stream" },
+  const res = await fetch(`${params.baseUrl ?? currentAgentHostUrl()}/api/v1/agent/runs/${encodeURIComponent(params.runId)}/events${suffix}`, {
+    headers: { Authorization: `Bearer ${currentAgentToken()}`, Accept: "text/event-stream" },
     signal: params.signal,
   });
   if (!res.ok) throw new Error(`agent_run_events_${res.status}`);
@@ -345,8 +349,8 @@ export interface LegacyCareerWorkflowCheckpoint {
 /** Read full owner-scoped history without creating a task or recovering consent. */
 export async function getLegacyCareerWorkflow(params: { threadId: string; baseUrl?: string; signal?: AbortSignal }): Promise<LegacyCareerWorkflowCheckpoint> {
   if (!/^[A-Za-z0-9._:-]{1,200}$/.test(params.threadId)) throw new AgentTaskClientError("旧工作流标识无效，未读取或修改任何记录。", "invalid_thread_id");
-  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/workflows/career/state/${params.threadId}`, {
-    headers: { Authorization: `Bearer ${AGENT_TOKEN}` }, signal: params.signal ? AbortSignal.any([params.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+  const res = await fetch(`${params.baseUrl ?? currentAgentHostUrl()}/api/v1/agent/workflows/career/state/${params.threadId}`, {
+    headers: { Authorization: `Bearer ${currentAgentToken()}` }, signal: params.signal ? AbortSignal.any([params.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new AgentTaskClientError("旧工作流记录尚未读取；未重试、启动或恢复任务。", res.status === 404 ? "thread_not_found" : "legacy_workflow_unavailable");
   const value: unknown = await res.json();
@@ -357,14 +361,24 @@ export async function getLegacyCareerWorkflow(params: { threadId: string; baseUr
   return value as LegacyCareerWorkflowCheckpoint;
 }
 
-export async function checkAgentHostHealth(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<boolean> {
+export async function checkAgentHostHealth(baseUrl = currentAgentHostUrl()): Promise<boolean> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/agent/health`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+      headers: { Authorization: `Bearer ${currentAgentToken()}` },
       signal: AbortSignal.timeout(1500),
     });
-    return res.status === 200;
+    if (!res.ok) return false;
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) return false;
+    const payload: unknown = await res.json();
+    return Boolean(
+      payload
+      && typeof payload === "object"
+      && "status" in payload
+      && (payload as { status?: unknown }).status === "ok"
+      && (!("service" in payload) || (payload as { service?: unknown }).service === "agent-host"),
+    );
   } catch {
     return false;
   }

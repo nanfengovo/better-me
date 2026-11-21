@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { triggerAgentGuide } from "../lib/agent-guide";
 import { readRuntimeConnection } from "../lib/runtime-connection";
+import { isStaticPublicPreview } from "../lib/runtime-mode";
 import { localBridgeHeaders } from "../lib/local-bridge-client";
 import { isJdLinkOnly } from "../lib/jd-import";
 import { applyJdMetadata, extractAndParseJobLink, type ParsedJobInfo } from "../lib/jd-link-parser";
@@ -412,8 +413,8 @@ function AgentWorkspaceSession({
   const lastBrowserSync = useRef(Math.max(Date.now(), recovery.value.lastBrowserSyncAt ?? 0));
   const jobPaneActive = active && !showCareerCoach && !showCareerTask && taskView === "job" && !interviewRecovery.value.open;
   useEffect(() => {
-    // Docker does not attach the host browser/profile.
-    if (!jobPaneActive || readRuntimeConnection()?.mode === "docker") return;
+    // Docker and static public previews do not attach the host browser/profile.
+    if (!jobPaneActive || isStaticPublicPreview() || readRuntimeConnection()?.mode === "docker") return;
     let request: AbortController | undefined;
     const isVisible = () => document.visibilityState !== "hidden";
     const checkSync = async () => {
@@ -1446,8 +1447,9 @@ function AgentWorkspaceSession({
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
+                            disabled={isExtractingLink}
                             onClick={() => void handleExtractLink(undefined, "auto-browser")}
-                            className="agent-btn-press px-2 py-1 rounded-md bg-emerald-600 text-white text-[11px] font-semibold cursor-pointer"
+                            className="agent-btn-press px-2 py-1 rounded-md bg-emerald-600 text-white text-[11px] font-semibold cursor-pointer disabled:opacity-50"
                           >
                             {t("重试（浏览器）", "Retry in browser")}
                           </button>
@@ -1465,8 +1467,9 @@ function AgentWorkspaceSession({
                           )}
                           <button
                             type="button"
+                            disabled={isExtractingLink}
                             onClick={() => void handlePasteClipboardAndExtract()}
-                            className={`px-2 py-1 rounded-md border text-[11px] cursor-pointer ${
+                            className={`px-2 py-1 rounded-md border text-[11px] cursor-pointer disabled:opacity-50 ${
                               isDark ? "border-[var(--ui-border,#484b58)]" : "border-slate-200 bg-white"
                             }`}
                           >

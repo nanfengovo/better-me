@@ -376,7 +376,7 @@
 }
 
 .os-window.os-settings-window {
-  z-index: 35;
+  z-index: var(--window-z, 35);
 }
 
 :root[data-theme="dark"] .os-window {
@@ -457,6 +457,10 @@
   .os-business-window.is-maximized>.os-window-toolbar,
   .os-business-window.is-maximized>.os-window-content {
     border-radius: 0;
+  }
+  /* Reserve safe clearance above a pinned bottom Dock so workspace/preview bottom toolbars remain fully clickable. */
+  :root:not([data-dock-position="left"]):not([data-dock-position="right"]) .os-desktop:not([data-focused="true"]):has(.os-dock-system[data-auto-hide="false"]) .os-business-window.is-maximized {
+    height: calc(100% - var(--os-dock-size, 48px) - 38px) !important;
   }
 }
 

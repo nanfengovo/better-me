@@ -4,6 +4,7 @@ import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck
 import { LoginShowcase } from "./LoginShowcase";
 import { LoginPreferences } from "./LoginPreferences";
 import { activatePrincipal, currentPrincipal, identityRequest, invalidateIdentity, type BetterMePrincipal } from "../lib/identity";
+import { isStaticPublicPreview } from "../lib/runtime-mode";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./identity.css";
 import { CasdoorAccess } from "./CasdoorAccess";
@@ -13,14 +14,6 @@ const STATIC_PREVIEW_PRINCIPAL: BetterMePrincipal = {
   username: "preview",
   displayName: "Preview",
 };
-
-function isStaticPublicPreview(): boolean {
-  if (typeof window === "undefined") return false;
-  if (window.desktopApi?.isElectron) return false;
-  const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".invalid")) return false;
-  return import.meta.env.VITE_STATIC_PREVIEW === "true" || host.endsWith(".github.io");
-}
 
 /** Identity is fixed for an App lifetime. A switch starts a fresh JS realm, not a reused cache. */
 export function IdentityGate({ children }: { children: ReactNode }) {

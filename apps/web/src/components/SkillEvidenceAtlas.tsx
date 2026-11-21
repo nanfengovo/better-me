@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Compass, Crosshair, Download, Layers, Search, ShieldCheck, X } from "lucide-react";
 import type { FactBase, ResumeView } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
@@ -39,6 +39,17 @@ export function SkillEvidenceAtlas({
   const [query, setQuery] = useState("");
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [pressCount, setPressCount] = useState(0);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const graph = useMemo(
     () => buildSkillEvidenceGraph(factBase, view, view.locale || locale),
