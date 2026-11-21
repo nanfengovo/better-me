@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 import { useMemo, useState } from "react";
-import { Check, Compass, Crosshair, Layers, Search, ShieldCheck, X } from "lucide-react";
+import { Check, Compass, Crosshair, Download, Layers, Search, ShieldCheck, X } from "lucide-react";
 import type { FactBase, ResumeView } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
 import {
@@ -10,13 +10,13 @@ import {
   type LinkedExperienceEvidence,
 } from "../lib/skill-evidence-graph";
 import { Button, EmptyState, PageHeader, SegmentedControl, StatusPill } from "../design-system";
-import "./skill-evidence-atlas.css";
 
 export interface SkillEvidenceAtlasProps {
   factBase: FactBase;
   view: ResumeView;
   onViewChange: (next: ResumeView) => void;
   onJumpToAnchor?: (anchor: string) => void;
+  onExportInteractiveHtml?: () => void;
   onClose: () => void;
 }
 
@@ -31,6 +31,7 @@ export function SkillEvidenceAtlas({
   view,
   onViewChange,
   onJumpToAnchor,
+  onExportInteractiveHtml,
   onClose,
 }: SkillEvidenceAtlasProps) {
   const { t, locale } = useUiPreferences();
@@ -171,9 +172,17 @@ export function SkillEvidenceAtlas({
             </StatusPill>
           }
           actions={
-            <Button variant="ghost" size="sm" iconOnly aria-label={t("关闭能力图谱", "Close skill atlas")} onClick={onClose}>
-              <X size={15} />
-            </Button>
+            <>
+              {onExportInteractiveHtml && (
+                <Button variant="tinted" size="sm" onClick={onExportInteractiveHtml}>
+                  <Download size={13} aria-hidden="true" />
+                  {t("导出双模式交互主页 (.html)", "Export Interactive Portfolio (.html)")}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" iconOnly aria-label={t("关闭能力图谱", "Close skill atlas")} onClick={onClose}>
+                <X size={15} />
+              </Button>
+            </>
           }
         />
 

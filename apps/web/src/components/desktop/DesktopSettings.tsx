@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AgentSettingsPanel } from "../AgentSidebar";
-import { Accessibility, ArrowUpRight, ChevronLeft, Globe, Keyboard, Monitor, Palette, Search, SlidersHorizontal } from "lucide-react";
+import { Accessibility, ArrowUpRight, ChevronLeft, Globe, Keyboard, Monitor, Palette, Plug, Search, SlidersHorizontal } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { WORKSPACE_THEMES } from "../../themes/workspace-theme";
 import { DesktopWallpaperSettings } from "./DesktopWallpaperSettings";
 import { DesktopShortcutSettings } from "./DesktopShortcutSettings";
+import { DesktopMcpSettings } from "./DesktopMcpSettings";
 import { ProductMark } from "../ProductMark";
 
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
@@ -44,6 +45,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
     { id: "appearance", name: t("外观", "Appearance"), icon: Palette },
     { id: "desktop", name: t("桌面与 Dock", "Desktop & Dock"), icon: Monitor },
     { id: "shortcuts", name: t("快捷键", "Keyboard shortcuts"), icon: Keyboard },
+    { id: "mcp", name: t("MCP 本地连接", "MCP Connector"), icon: Plug },
     { id: "accessibility", name: t("辅助功能", "Accessibility"), icon: Accessibility },
     { id: "connections", name: t("模型与推理", "Models & inference"), icon: SlidersHorizontal },
     { id: "tools", name: t("工具与授权", "Tools & permissions"), icon: Accessibility },
@@ -272,6 +274,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
         </p>
       </>}
       {tab === "shortcuts" && <DesktopShortcutSettings />}
+      {tab === "mcp" && <DesktopMcpSettings />}
       {tab === "accessibility" && <>
         <p className="os-setting-intro">{t("按你的节奏使用。", "Move at your own pace.")}</p>
         <div className="os-settings-card"><SettingRow label={t("减少动态效果", "Reduce motion")}><Toggle label={t("减少动态效果", "Reduce motion")} value={reduceMotion} onChange={value => setDesktopPreferences({ reduceMotion: value })} /></SettingRow></div>

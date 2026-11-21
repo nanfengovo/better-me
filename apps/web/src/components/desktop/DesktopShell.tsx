@@ -38,7 +38,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   useEffect(() => {
     const open = (event: Event) => {
       const section = (event as CustomEvent).detail;
-      if (!["connections", "tools", "research", "desktop", "appearance", "accessibility", "shortcuts"].includes(section)) return;
+      if (!["connections", "tools", "research", "desktop", "appearance", "accessibility", "shortcuts", "mcp"].includes(section)) return;
       setSettingsRequest(previous => ({ section, id: (previous?.id ?? 0) + 1 }));
       setSettingsOpen(true);
     };

@@ -79,7 +79,8 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { Maximize2, Check, Download, FileSearch, FileText, GitBranch, Globe, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X, Keyboard, Layout, Compass, Bot, Zap, Undo2, Redo2, SlidersHorizontal } from "lucide-react";
+import { Maximize2, Check, Download, FileSearch, FileText, GitBranch, Globe, Loader2, MessageSquare, MoreHorizontal, Plug, RotateCcw, ShieldCheck, Sparkles, Upload, X, Keyboard, Layout, Compass, Bot, Zap, Undo2, Redo2, SlidersHorizontal } from "lucide-react";
+import { exportInteractivePortfolioHtml } from "./lib/interactive-portfolio-export";
 import { Button, CommandPalette, SegmentedControl, SelectMenu, type CommandItem } from "./design-system";
 import { formatShortcut, formatShortcutTokens, isMacPlatform, matchesShortcut, useShortcuts } from "./lib/shortcuts";
 import { useDocumentUndo } from "./lib/useDocumentUndo";
@@ -470,6 +471,18 @@ export function App() {
     const facts = resolveResumeFactBase(doc.factBase, activeResume);
     const jsonResume = factBaseToJsonResume(facts, activeResume.locale);
     downloadJson(`${JSON.stringify(jsonResume, null, 2)}\n`, `resume-jsonresume-${new Date().toISOString().slice(0, 10)}.json`);
+    setIsMenuOpen(false);
+  }
+  function handleExportInteractivePortfolio() {
+    if (!doc || !activeResume) return;
+    const facts = resolveResumeFactBase(doc.factBase, activeResume);
+    const html = exportInteractivePortfolioHtml({ factBase: facts, view: activeResume, locale: activeResume.locale, includeContact: false });
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `better-me-portfolio-${new Date().toISOString().slice(0, 10)}.html`;
+    anchor.click();
+    URL.revokeObjectURL(url);
     setIsMenuOpen(false);
   }
   function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -941,6 +954,22 @@ export function App() {
           onSelect: () => { setPage("resume"); setIsSkillAtlasOpen(true); },
         },
         {
+          id: "action-export-portfolio-html",
+          group: t("常用操作", "Actions"),
+          label: t("导出双模式交互式职业主页 (.html)", "Export Dual-Mode Interactive Portfolio (.html)"),
+          keywords: "portfolio html export share interactive 交互 主页 导出",
+          icon: <Globe size={14} />,
+          onSelect: handleExportInteractivePortfolio,
+        },
+        {
+          id: "action-mcp-settings",
+          group: t("常用操作", "Actions"),
+          label: t("配置 MCP 本地连接 (Claude / Cursor / Antigravity)", "Configure Local MCP Connector (Claude / Cursor / Antigravity)"),
+          keywords: "mcp claude cursor antigravity connector stdio 连接",
+          icon: <Plug size={14} />,
+          onSelect: () => openSystemSettings("mcp"),
+        },
+        {
           id: "action-export-jsonresume",
           group: t("常用操作", "Actions"),
           label: t("导出 JSON Resume (jsonresume.org 标准)", "Export JSON Resume (jsonresume.org)"),
@@ -1116,7 +1145,7 @@ export function App() {
             <AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => { setPage("agent"); setIsMenuOpen(false); }} onOpenAiConfig={() => { openSystemSettings("connections"); setIsMenuOpen(false); }} />
             <button onClick={() => { setIsImportModalOpen(true); setIsMenuOpen(false); }}><Upload size={14} />{t("导入简历", "Import resume")}</button>
             <button onClick={() => { refreshJobRecommendations(); setIsMenuOpen(false); }}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
-            <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={handleExportJsonResume}><Download size={14} />{t("导出 JSON Resume", "Export JSON Resume")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份 / JSON Resume 恢复", "Restore backup / JSON Resume")}</button>
+            <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={handleExportJsonResume}><Download size={14} />{t("导出 JSON Resume", "Export JSON Resume")}</button><button onClick={handleExportInteractivePortfolio}><Globe size={14} />{t("导出交互式职业主页 (.html)", "Export Interactive Portfolio (.html)")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份 / JSON Resume 恢复", "Restore backup / JSON Resume")}</button>
             <hr /><span className="document-danger-label">{t("谨慎操作", "Use with care")}</span><button className="document-danger-action" disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button className="document-danger-action" onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>
       </div>
@@ -1288,6 +1317,7 @@ export function App() {
             factBase={visibleFacts}
             view={activeResume}
             onViewChange={updateResume}
+            onExportInteractiveHtml={handleExportInteractivePortfolio}
             onJumpToAnchor={(anchor) => {
               setPage("resume");
               setWorkspaceTab("content");

@@ -7,6 +7,7 @@ import {
   toggleExperienceInResumeView,
 } from "../src/lib/skill-evidence-graph.ts";
 import { applyInlineWritingAction, BULLET_SCAFFOLDS } from "../src/lib/inline-writing-actions.ts";
+import { exportInteractivePortfolioHtml } from "../src/lib/interactive-portfolio-export.ts";
 
 test("buildSkillEvidenceGraph links skills to experiences/claims and toggles inclusion cleanly", () => {
   const factBase = createDemoFactBase();
@@ -57,4 +58,24 @@ test("applyInlineWritingAction sharpens weak verbs and adds [X] placeholders wit
     assert.equal(/\d/.test(scaffold.zhTemplate), false);
     assert.equal(/\d/.test(scaffold.enTemplate), false);
   }
+});
+
+test("exportInteractivePortfolioHtml builds self-contained dual-mode HTML, redacts contact PII, and withholds unverified metrics", () => {
+  const factBase = createDemoFactBase();
+  factBase.profile.email = "secret.user@example.invalid";
+  factBase.profile.phone = "13911112222";
+  factBase.experiences[0]!.claims[0]!.metric = { value: 777, unit: "%", confirmed: false };
+  const view = createDefaultResumeView(factBase);
+
+  const html = exportInteractivePortfolioHtml({ factBase, view, locale: "zh" });
+  assert.ok(html.startsWith("<!doctype html>"));
+  assert.ok(html.includes('id="btn-explorer"'));
+  assert.ok(html.includes('id="btn-classic"'));
+  assert.ok(html.includes('id="btn-motion"'));
+  assert.equal(html.includes("secret.user@example.invalid"), false);
+  assert.equal(html.includes("13911112222"), false);
+  assert.equal(html.includes("777%"), false);
+  // Zero external CDN script or font links
+  assert.equal(/<script[^>]+src=/i.test(html), false);
+  assert.equal(/fonts\.googleapis\.com/i.test(html), false);
 });
