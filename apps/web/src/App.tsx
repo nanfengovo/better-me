@@ -5,6 +5,7 @@ import { WorkspaceRecoveryNotice } from "./components/WorkspaceRecoveryNotice";
 import {
   projectResume, projectedResumeToMarkdown, scanFactBase, createDefaultResumeView, syncResumeViewsWithFactBase, getJdMatchReadiness,
   LlmConfigSchema, resolveResumeFactBase, careerTaskSourceFingerprint, careerTaskCommandFingerprint, createCareerTaskResume,
+  factBaseToJsonResume, isJsonResumePayload, jsonResumeToFactBase,
   type CareerTaskResumeCommand, type CareerTaskResumeReceipt, type FactBase, type Locale, type ResumeView, type LlmConfig, type TextStyleRange, type ClaimIssue,
 } from "@better-me/core";
 import { createInitialDocument, exportDocumentJson, parseDocumentJson, DocumentSchema, documentFingerprint, type BetterMeDocument, type DocumentVersion, type DocumentFieldChange } from "@better-me/storage";
@@ -115,6 +116,7 @@ const AiConfigModal = lazy(() => import("./components/AiConfigModal").then(modul
 const JdMatchModal = lazy(() => import("./components/JdMatchModal").then(module => ({ default: module.JdMatchModal })));
 const JdMatchDrawer = lazy(() => import("./components/JdMatchDrawer").then(module => ({ default: module.JdMatchDrawer })));
 const AtsDiagnosticTool = lazy(() => import("./components/AtsDiagnosticTool").then(module => ({ default: module.AtsDiagnosticTool })));
+const SkillEvidenceAtlas = lazy(() => import("./components/SkillEvidenceAtlas").then(module => ({ default: module.SkillEvidenceAtlas })));
 const LLM_CONFIG_KEY = "better-me:llm-config";
 function downloadJson(content: string, fileName: string) {
   const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
@@ -188,6 +190,7 @@ export function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAtsDiagnosticsOpen, setIsAtsDiagnosticsOpen] = useState(false);
+  const [isSkillAtlasOpen, setIsSkillAtlasOpen] = useState(false);
   const [editorFocusAnchor, setEditorFocusAnchor] = useState<{ anchor: string; requestId: number } | null>(null);
   const [actionError, setActionError] = useState("");
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
@@ -462,18 +465,37 @@ export function App() {
     catch { downloadJson(JSON.stringify(doc, (_key, value) => typeof value === "number" && !Number.isFinite(value) ? null : value, 2), `better-me-draft-${new Date().toISOString().slice(0, 10)}.json`); setActionError(t("已下载未完成草稿。补齐必填字段后，可以导出可恢复的完整备份。", "Downloaded the incomplete draft. Complete required fields to export a full, restorable backup.")); }
     setIsMenuOpen(false);
   }
+  function handleExportJsonResume() {
+    if (!doc || !activeResume) return;
+    const facts = resolveResumeFactBase(doc.factBase, activeResume);
+    const jsonResume = factBaseToJsonResume(facts, activeResume.locale);
+    downloadJson(`${JSON.stringify(jsonResume, null, 2)}\n`, `resume-jsonresume-${new Date().toISOString().slice(0, 10)}.json`);
+    setIsMenuOpen(false);
+  }
   function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
     const operation = ++restoreOperationRef.current; setIsRestoring(true); setActionError("");
     void file.text().then(async (raw) => {
       if (operation !== restoreOperationRef.current) return;
+      let parsed: unknown;
+      try { parsed = JSON.parse(raw); } catch { /* fall through to parseDocumentJson error */ }
+      if (isJsonResumePayload(parsed)) {
+        const importedFacts = jsonResumeToFactBase(parsed);
+        const view = createDefaultResumeView(importedFacts);
+        view.name = file.name.replace(/\.[^.]+$/, "") || t("JSON Resume 导入", "Imported JSON Resume");
+        const documentId = crypto.randomUUID();
+        const saved = await replace({ documentId, factBase: importedFacts, resumeViews: [view], activeResumeId: view.id }, t(`导入 JSON Resume · ${file.name}`, `Import JSON Resume · ${file.name}`), "import");
+        if (saved) setIssueNavigation(null);
+        if (operation === restoreOperationRef.current && !saved) setActionError(t("JSON Resume 导入未能保存，当前简历已保留。", "Could not save the JSON Resume import. Your current resume is preserved."));
+        return;
+      }
       const restored = parseDocumentJson(raw);
       restored.documentId ??= crypto.randomUUID();
       const saved = await replace(preserveRequirementReviews(restored, docRef.current), t(`恢复备份 · ${file.name}`, `Restore backup · ${file.name}`), "import");
       if (saved) setIssueNavigation(null);
       if (operation === restoreOperationRef.current && !saved) setActionError(t("备份未能保存，当前简历已保留。", "Could not save the backup. Your current resume is preserved."));
     }).catch((error) => {
-      if (operation === restoreOperationRef.current) setActionError(error instanceof Error ? t(`恢复失败：${error.message}`, `Restore failed: ${error.message}`) : t("备份读取失败，请选择有效的 BetterMe JSON 文件。", "Could not read the backup. Select a valid BetterMe JSON file."));
+      if (operation === restoreOperationRef.current) setActionError(error instanceof Error ? t(`恢复失败：${error.message}`, `Restore failed: ${error.message}`) : t("备份读取失败，请选择有效的 BetterMe 或 JSON Resume 文件。", "Could not read the file. Select a valid BetterMe backup or JSON Resume file."));
     }).finally(() => { if (operation === restoreOperationRef.current) setIsRestoring(false); });
     setIsMenuOpen(false);
   }
@@ -911,6 +933,22 @@ export function App() {
           onSelect: () => { setPage("resume"); setIsImportModalOpen(true); },
         },
         {
+          id: "action-skill-atlas",
+          group: t("常用操作", "Actions"),
+          label: t("打开个人职业能力与证据图谱", "Open Career Skill & Evidence Atlas"),
+          keywords: "skills keycaps atlas graph evidence 能力 图谱 技能 证据",
+          icon: <Compass size={14} />,
+          onSelect: () => { setPage("resume"); setIsSkillAtlasOpen(true); },
+        },
+        {
+          id: "action-export-jsonresume",
+          group: t("常用操作", "Actions"),
+          label: t("导出 JSON Resume (jsonresume.org 标准)", "Export JSON Resume (jsonresume.org)"),
+          keywords: "jsonresume export standard json 导出",
+          icon: <Download size={14} />,
+          onSelect: handleExportJsonResume,
+        },
+        {
           id: "action-ats-diagnostics",
           group: t("常用操作", "Actions"),
           label: t("ATS 纯文本与 JD 深度诊断（本地零 LLM）", "ATS & JD Diagnostics (Local, Zero-LLM)"),
@@ -1059,6 +1097,7 @@ export function App() {
             }}
           />
           <Button variant="ghost" size="sm" className="studio-focus-button" aria-pressed={focused} onClick={() => setFocused(value => !value)}><Maximize2 size={13} />{focused ? t("退出专注", "Exit focus") : t("专注", "Focus")}</Button>
+          <Button variant="ghost" size="sm" onClick={() => setIsSkillAtlasOpen(true)}><Compass size={14} />{t("能力图谱", "Skill atlas")}</Button>
           <Button variant="ghost" size="sm" onClick={openInventory}><BookOpenCheck size={14} />{t("盘点履历", "Career inventory")}</Button>
           <SegmentedControl
             value={activeResume.locale}
@@ -1077,7 +1116,7 @@ export function App() {
             <AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => { setPage("agent"); setIsMenuOpen(false); }} onOpenAiConfig={() => { openSystemSettings("connections"); setIsMenuOpen(false); }} />
             <button onClick={() => { setIsImportModalOpen(true); setIsMenuOpen(false); }}><Upload size={14} />{t("导入简历", "Import resume")}</button>
             <button onClick={() => { refreshJobRecommendations(); setIsMenuOpen(false); }}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
-            <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份恢复", "Restore backup")}</button>
+            <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={handleExportJsonResume}><Download size={14} />{t("导出 JSON Resume", "Export JSON Resume")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份 / JSON Resume 恢复", "Restore backup / JSON Resume")}</button>
             <hr /><span className="document-danger-label">{t("谨慎操作", "Use with care")}</span><button className="document-danger-action" disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button className="document-danger-action" onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>
       </div>
@@ -1242,6 +1281,21 @@ export function App() {
             </Suspense>
           </div>
         </div>
+      )}
+      {isSkillAtlasOpen && (
+        <Suspense fallback={null}>
+          <SkillEvidenceAtlas
+            factBase={visibleFacts}
+            view={activeResume}
+            onViewChange={updateResume}
+            onJumpToAnchor={(anchor) => {
+              setPage("resume");
+              setWorkspaceTab("content");
+              setEditorFocusAnchor({ anchor, requestId: ++issueRequestIdRef.current });
+            }}
+            onClose={() => setIsSkillAtlasOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   </AgentSidebarProvider></BetterMeAgentProvider></LocalAgentRuntimeProvider>;

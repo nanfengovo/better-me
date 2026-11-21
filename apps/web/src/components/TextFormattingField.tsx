@@ -2,9 +2,11 @@
 import { useUiPreferences } from "../lib/ui-preferences";
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DEFAULT_HIGHLIGHT_COLOR, getHighlightColor, splitStyledText, type TextStyleRange } from "@better-me/core";
-import { Bold, Italic, Underline, Highlighter, RemoveFormatting, Type, ChevronDown } from "lucide-react";
+import { Bold, Italic, Underline, Highlighter, RemoveFormatting, Type, ChevronDown, Wand2, Gauge, MessageSquare } from "lucide-react";
 import { formatSelection, type TextStylePatch } from "../lib/text-formatting";
 import { HighlightColorPicker } from "./HighlightColorPicker";
+import { applyInlineWritingAction, BULLET_SCAFFOLDS, type InlineWritingActionId } from "../lib/inline-writing-actions";
+import "./skill-evidence-atlas.css";
 
 type Props = {
   value: string;
@@ -16,10 +18,17 @@ type Props = {
   rows?: number;
   describedBy?: string;
   writingKey?: string;
+  /** Enables `[bracket]` zero-fabrication bullet scaffolds when the field is empty. */
+  allowScaffolds?: boolean;
+  /** Locale used for inline verb sharpening and `[X]` scaffolds. */
+  fieldLocale?: "zh" | "en";
+  /** Optional hook to forward the exact selected snippet to AgentCompanion. */
+  onAskAgent?: (selectedText: string) => void;
 };
 
-export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 1, describedBy, writingKey }: Props) {
-  const { t } = useUiPreferences();
+export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 1, describedBy, writingKey, allowScaffolds = false, fieldLocale, onAskAgent }: Props) {
+  const { t, locale } = useUiPreferences();
+  const effectiveLocale = fieldLocale ?? locale;
 
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -64,6 +73,17 @@ export function TextFormattingField({ value, onChange, ranges = [], onStylesChan
     if (restoreFocus) ref.current?.focus();
     ref.current?.setSelectionRange(selection.start, selection.end);
   }
+  function applyInline(action: InlineWritingActionId) {
+    if (!hasSelection) return;
+    const result = applyInlineWritingAction(value, selection.start, selection.end, action, effectiveLocale);
+    if (!result.changed) return;
+    onChange(result.nextText);
+    requestAnimationFrame(() => {
+      ref.current?.focus();
+      ref.current?.setSelectionRange(result.nextStart, result.nextEnd);
+      setSelection({ start: result.nextStart, end: result.nextEnd });
+    });
+  }
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (!(event.ctrlKey || event.metaKey) || !hasSelection || !onStylesChange) return;
     const key = event.key.toLowerCase();
@@ -96,6 +116,56 @@ export function TextFormattingField({ value, onChange, ranges = [], onStylesChan
         <span className="format-selection-hint">{hasSelection ? t(`已选 ${selection.end - selection.start} 字`, `${selection.end - selection.start} characters selected`) : t("选中文字设置格式", "Select text to format")}</span>
       </div>}
       {colorOpen && onStylesChange && <HighlightColorPicker key={`${colorSelection.start}:${colorSelection.end}`} id={colorPanelId} anchorRef={colorButtonRef} color={colorValue || lastHighlightColor} activeColor={colorValue || undefined} mixed={fullyHighlighted && selectedColors.length > 1} selectedText={value.slice(colorSelection.start, colorSelection.end)} onApply={applyColor} onClose={closeColorPicker} />}
+      {hasSelection && selection.end - selection.start >= 2 && (
+        <div className="bm-inline-bubble" role="toolbar" aria-label={t("选中文字快捷改写", "Inline selection writing actions")}>
+          <button
+            type="button"
+            className="bm-inline-bubble-btn"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => applyInline("sharpen_verb")}
+            title={t("将「负责/参与/协助」等弱动词精炼为具体动作词，不改变事实", "Replace weak openers with concrete ownership verbs without changing facts")}
+          >
+            <Wand2 size={11} aria-hidden="true" />
+            <span>{t("精炼强动词", "Sharpen verb")}</span>
+          </button>
+          <button
+            type="button"
+            className="bm-inline-bubble-btn"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => applyInline("metric_placeholder")}
+            title={t("追加 [基线X → 结果Y] 零虚构量化占位骨架，绝不编造数字", "Append a non-fabricating [baseline X → result Y] metric scaffold")}
+          >
+            <Gauge size={11} aria-hidden="true" />
+            <span>{t("插 [X] 量化占位", "Add [X] metric")}</span>
+          </button>
+          {onAskAgent && (
+            <button
+              type="button"
+              className="bm-inline-bubble-btn"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onAskAgent(value.slice(selection.start, selection.end))}
+            >
+              <MessageSquare size={11} aria-hidden="true" />
+              <span>{t("向 Agent 补证", "Ask Agent")}</span>
+            </button>
+          )}
+        </div>
+      )}
+      {allowScaffolds && !value.trim() && (
+        <div className="bm-scaffold-strip" aria-label={t("零虚构句式骨架", "Zero-fabrication bullet scaffolds")}>
+          {BULLET_SCAFFOLDS.map((scaffold) => (
+            <button
+              key={scaffold.id}
+              type="button"
+              className="bm-scaffold-chip"
+              onClick={() => onChange(effectiveLocale === "en" ? scaffold.enTemplate : scaffold.zhTemplate)}
+              title={effectiveLocale === "en" ? scaffold.enTemplate : scaffold.zhTemplate}
+            >
+              + {effectiveLocale === "en" ? scaffold.enLabel : scaffold.zhLabel}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea ref={ref} data-writing-key={writingKey} aria-label={label} aria-describedby={describedBy} value={value} onChange={(event) => onChange(event.target.value)} onSelect={(event) => {
         const next = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
         setSelection(next);

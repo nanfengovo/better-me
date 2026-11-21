@@ -1,0 +1,408 @@
+/* ==========================================================================
+   P3-1: Skill-to-Evidence Atlas
+   Tactile CSS-3D skill keycaps (inspired by nareshkhatri.dev, 100% semantic DOM)
+   + Foliofarer-inspired Field Report stationery evidence cards.
+   ========================================================================== */
+
+.bm-atlas-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(10, 16, 24, 0.44);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.bm-atlas-modal {
+  width: min(1140px, 100%);
+  height: min(84dvh, 780px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ui-canvas, var(--ui-surface));
+  border: 1px solid var(--ui-border);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.28);
+  padding: 20px 22px;
+  gap: 14px;
+}
+
+.bm-atlas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bm-atlas-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(300px, 100%);
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  color: var(--ui-text-muted);
+}
+.bm-atlas-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12.5px;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.bm-atlas-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 16px;
+}
+.bm-atlas-body[data-mode="timeline"] {
+  grid-template-columns: 1fr;
+}
+
+/* ── Tactile CSS-3D Keycap Deck ── */
+.bm-keycap-deck-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 16px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  padding: 16px;
+  gap: 12px;
+  overflow: hidden;
+}
+.bm-keycap-deck-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ui-text-secondary);
+}
+.bm-keycap-odometer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ui-surface-soft);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+}
+.bm-keycap-grid {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  align-content: start;
+  gap: 10px;
+  padding: 4px 2px 10px;
+}
+
+.bm-keycap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 76px;
+  padding: 10px 11px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-border-strong, var(--ui-border));
+  background: linear-gradient(180deg, var(--ui-surface-raised, var(--ui-surface)) 0%, var(--ui-surface) 100%);
+  color: var(--ui-text);
+  text-align: left;
+  cursor: pointer;
+  /* Tactile 3D mechanical keycap lip */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 4px 0 color-mix(in srgb, var(--ui-text) 14%, transparent),
+    0 6px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(0);
+  transition: transform 95ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 95ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+html[data-theme="dark"] .bm-keycap {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 0 rgba(0, 0, 0, 0.58),
+    0 6px 14px rgba(0, 0, 0, 0.32);
+}
+.bm-keycap:hover {
+  border-color: color-mix(in srgb, var(--ui-accent) 55%, var(--ui-border));
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 3px 0 color-mix(in srgb, var(--ui-accent) 28%, transparent),
+    0 4px 10px rgba(15, 23, 42, 0.08);
+}
+.bm-keycap:active,
+.bm-keycap[aria-pressed="true"] {
+  transform: translateY(3px);
+  border-color: var(--ui-accent);
+  background: color-mix(in srgb, var(--ui-accent) 11%, var(--ui-surface));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 0 color-mix(in srgb, var(--ui-accent) 45%, transparent),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+}
+.bm-keycap-name {
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ui-text);
+  word-break: break-word;
+}
+.bm-keycap[aria-pressed="true"] .bm-keycap-name {
+  color: var(--ui-accent);
+}
+.bm-keycap-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-text-muted);
+}
+.bm-keycap-metric-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ui-accent);
+  font-weight: 650;
+}
+
+/* ── Field Report Evidence Card (inspired by Foliofarer) ── */
+.bm-field-report {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 16px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  overflow: hidden;
+}
+.bm-field-report-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface-raised, var(--ui-surface));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bm-field-report-head h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ui-text);
+}
+.bm-field-report-list {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bm-evidence-exp-card {
+  border-radius: 12px;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-surface-raised, var(--ui-surface));
+  overflow: hidden;
+}
+.bm-evidence-exp-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-border) 70%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bm-evidence-exp-head strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ui-text);
+}
+.bm-evidence-exp-head small {
+  display: block;
+  font-size: 11px;
+  color: var(--ui-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.bm-evidence-claims {
+  display: flex;
+  flex-direction: column;
+}
+.bm-evidence-claim-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-border) 60%, transparent);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ui-text);
+}
+.bm-evidence-claim-row:last-child {
+  border-bottom: 0;
+}
+.bm-evidence-claim-row[data-included="false"] {
+  opacity: 0.62;
+}
+.bm-evidence-claim-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bm-evidence-claim-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.bm-evidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bm-evidence-badge[data-tone="verified"] {
+  background: color-mix(in srgb, var(--ui-accent) 13%, transparent);
+  color: var(--ui-accent);
+}
+.bm-evidence-badge[data-tone="unverified"] {
+  background: color-mix(in srgb, var(--ui-warning) 15%, transparent);
+  color: var(--ui-warning);
+}
+
+/* ── Inline Selection Writing Bubble (P3-2) ── */
+.bm-inline-bubble {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  border-radius: 9px;
+  background: var(--bm-glass-bg, var(--ui-surface));
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 32%, var(--ui-border));
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  animation: bm-pop-in 120ms ease-out both;
+}
+.bm-inline-bubble-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+.bm-inline-bubble-btn:hover {
+  background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+  color: var(--ui-accent);
+}
+.bm-scaffold-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 0 6px;
+}
+.bm-scaffold-chip {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--ui-border-strong, var(--ui-border));
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: border-color 110ms ease, color 110ms ease, background-color 110ms ease;
+}
+.bm-scaffold-chip:hover {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent);
+  background: color-mix(in srgb, var(--ui-accent) 8%, transparent);
+}
+
+/* ── A4 Real-Time Page Break Guides (P3-3) ── */
+.bm-page-break-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.bm-page-break-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1.5px dashed color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 10px;
+}
+.bm-page-break-label {
+  transform: translateY(-50%);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--ui-surface);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, var(--ui-border));
+  color: var(--ui-accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 860px) {
+  .bm-atlas-body {
+    grid-template-columns: 1fr;
+  }
+}
+@media print {
+  .bm-page-break-overlay {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bm-keycap,
+  .bm-inline-bubble {
+    transition: none !important;
+    animation: none !important;
+  }
+}

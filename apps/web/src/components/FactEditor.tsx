@@ -1253,6 +1253,9 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                     ranges={textStyles?.[`claim:${claim.id}:zh`]}
                                     writingKey={JSON.stringify(["claim_text", exp.id, claim.id, "zh"])}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:zh`, ranges) : undefined}
+                                    allowScaffolds
+                                    fieldLocale="zh"
+                                    onAskAgent={onAskAgentReference ? (text) => onAskAgentReference({ type: "resume_text", sourceLabel: `${exp.org.zh || t("经历", "Experience")} · ${t("要点", "Claim")} ${claimIndex + 1}`, text }) : undefined}
                                     value={claim.text.zh}
                                     onChange={(value) =>
                                       updateClaim(exp.id, claim.id, (c) => ({
@@ -1276,6 +1279,9 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                     ranges={textStyles?.[`claim:${claim.id}:en`]}
                                     writingKey={JSON.stringify(["claim_text", exp.id, claim.id, "en"])}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:en`, ranges) : undefined}
+                                    allowScaffolds
+                                    fieldLocale="en"
+                                    onAskAgent={onAskAgentReference ? (text) => onAskAgentReference({ type: "resume_text", sourceLabel: `${exp.org.en || exp.org.zh || "Experience"} · Claim ${claimIndex + 1}`, text }) : undefined}
                                     value={claim.text.en ?? ""}
                                     onChange={(value) =>
                                       updateClaim(exp.id, claim.id, (c) => ({

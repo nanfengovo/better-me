@@ -4,7 +4,8 @@ import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId, useMe
 import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
-import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle, FileSearch } from "lucide-react";
+import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle, FileSearch, Scissors } from "lucide-react";
+import "./skill-evidence-atlas.css";
 import { Button, SegmentedControl, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
@@ -25,6 +26,8 @@ type Props = {
 };
 
 const FOLLOW_PREFERENCE_KEY = "betterme.preview.follow.v1";
+/** Standard A4 page height in CSS pixels at 96dpi (297mm ≈ 1122.5px). */
+const A4_PAGE_HEIGHT_PX = 1122.5;
 
 export function toAtsPlainText(markdown: string): string {
   return markdown
@@ -44,6 +47,8 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const printHint = t("在打印窗口选择「另存为 PDF」。如果预览出现日期、标题或网址，请关闭「页眉和页脚」（Chrome：更多设置），并逐页检查。", "Choose Save as PDF in the print dialog. If a date, title or URL appears, turn off Headers and footers (Chrome: More settings) and check each page.");
 
   const [previewMode, setPreviewMode] = useState<"visual" | "ats">("visual");
+  const [showPageBreaks, setShowPageBreaks] = useState(true);
+  const [pageCount, setPageCount] = useState(1);
   const [atsCopied, setAtsCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -79,6 +84,25 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const isAts = templateId === "en-ats";
   const hasExportablePhoto = useMemo(() => !isAts && showAvatar && canExportDocxPhoto(resume.profile.avatarUrl),
     [isAts, showAvatar, resume.profile.avatarUrl]);
+  useLayoutEffect(() => {
+    if (previewMode !== "visual") return;
+    const measure = () => {
+      const sheet = paperRef.current?.querySelector<HTMLElement>(".resume-sheet") ?? paperRef.current;
+      if (!sheet) return;
+      const height = sheet.scrollHeight || sheet.offsetHeight;
+      if (height > 0) {
+        setPageCount(Math.max(1, Math.ceil((height - 10) / A4_PAGE_HEIGHT_PX)));
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined" || !paperRef.current) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(paperRef.current);
+    const sheet = paperRef.current.querySelector<HTMLElement>(".resume-sheet");
+    if (sheet) observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [previewMode, resume, templateId, showAvatar]);
+
   const updateFitWidth = useCallback(() => {
     const canvas = canvasRef.current;
     const stage = stageRef.current;
@@ -448,8 +472,23 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
           onKeyDownCapture={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}
         >
           <div ref={stageRef} className="resume-preview-stage" onLoadCapture={followCurrentTarget}>
-            <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
+            <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100, position: "relative" }}>
               <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
+              {showPageBreaks && pageCount > 1 && (
+                <div className="bm-page-break-overlay no-print" aria-hidden="true">
+                  {Array.from({ length: pageCount - 1 }, (_, index) => (
+                    <div
+                      key={index + 1}
+                      className="bm-page-break-line"
+                      style={{ top: `${Math.round((index + 1) * A4_PAGE_HEIGHT_PX)}px` }}
+                    >
+                      <span className="bm-page-break-label">
+                        {t(`第 ${index + 1} 页底 · 第 ${index + 2} 页起`, `Page ${index + 1} / ${index + 2}`)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -465,6 +504,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
           {previewMode === "visual" && <>
             <Button variant="ghost" size="xs" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></Button>
             <Button variant="ghost" size="xs" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></Button>
+            <Button variant="ghost" size="xs" aria-pressed={showPageBreaks} onClick={() => setShowPageBreaks((v) => !v)} title={t("显示或隐藏 A4 分页参考线", "Toggle A4 page break guides")}><Scissors size={12} /><span>{t(`共 ${pageCount} 页`, `${pageCount} ${pageCount === 1 ? "page" : "pages"}`)}</span></Button>
             {(view || resume.profile.avatarUrl) && <Button variant="ghost" size="xs" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></Button>}
           </>}
         </div>
