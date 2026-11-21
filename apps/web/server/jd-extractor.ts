@@ -634,8 +634,8 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
     let frontmostApp: string | null = null;
     if (process.platform === "darwin") {
       try {
-        const { execSync } = await import("node:child_process");
-        frontmostApp = execSync(`osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'`, { encoding: "utf8", timeout: 800 }).trim();
+        const { execFileSync } = await import("node:child_process");
+        frontmostApp = execFileSync("osascript", ["-e", 'tell application "System Events" to get name of first process whose frontmost is true'], { encoding: "utf8", timeout: 800 }).trim();
       } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
 
@@ -661,8 +661,9 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
     // Keep newly launched browser behind current application on macOS
     if (frontmostApp && process.platform === "darwin") {
       try {
-        const { exec } = await import("node:child_process");
-        exec(`osascript -e 'tell application "${frontmostApp.replace(/"/g, '\\"')}" to activate'`, () => {});
+        const { execFile } = await import("node:child_process");
+        const appName = frontmostApp.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        execFile("osascript", ["-e", `tell application "${appName}" to activate`], () => {});
       } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
   }

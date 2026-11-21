@@ -1,4 +1,4 @@
-import { spawn, execSync } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
@@ -245,7 +245,7 @@ export async function killRealChromeCdp(port = 9222): Promise<boolean> {
     }
     if (process.platform === "darwin" || process.platform === "linux") {
       try {
-        const output = execSync(`lsof -ti :${port}`, { encoding: "utf8" }).trim();
+        const output = execFileSync("lsof", ["-ti", `TCP:${Number(port)}`, "-sTCP:LISTEN"], { encoding: "utf8" }).trim();
         if (output) {
           for (const pidStr of output.split(/\s+/)) {
             const pid = Number(pidStr);
