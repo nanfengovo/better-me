@@ -6,7 +6,7 @@ import test from "node:test";
 import { deriveEntityId, type SourceDefinition } from "@better-me/opportunities";
 import { type SourceJobRecord, type SourcePage } from "@better-me/source-adapters";
 import { openJobRepository, type JobRepository } from "../src/repository.ts";
-import { emptyDelta, projectSourcePage, type SourceProjectionOptions } from "../src/projection.ts";
+import { emptyDelta, OFFICIAL_DISCOVERY_SOURCE_ID, projectSourcePage, sourceProjectionSelection, type SourceProjectionOptions } from "../src/projection.ts";
 
 const source: SourceDefinition = {
   sourceId: "projection-source", name: "合成投影来源", adapterId: "synthetic", adapterVersion: "1", capabilities: ["list-jobs"], runtime: ["local-service"], entityType: "job-posting", enabled: true, status: "active", remoteFilters: [],
@@ -30,6 +30,29 @@ async function withRepository(task: (repo: JobRepository) => Promise<void>) {
     await task(repo);
   } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
 }
+
+test("an official job saved before enabling its employer reuses the exact URL on the first source refresh", async () => {
+  for (const adapterId of ["smartrecruiters", "jobposting-jsonld", "eightfold-pcs"]) {
+    await withRepository(async repo => {
+      const imported = { ...source, sourceId: OFFICIAL_DISCOVERY_SOURCE_ID, adapterId: "official-job-discovery" };
+      const companyBoard = { ...source, sourceId: "company-board", adapterId };
+      const job = record("job-16", "上海"), saved = { ...job };
+      delete saved.sourceRecordId;
+      const before = await repo.readSnapshot();
+      const first = await projectSourcePage(before, imported, page([saved], fixtureNow()), "first");
+      await repo.importSnapshot(first.delta, { actorScope, idempotencyKey: "import-first" });
+      const other = { ...job, sourceRecordId: "job-17", url: job.url + "-other" };
+      const refresh = page([job, other], fixtureNow());
+      const selection = await sourceProjectionSelection(companyBoard, refresh);
+      const existing = await repo.readProjectionSnapshot(selection);
+      const collected = await projectSourcePage(existing, companyBoard, refresh, "refresh");
+      await repo.importSnapshot(collected.delta, { actorScope, idempotencyKey: "source-refresh" });
+      const all = await repo.readSnapshot();
+      assert.equal(all.jobs.length, 2);
+      assert.equal(all.jobs.find(j => j.id === first.delta.jobs[0]!.id)?.listingIds.length, 2);
+    });
+  }
+});
 async function applyPage(repo: JobRepository, records: SourceJobRecord[], key: string, observedAt: string, runId?: string, options?: SourceProjectionOptions) {
   const run = runId ?? (await repo.startRun({ sourceId: source.sourceId, scope: {}, actorScope, idempotencyKey: `${key}.start` })).runId;
   const before = await repo.readSnapshot();

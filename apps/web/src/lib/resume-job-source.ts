@@ -1,10 +1,8 @@
+import { resolveResumeJobConnection } from "./resume-job-connection";
 import { JobQueryResultSchema, normalizeSearchText, type JobSearchItem } from "@better-me/opportunities";
-import { readAtlasConnectionSession } from "../components/atlas/connection-session";
-import { readAtlasDevAutoConnectSuppressed, requestDevJobIndex } from "../components/atlas/dev-index-bootstrap";
 import { readAtlasEnvelope } from "../components/atlas/snapshot-transport";
 import { projectLocalOpportunities } from "../components/atlas/local-opportunities";
 import { readOpportunityLibrary } from "./opportunities";
-import { readRuntimeConnection } from "./runtime-connection";
 import type { RecommendationPool, RecommendationProfile } from "./resume-job-recommendations";
 
 export type RecommendationSource = { dataset: RecommendationPool; kind: "index" | "library"; bounded?: boolean; partial?: boolean; cached?: boolean; fetchedAt?: number;
@@ -12,6 +10,10 @@ export type RecommendationSource = { dataset: RecommendationPool; kind: "index" 
 export type RecommendationReadOptions = { onUpdate?: (source: RecommendationSource) => void; forceRefresh?: boolean; timeoutMs?: number; cacheTtlMs?: number };
 // Page-memory only. Never persist the paired service credential or candidate pool.
 const recentCandidates = new Map<string, RecommendationSource>();
+
+export function invalidateResumeJobCandidates() {
+  recentCandidates.clear();
+}
 
 export function recommendationPoolFromItems(items: JobSearchItem[]): RecommendationPool {
   const uniqueById = <T extends { id: string }>(values: T[]) => [...new Map(values.map(value => [value.id, value])).values()];
@@ -84,18 +86,10 @@ export async function readIndexRecommendationCandidates(endpoint: string, token:
 /** Requests read public jobs only; full FactBase objects are never accepted here. */
 export async function readRecommendationSource(signal: AbortSignal, profile: RecommendationProfile, options: RecommendationReadOptions = {}): Promise<RecommendationSource> {
   signal.throwIfAborted();
-  const session = readAtlasConnectionSession();
-  const suppressed = readAtlasDevAutoConnectSuppressed();
-  let identity = session?.dataMode === "live" ? session : undefined;
   let unavailable = false;
   try {
-    if (!identity && !session && !suppressed && (import.meta.env?.DEV || readRuntimeConnection())) {
-      const bootstrap = await requestDevJobIndex(signal);
-      signal.throwIfAborted();
-      if (bootstrap?.ok) identity = { ...bootstrap, schemaVersion: 1, dataMode: "live" };
-      else unavailable = true;
-    }
-    if (identity && !suppressed) {
+    const identity = await resolveResumeJobConnection(signal);
+    if (identity) {
       return await readIndexRecommendationCandidates(identity.endpoint, identity.token, profile, signal, { cacheTtlMs: 120_000, ...options });
     }
   } catch (error) {

@@ -10,7 +10,7 @@ const technologies: readonly (readonly string[])[] = [
   ["Kotlin"], ["Spring Boot", "SpringBoot"], ["Spring"], ["MyBatis"], ["Django"], ["FastAPI"], ["Flask"],
   ["SQL"], ["MySQL"], ["PostgreSQL", "Postgres"], ["SQL Server", "MSSQL"], ["Redis"], ["MongoDB"],
   ["Docker"], ["Kubernetes", "K8s"], ["Linux"], ["AWS"], ["Azure"], ["Git"], ["RabbitMQ"], ["Kafka"],
-  ["PLC"], ["SCADA"], ["WCS"], ["RCS"], ["MES"], ["WMS"], ["Qt"], ["ABP"], ["PyTorch"], ["TensorFlow"],
+  ["PLC"], ["SCADA"], ["WCS"], ["RCS"], ["MES"], ["WMS"], ["Qt"], ["ABP"], ["PyTorch"], ["TensorFlow"], ["AI Agent", "AI agents", "智能体"], ["Excel"], ["Power BI"],
 ];
 const textOf = (value?: { zh?: string; en?: string }) => [value?.zh, value?.en].filter(Boolean).join(" / ");
 const unique = (values: string[], max: number) => [...new Map(values.filter(s => s.trim()).map(s => [normalizeSearchText(s), s.trim()])).values()].slice(0, max);
@@ -25,7 +25,7 @@ export type RecommendationClaimKind = "personal-action" | "self-report" | "negat
 
 // A claim is one selectable source. Mixed ownership or polarity requires review before
 // attributing any of its tags to this person. A missing affirmative action stays unknown.
-export function classifyRecommendationClaim(claim: FactClaim): RecommendationClaimKind {
+export function classifyRecommendationClaim(claim: Pick<FactClaim, "text" | "kind" | "metric">): RecommendationClaimKind {
   const text = textOf(claim.text).normalize("NFKC");
   if (claim.kind === "interview" || claim.kind === "pitfall" || (claim.metric && !claim.metric.confirmed)) return "unconfirmed";
   if (/没有|从未|并未|未曾|尚未|没(?:有)?(?:用过|使用|接触|做过|参与|负责|掌握)|未(?:使用|接触|参与|负责|掌握)|不(?:会|熟悉|掌握|具备|擅长)|无.{0,16}(?:经验|经历)|并非本人|不是我|\b(?:never|not|no experience|no exposure|without experience|haven['’]t|hasn['’]t|didn['’]t|don['’]t|can['’]t)\b/i.test(text)) return "negative";
@@ -36,6 +36,15 @@ export function classifyRecommendationClaim(claim: FactClaim): RecommendationCla
   if (claim.kind === "user_statement" || /自述|自评|熟悉|熟练|擅长|了解|掌握|\b(?:familiar with|proficient in|skilled in|knowledge of)\b/i.test(text)) return "self-report";
   if (/(?:实现|使用|开发|维护|优化|设计|构建|搭建|部署|负责|主导|完成|排查|修复|交付|编写|验证|实施|集成|重构|测试|降低|提升)|\b(?:implement(?:ed)?|used|built|developed|designed|maintained|deployed|delivered|tested|reduced|improved|led|wrote|fixed|integrated|optimized)\b/i.test(text)) return "personal-action";
   return "unconfirmed";
+}
+
+/** Skills-only headers from imported resumes live in profile.traits. Keep the matched names, never the free text. */
+export function skillsFromResumeTraits(traits: readonly string[]): string[] {
+  return [...new Set(traits.flatMap(line => {
+    const kind = classifyRecommendationClaim({ kind: "action", text: { zh: line } });
+    if (["negative", "planned", "practice", "team"].includes(kind)) return [];
+    return line.split(/[,，、;；\n]/u).flatMap(term => recognizedSkills(normalizeSearchText(term)));
+  }))];
 }
 
 const roleGroups = [

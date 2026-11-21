@@ -56,6 +56,7 @@ type AtlasPrimarySearchBarProps = {
   allowVisualFallback: boolean;
   setAllowVisualFallback: Dispatch<SetStateAction<boolean>>;
   resumeTargetRole: string;
+  onDiscoverOfficialJobs?: () => void;
   onOpenAuthHub: () => void;
   onSearchSourceJobs: () => Promise<void>;
   connectionError: string;
@@ -112,6 +113,7 @@ export function AtlasPrimarySearchBar({
   allowVisualFallback,
   setAllowVisualFallback,
   resumeTargetRole,
+  onDiscoverOfficialJobs,
   onOpenAuthHub,
   onSearchSourceJobs,
   connectionError,
@@ -189,6 +191,9 @@ export function AtlasPrimarySearchBar({
           <div className="atlas-search-utilities">
             <span id="atlas-search-help" className="atlas-search-hint">仅筛选已收录岗位 · Enter 不启动采集</span>
             <div className="atlas-search-tools">
+              {onDiscoverOfficialJobs && <button type="button" className="atlas-official-discovery" aria-haspopup="dialog" onClick={onDiscoverOfficialJobs}>
+                <Search size={15} />{t("按简历发现官网岗位", "Discover employer jobs")}
+              </button>}
               <button type="button" onClick={() => { setFiltersOpen(!filtersOpen); setCommandOpen(true); }} aria-controls="atlas-search-filters" aria-expanded={filtersOpen} aria-haspopup="dialog">
                 <SlidersHorizontal size={15} />
                 筛选与设置

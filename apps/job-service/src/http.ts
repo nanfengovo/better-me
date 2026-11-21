@@ -32,6 +32,12 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/history$/, tool: "jobs.list-merge-decisions" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/revoke$/, tool: "jobs.revoke-merge" },
   { method: "POST", path: /^\/api\/v1\/jobs\/search$/, tool: "jobs.search" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/discover-official$/, tool: "jobs.discover-official" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/watch\/start$/, tool: "jobs.watch-start" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/watch\/status$/, tool: "jobs.watch-status" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/watch\/enable$/, tool: "jobs.watch-enable" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/watch\/ack$/, tool: "jobs.watch-ack" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/discover-official\/import$/, tool: "jobs.import-discovered-official" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/receipt$/, tool: "jobs.lookup-reviewed-cards-receipt" },
@@ -166,7 +172,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
       const context: TrustedToolContext = {
         requestId, signal: cancellation.signal, actorScope: "local-owner",
         allowedEffects: ["read-index", "external-read", "local-write"],
-        budget: { requests: 80, bytes: toolResponseBudgetBytes(route.tool), timeoutMs: 120_000 },
+        budget: { requests: route.tool === "jobs.discover-official" ? 144 : 80, bytes: toolResponseBudgetBytes(route.tool), timeoutMs: 120_000 },
         ...(typeof key === "string" ? { idempotencyKey: key } : {}),
       };
       const serialized = options.registry.executeSerialized ? await options.registry.executeSerialized(route.tool, input, context) : undefined;

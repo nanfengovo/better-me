@@ -3,15 +3,15 @@ import type { SourceDefinition } from "@better-me/opportunities";
 import type { CompanyCareerDiscoveryCapabilities, CompanyCareerDiscoveryResult } from "@better-me/source-adapters/browser-contracts";
 import { createAtlasSourceClient } from "./service-client";
 
-type Props = { endpoint: string; token: string; sources: SourceDefinition[]; onProposal: (text: string) => void; onSelectSource: (id: string, companyName: string) => void };
+type Props = { initialCompany?: string; endpoint: string; token: string; sources: SourceDefinition[]; onProposal: (text: string) => void; onSelectSource: (id: string, companyName: string) => void };
 /** A changed local identity gets a fresh session; its pending reads cannot update the new one. */
 export function CompanyCareersPanel(props: Props) {
-  return <CompanyCareersSession key={JSON.stringify([props.endpoint, props.token])} {...props} />;
+  return <CompanyCareersSession key={JSON.stringify([props.endpoint, props.token, props.initialCompany])} {...props} />;
 }
 
 /** Discovery only prepares evidence and disabled proposals; the existing review flow owns registration. */
-function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectSource }: Props) {
-  const [company, setCompany] = useState("");
+function CompanyCareersSession({ initialCompany, endpoint, token, sources, onProposal, onSelectSource }: Props) {
+  const [company, setCompany] = useState(initialCompany ?? "");
   const [website, setWebsite] = useState("");
   const [policyId, setPolicyId] = useState("");
   const [result, setResult] = useState<CompanyCareerDiscoveryResult>();
@@ -77,7 +77,7 @@ function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectS
     } finally { clearTimeout(timer); if (abort.current === controller) { abort.current = null; setBusy(false); } }
   }
 
-  return <details className="atlas-company-discovery" aria-busy={busy || capabilitiesBusy} onToggle={(event) => {
+  return <details className="atlas-company-discovery" open={initialCompany ? true : undefined} aria-busy={busy || capabilitiesBusy} onToggle={(event) => {
     if (event.currentTarget.open) {
       if (!capabilities && !capabilitiesAbort.current) void readCapabilities();
     } else { cancelCapabilities(); cancelDiscovery(); }

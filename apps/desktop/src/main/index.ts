@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from "electron";
+import { Notification, app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from "electron";
 import path from "node:path";
 import { AgentHostManager } from "./agent-host-manager.js";
 import { WebServerManager } from "./web-server-manager.js";
@@ -55,6 +55,15 @@ const explainHud = (): void => {
 ipcMain.handle("desktop:get-agent-info", async (event) => {
   if (!trusted(event)) throw new Error("Untrusted agent info request.");
   return agentHostManager.getConfig();
+});
+let lastJobWatchNotice = 0;
+ipcMain.handle("desktop:notify-job-watch", event => {
+  if (!trusted(event) || !Notification.isSupported() || Date.now() - lastJobWatchNotice < 10_000) return;
+  lastJobWatchNotice = Date.now();
+  // A system banner omits account, resume and posting content.
+  const notification = new Notification({ title: "BetterMe · 后台寻岗", body: "有新的官网岗位等待审阅。" });
+  notification.on("click", () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("desktop:open-job-watch"); });
+  notification.show();
 });
 ipcMain.handle("desktop:toggle-hud", (event) => {
   if (trusted(event)) explainHud();

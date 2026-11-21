@@ -7,7 +7,7 @@ import {
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, eightfoldPcsAdapter, workableAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
@@ -19,6 +19,8 @@ import {
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
 import { projectSourcePage, sourceProjectionSelection } from "./projection.js";
+import { createBackgroundJobWatch } from "./background-job-watch.js";
+import { createOfficialJobDiscoveryTools } from "./official-job-discovery.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
@@ -70,6 +72,8 @@ export type JobApplicationOptions = {
   repository: JobRepository;
   /** A read-only compute lane must never own a second outbox consumer. */
   backgroundEnrichment?: boolean;
+  /** Host-owned durable database, only opened by the writer lane. */
+  jobWatchDatabasePath?: string;
   adapters?: readonly SourceAdapter[];
   transport?: SourceTransport;
   now?: () => string;
@@ -81,13 +85,15 @@ export type JobApplicationOptions = {
   mapReferenceProvider?: MapReferenceProvider;
   /** Host-only web search; requests cannot install providers or select their endpoints. */
   careerWebSearchProvider?: CareerWebSearchProvider;
+  /** Dynamic official job pages always use public-address-pinned direct transport. */
+  officialJobDetailTransport?: SourceTransport;
 };
 
 /** One application service backs HTTP and future Agent tools. Private opportunity data stays outside. */
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, eightfoldPcsAdapter, workableAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
   const transport = options.transport ?? createControlledSourceTransport({ timeoutMs: 65_000 });
   const query = createJobQueryService(repository);
   const browse = createAtlasBrowse(repository);
@@ -137,7 +143,12 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}),
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
+  const detailTransport = options.officialJobDetailTransport ?? createControlledSourceTransport({ allowFakeIp: false, timeoutMs: 5000 });
+  const jobWatch = options.backgroundEnrichment !== false && options.jobWatchDatabasePath ? createBackgroundJobWatch({
+    databasePath: options.jobWatchDatabasePath, repository, transport, detailTransport, searchProvider: options.careerWebSearchProvider,
+  }) : undefined;
   const definitions: ToolDefinition<any, any>[] = [
+    ...(jobWatch?.definitions ?? []).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => (definition.execute as (input: any, context: ToolHandlerContext) => any)(input, context)) })),
     defineTool({ name: "jobs.browse", version: 1, description: "读取不含JD正文与历史原文的浏览投影；不是完整备份。", effect: "read-index", inputSchema: BrowseRequestSchema, outputSchema: BrowseResponseSchema,
       execute: (input, context) => guarded(async () => { context.throwIfCancelled(); return JSON.parse(JSON.stringify(await browse.read(input))); }) }),
     defineTool({ name: "jobs.browse-query", version: 1, description: "在已捕获完整索引上查询全量统计/地图与当前页，不触发采集。", effect: "read-index", inputSchema: BrowseQuerySchema, outputSchema: BrowseQueryResultSchema,
@@ -160,6 +171,10 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...createOfficeAddressTools(repository, options.officeAddressProvider).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createOfficialJobDiscoveryTools({
+      repository, now, transport, searchProvider: options.careerWebSearchProvider,
+      detailTransport,
+    }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedDetailLocationsTools({ repository, now }).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
@@ -377,6 +392,7 @@ export function createJobApplication(options: JobApplicationOptions) {
     stopping = true;
     stopSignal.abort();
     for (const controller of running.values()) controller.abort();
+    await jobWatch?.stop();
     await enrichmentWorker?.stop();
     while (pending.size) await Promise.allSettled([...pending]);
   } };

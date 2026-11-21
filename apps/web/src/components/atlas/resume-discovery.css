@@ -1,0 +1,47 @@
+.atlas-resume-discovery {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  color: var(--color-ink);
+}
+.atlas-resume-discovery p { margin: 0; line-height: 1.55; overflow-wrap: anywhere; }
+.ard-intro, .ard-hint, .atlas-resume-discovery small, .ard-results time { color: var(--color-ink-muted); }
+.atlas-resume-discovery fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.ard-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ard-inputs label { display: grid; gap: 5px; font-weight: 600; }
+.ard-inputs input { width: 100%; min-width: 0; box-sizing: border-box; font-weight: 400; }
+.atlas-resume-discovery small { display: block; margin-top: 8px; }
+.ard-actions, .ard-preferences { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; }
+.ard-preferences label { display: inline-flex; align-items: center; gap: 6px; }
+.ard-preferences input[type="checkbox"] { width: auto; height: auto; margin: 0; }
+.ard-results { display: grid; gap: 12px; }
+.ard-results header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.ard-results time, .ard-hint { font-size: 12px; }
+.ard-results summary { cursor: pointer; }
+.ard-company { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-panel); }
+.ard-company h3, .ard-company h4 { margin: 0; }
+.ard-company article { display: grid; gap: 6px; padding: 11px 0 0; border-top: 1px solid var(--color-line); }
+.ard-company article > button { justify-self: start; }
+.ard-company a { color: var(--color-accent); overflow-wrap: anywhere; }
+.atlas-resume-discovery button.ard-primary { background: var(--color-accent); color: var(--color-on-accent, white); border-color: var(--color-accent); }
+.atlas-resume-discovery button:disabled { opacity: .6; }
+.atlas-resume-discovery .ard-description { white-space: pre-line; max-height: 15rem; overflow: auto; }
+.ard-error { color: var(--color-danger, #ae3542); }
+@media (max-width: 580px) { .ard-inputs { grid-template-columns: 1fr; } }
+.ard-source-review { padding: 10px 12px; border: 1px solid var(--color-line); border-radius: 8px; }
+.ard-source-review[open] > * + * { margin-top: 8px; }
+.ard-scope { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.ard-scope > span { color: var(--color-ink-muted); font-size: 13px; }
+.ard-ownership, .ard-ownership label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.ard-ownership input[type="checkbox"] { margin: 0; width: auto; }
+.atlas-resume-discovery .ard-scope > button { color: var(--color-accent); font-weight: 600; }
+.ard-company-jobs > * + * { margin-top: 10px; }
+.ard-company h3 { font-weight: 650; }
+.ard-company-jobs > summary { color: var(--color-accent); font-size: 14px; line-height: 1.5; }
+.ard-company-jobs > summary > span { color: var(--color-ink); }
+.ard-company-jobs > summary > small, .ard-leads li > small { margin-top: 2px; }
+.ard-leads ul { padding-inline-start: 20px; }
+.ard-leads li + li { margin-top: 8px; }
+.ard-discovery-progress { display: grid; gap: 7px; padding: 12px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-panel); }
+.ard-discovery-progress > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 5px 12px; }
+.ard-discovery-progress button { justify-self: start; color: var(--color-accent); font-weight: 600; }

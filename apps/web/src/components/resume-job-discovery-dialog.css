@@ -1,0 +1,37 @@
+dialog.resume-job-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  padding: 0;
+  width: min(740px, calc(100vw - 24px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  color: var(--ui-text);
+  box-shadow: 0 16px 64px #121a292e;
+}
+.resume-job-dialog::backdrop { background: #10182366; }
+.resume-job-dialog > header {
+  position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px; gap: 12px; border-bottom: 1px solid var(--ui-border); background: var(--ui-surface);
+}
+.resume-job-dialog h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.resume-job-dialog .atlas-settings-dialog-body { padding: 16px 20px 20px; }
+.resume-job-dialog button, .resume-job-dialog .ard-inputs input {
+  min-height: 36px; padding: 6px 10px; border: 1px solid var(--ui-border); border-radius: 8px; color: inherit; background: var(--ui-surface);
+}
+.resume-job-dialog button { cursor: pointer; }
+.resume-job-dialog button:focus-visible, .resume-job-dialog summary:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.resume-job-dialog .atlas-settings-dialog-close { display: grid; place-items: center; padding: 7px; }
+.resume-job-dialog .resume-job-origin { margin: 0 0 10px; font-size: 12px; color: var(--ui-text-secondary); overflow-wrap: anywhere; }
+.resume-job-connection { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.resume-job-connection p { width: 100%; }
+@media (max-width: 600px) {
+  dialog.resume-job-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); }
+  .resume-job-dialog .atlas-settings-dialog-body { padding: 14px; }
+  .resume-job-dialog > header { padding: 10px 14px; }
+}
+@media print { dialog.resume-job-dialog { display: none !important; } }

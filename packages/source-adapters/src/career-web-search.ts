@@ -199,7 +199,11 @@ export function createCareerWebSearchProvider(config: CareerWebSearchConfig): Ca
     if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 20 || !input.query.trim() || input.query.length > 500) throw new ToolError("invalid-input");
     const url = new URL(endpoint);
     url.searchParams.set("q", input.query);
-    if (provider.provider === "searxng") { url.searchParams.set("format", "json"); url.searchParams.set("pageno", "1"); url.searchParams.set("categories", "general"); }
+    if (provider.provider === "searxng") {
+      const page = input.page ?? 1;
+      if (!Number.isInteger(page) || page < 1 || page > 20) throw new ToolError("invalid-input");
+      url.searchParams.set("format", "json"); url.searchParams.set("pageno", String(page)); url.searchParams.set("categories", "general");
+    }
     const response = await input.transport.request({ url: url.toString(), source, context: input.context, headers: { accept: provider.provider === "searxng" ? "application/json" : "text/html,application/xhtml+xml;q=0.9" } });
     input.context.throwIfCancelled();
     if (response.status === 429) throw new ToolError("rate-limited");

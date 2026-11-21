@@ -1,6 +1,7 @@
 import { SourceDefinitionSchema, TimestampSchema, ToolError, deriveEntityId, type SourceDefinition } from "@better-me/opportunities";
 import { plainText, publicUrl } from "./adapters/common.js";
 import { discoveryPolicyAdapter } from "./adapters/discovery-policy.js";
+import { workdayBoard, workdaySource } from "./workday-job-search.js";
 import type { SourceAdapterContext, SourceTransport } from "./contracts.js";
 import type { SourceDiscoveryExecution } from "./discovery.js";
 import { SourceCandidateSchema, SourceRegistrationProposalSchema, type SourceRegistrationProposal } from "./discovery-contracts.js";
@@ -15,7 +16,7 @@ import {
 export type CareerWebSearchProvider = {
   readonly metadata?: CareerWebSearchProviderMetadata;
   search(input: {
-    query: string; companyName: string; limit: number; source: SourceDefinition;
+    query: string; companyName: string; limit: number; page?: number; source: SourceDefinition;
     context: SourceAdapterContext; transport: SourceTransport;
   }): Promise<unknown>;
 };
@@ -216,14 +217,11 @@ function existingMatches(options: zOptions, execution: CompanyCareerDiscoveryExe
 }
 type zOptions = ReturnType<typeof DiscoverCompanyCareersInputSchema.parse>;
 
-async function proposalFor(item: CareerSourceCandidate, companyName: string): Promise<SourceRegistrationProposal> {
-  const entry = recognize(item.candidate.homeUrl);
-  const endpoint = new URL(entry?.apiUrl ?? item.candidate.homeUrl);
-  const name = `${companyName} · ${item.entryKind} (review required)`.slice(0, 240);
-  return SourceRegistrationProposalSchema.parse({
-    schemaVersion: 1, candidateId: item.candidate.candidateId,
-    source: {
-      sourceId: await deriveEntityId("source", ["company-careers", item.candidate.homeUrl]), name,
+async function proposedCompanySource(homeUrl: string, companyName: string, entry?: RecognizedEntry): Promise<SourceDefinition> {
+  const endpoint = new URL(entry?.apiUrl ?? homeUrl);
+  const name = `${companyName} · ${entry?.kind ?? "html"} (review required)`.slice(0, 240);
+  return SourceDefinitionSchema.parse({
+      sourceId: await deriveEntityId("source", ["company-careers", homeUrl]), name,
       adapterId: entry?.kind ?? "review-required-html", adapterVersion: "1", capabilities: entry ? ["list-jobs"] : [],
       runtime: ["local-service"], entityType: entry ? "job-posting" : "company-directory", enabled: false, status: "needs-review", entryUrl: endpoint.toString(),
       ...(entry ? { options: entry.kind === "tencent"
@@ -232,9 +230,31 @@ async function proposalFor(item: CareerSourceCandidate, companyName: string): Pr
         : { companyName, boardToken: entry.boardToken } } : {}),
       remoteFilters: entry && ["tencent", "smartrecruiters"].includes(entry.kind) ? ["roles"] : [],
       endpointPolicy: { allowedHosts: [endpoint.hostname], allowedPathPrefixes: [endpoint.pathname], requireHttps: true, allowRedirects: false, maxRedirects: 0 },
-      attribution: { label: name, homepageUrl: item.candidate.homeUrl, usage: "link-only", requiresAttribution: true, notes: associationWarning },
+      attribution: { label: name, homepageUrl: homeUrl, usage: "link-only", requiresAttribution: true, notes: associationWarning },
       refreshPolicy: { mode: "manual", minIntervalSeconds: 300, maxRecords: 100, maxPages: 3, requestsPerMinute: 10 },
-    },
+  });
+}
+
+/** A detail from a supported ATS can identify its employer board without guessing a hostname. */
+export async function companyBoardFromOfficialJob(job: { url: string; verification: string; company?: string }, registeredSources: readonly SourceDefinition[] = []): Promise<{ sourceId?: string; sourceProposal?: SourceDefinition }> {
+  if (job.verification !== "official-detail" || !job.company || !publicUrl(job.url)) return {};
+  const workday = workdayBoard(job.url);
+  if (workday && new URL(job.url).pathname.includes("/" + workday.site + "/job/")) {
+    const registered = registeredSources.find(source => source.adapterId === "jobposting-jsonld" && source.entryUrl === workday.sitemap);
+    return registered ? { sourceId: registered.sourceId } : { sourceProposal: await workdaySource(workday, job.company) };
+  }
+  const entry = recognize(job.url);
+  if (!entry || entry.kind === "tencent") return {};
+  const existing = registeredSources.find(source => source.adapterId === entry.kind && source.entryUrl && new URL(source.entryUrl).origin + new URL(source.entryUrl).pathname === new URL(entry.apiUrl).origin + new URL(entry.apiUrl).pathname);
+  if (existing) return { sourceId: existing.sourceId };
+  return { sourceProposal: await proposedCompanySource(entry.homeUrl, job.company, entry) };
+}
+
+async function proposalFor(item: CareerSourceCandidate, companyName: string): Promise<SourceRegistrationProposal> {
+  const entry = recognize(item.candidate.homeUrl);
+  return SourceRegistrationProposalSchema.parse({
+    schemaVersion: 1, candidateId: item.candidate.candidateId,
+    source: await proposedCompanySource(item.candidate.homeUrl, companyName, entry),
     reviewRequired: [
       "Verify company affiliation, website ownership, source usage conditions and attribution against the original evidence.",
       "The companyName is a requested label and must be confirmed before enabling this source.",

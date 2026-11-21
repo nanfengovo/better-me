@@ -10,6 +10,8 @@ export interface DesktopApi {
   };
   getAgentHostInfo: () => Promise<{ endpoint: string; token: string; port: number }>;
   toggleStarPrompterHud: () => Promise<void>;
+  notifyJobWatch: () => Promise<void>;
+  onJobWatchNotice: (callback: () => void) => () => void;
   openExternal: (url: string) => Promise<void>;
   exportPdf: (suggestedFilename?: string) => Promise<{ ok: boolean; cancelled?: boolean; filePath?: string; error?: string }>;
   armInventoryMicrophone:()=>Promise<boolean>;
@@ -27,6 +29,8 @@ const desktopApi: DesktopApi = {
   },
   getAgentHostInfo: () => ipcRenderer.invoke("desktop:get-agent-info"),
   toggleStarPrompterHud: () => ipcRenderer.invoke("desktop:toggle-hud"),
+  notifyJobWatch: () => ipcRenderer.invoke("desktop:notify-job-watch"),
+  onJobWatchNotice: callback => { const listener = () => callback(); ipcRenderer.on("desktop:open-job-watch", listener); return () => ipcRenderer.removeListener("desktop:open-job-watch", listener); },
   openExternal: (url: string) => ipcRenderer.invoke("desktop:open-external", url),
   exportPdf: (suggestedFilename?: string) => ipcRenderer.invoke("desktop:export-pdf", suggestedFilename),
   armInventoryMicrophone:()=>ipcRenderer.invoke("inventory:arm-microphone"),

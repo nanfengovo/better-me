@@ -13,6 +13,16 @@ function stableValue(value: unknown): unknown {
 }
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
 const unique = <T>(values: readonly T[]) => [...new Set(values)];
+export const OFFICIAL_DISCOVERY_SOURCE_ID = "official-job-discovery";
+export function workableDiscoveryIdentity(nativeId: string | undefined): string | undefined {
+  return nativeId && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(nativeId) ? "workable:" + nativeId : undefined;
+}
+function savedDiscoveryIdentity(adapterId: string, record: { url?: string; sourceRecordId?: string }) {
+  if (adapterId === "workable") return workableDiscoveryIdentity(record.sourceRecordId);
+  // These official adapters repeat the original posting URL used when saving a discovery.
+  return record.url && ["smartrecruiters", "jobposting-jsonld", "eightfold-pcs"].includes(adapterId)
+    ? normalizeSourceUrl(record.url) : undefined;
+}
 export function emptyDelta(revision = 0): AtlasDataset {
   return { schemaVersion: 1, revision, sources: [], companies: [], jobs: [], locations: [], compensations: [], listings: [], observations: [], snapshots: [] };
 }
@@ -30,6 +40,8 @@ export async function sourceProjectionSelection(source: SourceDefinition, page: 
     const identity = record.sourceRecordId ?? normalizeSourceUrl(record.url!);
     const listingId = await deriveEntityId("listing", [source.sourceId, identity]);
     listings.add(listingId);
+    const discoveredId = savedDiscoveryIdentity(source.adapterId, record);
+    if (discoveredId) listings.add(await deriveEntityId("listing", [OFFICIAL_DISCOVERY_SOURCE_ID, discoveredId]));
     if (record.companyName) companies.add(await deriveEntityId("company", [source.sourceId, record.companyName.normalize("NFKC").trim().toLowerCase()]));
     for (const location of record.locations) for (const kind of ["office", "remote-region"]) {
       const fields = { raw: location.raw, countryCode: location.countryCode, region: location.region, city: location.city };
@@ -71,7 +83,12 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
       continue;
     }
     const oldListing = snapshot.listings.find((listing) => listing.id === listingId);
-    const jobId = oldListing?.canonicalJobId ?? await deriveEntityId("job", [source.sourceId, identity]);
+    // A saved posting and the first refresh of its employer board share one canonical job.
+    const discoveredId = !oldListing && savedDiscoveryIdentity(source.adapterId, record);
+    const discoveryListingId = discoveredId && await deriveEntityId("listing", [OFFICIAL_DISCOVERY_SOURCE_ID, discoveredId]);
+    const previouslySaved = discoveryListingId && record.url ? snapshot.listings.find(item => item.id === discoveryListingId
+      && item.sourceId === OFFICIAL_DISCOVERY_SOURCE_ID && item.canonicalUrl === normalizeSourceUrl(record.url!)) : undefined;
+    const jobId = oldListing?.canonicalJobId ?? previouslySaved?.canonicalJobId ?? await deriveEntityId("job", [source.sourceId, identity]);
     const oldJob = snapshot.jobs.find((job) => job.id === jobId);
     const companyId = oldJob?.companyId ?? await deriveEntityId("company", [source.sourceId, record.companyName.normalize("NFKC").trim().toLowerCase()]);
     const oldCompany = snapshot.companies.find((company) => company.id === companyId);
@@ -182,7 +199,7 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     if (snapshotId && !oldSnapshot && !delta.snapshots.some((item) => item.id === snapshotId)) delta.snapshots.push({ id: snapshotId, listingId, observationId, text: description, contentHash, createdAt: page.observedAt, ...(record.url ? { sourceUrl: record.url } : {}), extractionMethod, completeness: record.completeness });
     const selectedSnapshot = snapshot.snapshots.find((item) => item.id === oldJob?.selectedSnapshotId);
     const retainDescription = Boolean(selectedSnapshot && completenessRank[selectedSnapshot.completeness] > completenessRank[record.completeness]);
-    const keepOther = (current: string[], oldContribution: string[] | undefined) => oldJob && oldJob.listingIds.length > 1 ? current.filter((id) => !oldContribution?.includes(id)) : [];
+    const keepOther = (current: string[], oldContribution: string[] | undefined) => oldJob && (oldJob.listingIds.length > 1 || previouslySaved) ? current.filter((id) => !oldContribution?.includes(id)) : [];
     const title: CanonicalJob["title"] = oldJob?.title.value === record.title || oldJob?.title.method === "manual" ? oldJob.title : { value: record.title, evidence: evidence("title", record.title), method: titleMethod, verification: "unverified", revision: (oldJob?.title.revision ?? -1) + 1 };
     const next: CanonicalJob = {
       ...oldJob, id: jobId, companyId, title, description: retainDescription ? oldJob!.description : record.description ?? oldJob?.description ?? "",

@@ -213,7 +213,7 @@
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > .atlas-search { grid-column: 1; grid-row: 1; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > .atlas-source-search { grid-column: 2; grid-row: 1; min-width: 0; padding-inline: 8px; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > :is(select,.atlas-region-search,.atlas-domestic-region) { display: none; }
-.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-tools > :not(:last-child) { display: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-tools > :not(:last-child):not(.atlas-official-discovery) { display: none; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-utilities { flex-direction: row; align-items: center; gap: 6px; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-tools { width: auto; flex: none; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-search-hint { font-size: 10px; }

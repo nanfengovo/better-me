@@ -15,11 +15,11 @@ type State = { kind: "reading" | "ranking" | "cancelled" | "error" }
 export type ResumeJobRecommendationsProps = {
   evidenceLinks?: RequirementEvidenceLink[];
   factBase: FactBase; currentFactBase?: FactBase; isStale?: boolean; requestId: number;
-  onRefresh: () => void; onClose: () => void; onOpenAtlas: () => void; onAnalyze: (job: DrawerJobContext) => void; onEditResume?: () => void; onSelectForResume?: (job: DrawerJobContext) => void;
+  onRefresh: () => void; onClose: () => void; onOpenAtlas: () => void; onDiscoverOfficialJobs?: (role: string) => void; onAnalyze: (job: DrawerJobContext) => void; onEditResume?: () => void; onSelectForResume?: (job: DrawerJobContext) => void;
   loadSource?: (signal: AbortSignal, profile: RecommendationProfile, options?: RecommendationReadOptions) => Promise<RecommendationSource>;
 };
 
-export default function ResumeJobRecommendations({ factBase, currentFactBase, evidenceLinks, isStale, requestId, onRefresh, onClose, onOpenAtlas, onAnalyze, onEditResume, onSelectForResume, loadSource = readRecommendationSource }: ResumeJobRecommendationsProps) {
+export default function ResumeJobRecommendations({ factBase, currentFactBase, evidenceLinks, isStale, requestId, onRefresh, onClose, onOpenAtlas, onDiscoverOfficialJobs, onAnalyze, onEditResume, onSelectForResume, loadSource = readRecommendationSource }: ResumeJobRecommendationsProps) {
   const { t, locale } = useUiPreferences();
   const baseProfile = useMemo(() => extractRecommendationProfile(factBase), [factBase]);
   const [selectedRole, setSelectedRole] = useState("");
@@ -106,7 +106,7 @@ export default function ResumeJobRecommendations({ factBase, currentFactBase, ev
       <button type="button" className="rjr-icon" onClick={onClose} aria-label={t("关闭岗位推荐", "Close recommendations")}><X size={16} /></button>
     </header>
     <div id={`${titleId}-body`} hidden={collapsed}>
-      <div className="rjr-controls"><p>{t("先显示已返回的岗位，不影响下方编辑。", "Available matches appear first. Keep editing below.")}</p>
+      <div className="rjr-controls">{onDiscoverOfficialJobs && <button type="button" onClick={() => onDiscoverOfficialJobs(profile.targetRole || profile.roles[0] || "")}>{t("按简历发现官网岗位", "Discover employer jobs")}<ArrowUpRight size={13} /></button>}<p>{t("先显示已返回的岗位，不影响下方编辑。", "Available matches appear first. Keep editing below.")}</p>
         <label>{t("目标方向", "Target role")}<select value={selectedRole} onChange={event => setSelectedRole(event.target.value)}>
           <option value="">{t("所有目标方向", "All target roles")}</option>{baseProfile.roles.map(name => <option key={name}>{name}</option>)}<option value="__custom">{t("探索其他方向", "Explore another role")}</option></select></label>
         {selectedRole === "__custom" && <form onSubmit={event => { event.preventDefault(); setCustomRole(roleDraft.trim()); }}><label>{t("探索的职位", "Role to explore")}<input maxLength={100} value={roleDraft} onChange={event => setRoleDraft(event.target.value)}/></label><button type="submit" disabled={!roleDraft.trim()}>{t("查看这个方向", "Explore role")}</button></form>}

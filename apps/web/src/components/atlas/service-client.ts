@@ -161,8 +161,8 @@ async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 102
 }
 
 /** Browser access to the real authenticated tool routes. Source configs remain inert data. */
-export function createAtlasSourceClient(endpoint: string, token: string) {
-  async function request<T>(path: string, schema: z.ZodType<T, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
+export function createAtlasToolRequest(endpoint: string, token: string) {
+  return async function request<T>(path: string, schema: z.ZodType<T, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
     options.signal?.throwIfAborted(); const base = baseUrl(endpoint, token);
     if (key !== undefined) input(KeySchema, key);
     let response: Response;
@@ -191,7 +191,13 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     const result = schema.safeParse(parsed.data.value);
     if (!result.success) throw new AtlasSourceServiceError("invalid-response", "服务返回内容不符合来源工具契约。");
     return result.data;
-  }
+  };
+}
+
+export { ReceiptSchema as AtlasImportReceiptSchema };
+
+export function createAtlasSourceClient(endpoint: string, token: string) {
+  const request = createAtlasToolRequest(endpoint, token);
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
     mapReferences: async (value: MapReferencesInput, options: Options = {}) => {

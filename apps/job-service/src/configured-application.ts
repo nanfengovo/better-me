@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { createControlledSourceTransport, createGoogleDohResolver, createCareerWebSearchProvider } from "@better-me/source-adapters";
 import { createJobApplication } from "./application.js";
 import { createNominatimOfficeProvider, createAmapOfficeProvider } from "./office-address-provider.js";
@@ -14,7 +15,7 @@ export function configuredApplicationOptions(config: JobServiceConfig, repositor
     timeoutMs: 65_000,
   });
   return {
-    repository, transport,
+    repository, transport, jobWatchDatabasePath: join(config.dataDirectory, "job-watch.sqlite"),
     ...(config.officeGeocoder?.provider === "nominatim" ? { officeAddressProvider: createNominatimOfficeProvider(transport) } : {}),
     ...(config.officeGeocoder?.provider === "amap" ? { officeAddressProvider: createAmapOfficeProvider(transport, { key: config.officeGeocoder.key, dataDirectory: config.dataDirectory }) } : {}),
     ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from "electron";
+import { Notification, app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from "electron";
 import { spawn, type ChildProcess } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -39,6 +39,15 @@ export function startPackagedApp() {
     return exportWindowToPdf(window, suggestedFilename);
   });
   const explainHud = () => { void dialog.showMessageBox({ type: "info", message: "请先在工作台准备并核对面试材料。", detail: "此版本不展示预置的个人经历、指标或未经核对的防守话术。" }); };
+  let lastJobWatchNotice = 0;
+  ipcMain.handle("desktop:notify-job-watch", event => {
+    if (!trusted(event) || !Notification.isSupported() || Date.now() - lastJobWatchNotice < 10_000) return;
+    lastJobWatchNotice = Date.now();
+    // A system banner omits account, resume and posting content.
+    const notification = new Notification({ title: "BetterMe · 后台寻岗", body: "有新的官网岗位等待审阅。" });
+    notification.on("click", () => { window?.show(); window?.focus(); window?.webContents.send("desktop:open-job-watch"); });
+    notification.show();
+  });
   ipcMain.handle("desktop:toggle-hud", event => { if (trusted(event)) explainHud(); });
   nativeTheme.on("updated", () => window?.webContents.send("desktop:theme-changed", nativeTheme.shouldUseDarkColors ? "dark" : "light"));
 

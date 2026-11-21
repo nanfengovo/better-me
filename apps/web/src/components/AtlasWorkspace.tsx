@@ -16,6 +16,7 @@ import { shouldAutoReconnectAtlas } from "./atlas/connection-recovery";
 import { AtlasActivityRail } from "./atlas/AtlasActivityRail";
 import { AtlasSettingsDialog } from "./atlas/AtlasSettingsDialog";
 import { AtlasSettingsModalBody } from "./atlas/AtlasSettingsModalBody";
+import { resumeDiscoveryCriteria } from "../lib/resume-discovery-criteria";
 import { AtlasPrimarySearchBar } from "./atlas/AtlasPrimarySearchBar";
 import { AtlasQuickFilters } from "./atlas/AtlasQuickFilters";
 import { AtlasToolbarMenu } from "./atlas/AtlasToolbarMenu";
@@ -90,6 +91,7 @@ const loadAtlasMap = () => import("./atlas/AtlasMapViewport");
 function AtlasMap(props: AtlasPrototypeProps) {
   return <RecoverableModule load={loadAtlasMap} componentProps={props} label="地图引擎" resetRevision={props.resetRevision} />;
 }
+const AtlasResumeDiscovery = lazy(() => import("./atlas/AtlasResumeDiscovery").then(module => ({ default: module.AtlasResumeDiscovery })));
 const AtlasSourcesPanel = lazy(() => import("./atlas/AtlasSourcesPanel").then((m) => ({ default: m.AtlasSourcesPanel })));
 const AtlasSourceCandidateReview = lazy(() => import("./atlas/AtlasSourceCandidateReview").then((m) => ({ default: m.AtlasSourceCandidateReview })));
 const AtlasReviewedCardImport = lazy(() => import("./atlas/AtlasReviewedCardImport").then((m) => ({ default: m.AtlasReviewedCardImport })));
@@ -117,7 +119,7 @@ import {
   DISTANCE_FILTER_OPTIONS,
   PUBLICATION_FILTER_OPTIONS,
 } from "./atlas/atlas-filter-presets";
-type Props = { active?: boolean; resume?: ProjectedResume | null; factBase?: FactBase | null; agentConfig?: LlmConfig; onAskAgentAboutHarvest?: (prompt: string) => void; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void; devJobIndex?: (signal: AbortSignal) => Promise<DevJobIndexBootstrap | undefined> };
+type Props = { resumeIdentity?: string; active?: boolean; resume?: ProjectedResume | null; factBase?: FactBase | null; agentConfig?: LlmConfig; onAskAgentAboutHarvest?: (prompt: string) => void; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void; devJobIndex?: (signal: AbortSignal) => Promise<DevJobIndexBootstrap | undefined> };
 
 type AtlasJobCardRowProps = {
   item: JobSearchItem;
@@ -159,7 +161,7 @@ const AtlasJobCardRow = memo(function AtlasJobCardRow({
   );
 });
 
-export default function AtlasWorkspace({ active = true, resume, factBase, agentConfig, onAskAgentAboutHarvest, onSaveOpportunity, onAnalyze, onOpenOpportunitySources, devJobIndex = (import.meta.env?.DEV === true || readRuntimeConnection()) ? requestDevJobIndex : undefined }: Props) {
+export default function AtlasWorkspace({ active = true, resume, factBase, resumeIdentity, agentConfig, onAskAgentAboutHarvest, onSaveOpportunity, onAnalyze, onOpenOpportunitySources, devJobIndex = (import.meta.env?.DEV === true || readRuntimeConnection()) ? requestDevJobIndex : undefined }: Props) {
   const { t, theme } = useUiPreferences();
   const { workspace, layout } = useAtlasPaneLayout(active);
   const resumePrefill = useMemo(() => extractResumePrefill(resume, factBase), [resume, factBase]);
@@ -190,6 +192,13 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const [localLoading, setLocalLoading] = useState(false);
   const [publicationNow, setPublicationNow] = useState(() => new Date().toISOString());
   const [localReload, setLocalReload] = useState(0);
+  const [discoveryOpen, setDiscoveryOpen] = useState(() =>
+    new URLSearchParams(globalThis.location?.search).get("discover") === "official");
+  const showingDiscovery = active && discoveryOpen;
+  const discoveryCriteria = useMemo(() => showingDiscovery ? resumeDiscoveryCriteria(resume, factBase) : undefined,
+    [showingDiscovery, resume, factBase]);
+  const [discoveredCompany, setDiscoveredCompany] = useState("");
+  function closeDiscovery() { setDiscoveryOpen(false); }
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
   const [searchSourceId, setSearchSourceId] = useState("");
@@ -1712,6 +1721,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       allowVisualFallback={allowVisualFallback}
       setAllowVisualFallback={setAllowVisualFallback}
       resumeTargetRole={resumePrefill.targetRole}
+      onDiscoverOfficialJobs={() => setDiscoveryOpen(true)}
       onOpenAuthHub={() => setAuthHubOpen(true)}
       onSearchSourceJobs={() => searchSourceJobs()}
       connectionError={connectionError}
@@ -1728,6 +1738,15 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       indexError={indexError}
       t={t}
     />
+    {showingDiscovery && <AtlasSettingsDialog title={t("按简历发现官网岗位", "Discover employer jobs")} onClose={closeDiscovery} closeLabel={t("关闭岗位发现", "Close job discovery")} className="atlas-discovery-dialog">
+      {!token.trim() && <button type="button" onClick={retryIndexConnection} disabled={connecting}>{connecting ? t("正在连接…", "Connecting…") : t("连接本机岗位服务", "Connect local job service")}</button>}
+      <Suspense fallback={<p role="status">{t("正在打开岗位发现…", "Opening job discovery…")}</p>}>
+        <AtlasResumeDiscovery key={resumeIdentity} endpoint={endpoint} token={token}
+          {...discoveryCriteria}
+          onManageSources={company => { closeDiscovery(); setDiscoveredCompany(company ?? ""); setCommandOpen(true); setSourcesOpen(true); }}
+          onCollected={retryIndexConnection} />
+      </Suspense>
+    </AtlasSettingsDialog>}
     {active && settings && <AtlasSettingsDialog title={settingsTitles[settings]} onClose={() => setSettings(null)}>
       <AtlasSettingsModalBody
         settings={settings}
@@ -1796,7 +1815,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
       setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
     }} /></Suspense>}
-    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel initialCompany={discoveredCompany} endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => { setSourcesOpen(false); setDiscoveredCompany(""); }} /></Suspense>}
 
     <div className="atlas-search-panel">
 

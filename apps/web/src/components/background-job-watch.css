@@ -1,0 +1,64 @@
+.job-watch-content { display: grid; gap: 14px; min-width: 0; }
+.job-watch-content p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.job-watch-dialog .atlas-settings-dialog-body { padding: 16px 20px; }
+.job-watch-content .job-watch-muted, .job-watch-content small { color: var(--ui-text-secondary); font-size: 12px; }
+.job-watch-content button, .job-watch-content select, .job-watch-content input:not([type="checkbox"]), .job-watch-switch select { min-height: 34px; border: 1px solid var(--ui-border); border-radius: 8px; color: var(--ui-text); background: var(--ui-surface); box-sizing: border-box; padding: 6px 9px; }
+.job-watch-content button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.job-watch-content button:disabled { cursor: default; opacity: .55; }
+.job-watch-content .job-watch-primary { background: var(--ui-accent); border-color: var(--ui-accent); color: white; font-weight: 600; }
+.job-watch-content a { color: var(--ui-accent); overflow-wrap: anywhere; }
+.job-watch-switch, .job-watch-switch select { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.job-watch-state, .job-watch-config { display: grid; gap: 12px; border: 1px solid var(--ui-border); border-radius: 12px; padding: 14px; background: var(--ui-surface); }
+.job-watch-state-title, .job-watch-criteria-summary, .job-watch-results > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.job-watch-state-title > div { display: inline-flex; align-items: center; gap: 8px; }
+.job-watch-state[data-phase="searching"] .job-watch-state-title svg { color: #25875f; }
+.job-watch-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border: 1px solid var(--ui-border); border-radius: 9px; padding: 10px; }
+.job-watch-metrics > div { display: grid; gap: 3px; padding: 0 4px; text-align: center; }
+.job-watch-metrics strong { font-size: 23px; font-variant-numeric: tabular-nums; font-weight: 650; }
+.job-watch-metrics span { color: var(--ui-text-secondary); font-size: 12px; }
+.job-watch-criteria-summary { font-size: 13px; }
+.job-watch-criteria-summary span { flex: 1 1 240px; overflow-wrap: anywhere; color: var(--ui-text-secondary); }
+.job-watch-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.job-watch-form label { display: grid; gap: 6px; font-weight: 600; font-size: 13px; }
+.job-watch-form input { min-width: 0; width: 100%; font-weight: 400; }
+.job-watch-region { display: flex; align-items: center; gap: 5px; }
+.job-watch-region button { white-space: nowrap; }
+.job-watch-preferences, .job-watch-config-actions { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.job-watch-preferences label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.job-watch-results { display: grid; gap: 12px; }
+.job-watch-results h3 { margin: 0 0 4px; font-size: 16px; }
+.job-watch-empty { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 28px 12px; border-radius: 12px; border: 1px dashed var(--ui-border); color: var(--ui-text-secondary); }
+.job-watch-empty strong { color: var(--ui-text); }
+.job-watch-company { background: var(--ui-surface); border-color: var(--ui-border); }
+.job-watch-company h4 { font-size: 16px; }
+.job-watch-job { display: grid; gap: 6px; border-top: 1px solid var(--ui-border); padding: 12px 0 6px; min-width: 0; }
+.job-watch-job-title { display: flex; align-items: start; justify-content: space-between; gap: 9px; flex-wrap: wrap; }
+.job-watch-job-title h5 { font-size: 14px; margin: 0; flex: 1 1 250px; }
+.job-watch-tier { font-size: 11px; border: 1px solid var(--ui-border); padding: 3px 7px; border-radius: 6px; white-space: nowrap; color: var(--ui-text-secondary); }
+.job-watch-tier[data-tier="priority"] { color: #218258; border-color: #49926a66; }
+.job-watch-tier[data-tier="confirm"] { color: #a36b20; border-color: #a36b2066; }
+.job-watch-quote { display: block; }
+.job-watch-link a { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; }
+.job-watch-details summary { color: var(--ui-text-secondary); font-size: 12px; cursor: pointer; }
+.job-watch-details p, .job-watch-details ul { margin: 6px 0; padding-block: 3px; font-size: 13px; }
+.job-watch-content .ard-description { white-space: pre-line; max-height: 280px; overflow: auto; }
+.job-watch-page { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.job-watch-error { color: #ae3542; font-size: 13px; }
+.job-watch-bell { flex-shrink: 0; }
+.job-watch-badge { font-size: 10px; min-width: 17px; padding: 1px 4px; border-radius: 12px; font-weight: 700; background: #df603f; color: #fff; text-align: center; }
+.job-watch-toast { position: fixed; z-index: 10050; right: 16px; top: 40px; display: flex; align-items: center; gap: 10px; width: min(360px,calc(100vw - 32px)); box-sizing: border-box; color: var(--ui-text); background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 12px; box-shadow: 0 8px 30px #11182722; padding: 12px; }
+.job-watch-toast > div { flex: 1; }
+.job-watch-toast p { margin: 3px 0 0; color: var(--ui-text-secondary); font-size: 12px; }
+.job-watch-toast button { border: 1px solid var(--ui-border); color: var(--ui-text); background: var(--ui-surface); border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 12px; }
+.job-watch-toast .job-watch-toast-close { border: 0; padding: 3px; }
+@media(max-width: 580px) { .job-watch-form { grid-template-columns: 1fr; } .job-watch-metrics { gap: 10px; grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media print { .job-watch-toast { display: none; } }
+
+.job-watch-from-search { margin: 0 0 14px; color: var(--ui-accent) !important; }
+
+.job-watch-content .job-watch-notification-setting { justify-self: start; font-size: 12px; }
+
+.job-watch-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.job-watch-filter button { font-size: 13px; }
+.job-watch-filter button[aria-pressed="true"] { color: var(--ui-accent); border-color: var(--ui-accent); font-weight: 650; }
+.job-watch-filter button span { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ui-text-secondary); }

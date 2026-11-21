@@ -10,6 +10,8 @@ export interface DesktopBridgeApi {
   };
   getAgentHostInfo?: () => Promise<{ endpoint: string; token: string; port: number }>;
   toggleStarPrompterHud?: () => Promise<void>;
+  notifyJobWatch?: () => Promise<void>;
+  onJobWatchNotice?: (callback: () => void) => () => void;
   openExternal?: (url: string) => Promise<void>;
   exportPdf?: (suggestedFilename?: string) => Promise<{ ok: boolean; cancelled?: boolean; filePath?: string; error?: string }>;
   armInventoryMicrophone?: () => Promise<boolean>;

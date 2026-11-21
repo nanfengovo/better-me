@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import {
   AtlasDatasetObjectSchema, AtlasDatasetSchema, validateAtlasDatasetReferences, normalizeSearchText,
-  SourceDefinitionSchema, CompanySchema, type AtlasDataset, type Company, type CanonicalJob, type SourceListing,
+  SourceDefinitionSchema, CompanySchema, type SourceDefinition, type AtlasDataset, type Company, type CanonicalJob, type SourceListing,
   EntityIdSchema, MergeDecisionSchema, ReconciliationReceiptSchema, JobAliasEventSchema,
   ConfirmMergeInputSchema, RejectMergeInputSchema, RevokeMergeInputSchema, explainMergeCandidate,
   findMergeCandidates, projectReconciliation,
@@ -62,6 +62,8 @@ export class RepositoryError extends Error {
   constructor(public readonly code: RepositoryErrorCode) { super(PUBLIC_ERRORS[code]); this.name = "RepositoryError"; }
 }
 export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string;
+  /** Writer-side compare-and-swap for a computed delta; the caller's command identity stays stable across retries. */
+  projectedRevision?: number;
   /** Host-computed identity of a fully validated command, independent of its projected delta. */
   requestFingerprint?: string;
   /** Host-projected rejected claims; persisted atomically with the successful receipt. */
@@ -132,6 +134,7 @@ function checked<T>(schema: { safeParse(input: unknown): { success: boolean; dat
 function validateOptions(options: ImportOptions) {
   checked(ActorScopeSchema, options.actorScope); checked(IdempotencyKeySchema, options.idempotencyKey);
   if (options.requestFingerprint !== undefined) checked(RequestFingerprintSchema, options.requestFingerprint);
+  if (options.projectedRevision !== undefined && (!Number.isSafeInteger(options.projectedRevision) || options.projectedRevision < 0)) throw new RepositoryError("invalid-data");
   if (options.expectedRevision !== undefined && (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision < 0)) throw new RepositoryError("invalid-data");
 }
 function emptyDataset(revision = 0): AtlasDataset {
@@ -855,6 +858,10 @@ export function openJobRepository(path: string, options: { now?: () => string; r
         throw error;
       }
     },
+    async readSourceDefinitions(): Promise<SourceDefinition[]> {
+      return transaction(() => (db.prepare("SELECT document FROM sources ORDER BY id").all() as { document: string }[])
+        .map(row => JSON.parse(row.document) as SourceDefinition), true);
+    },
     async readSnapshot(): Promise<AtlasDataset> {
       return transaction(() => {
         const key = snapshotKey();
@@ -875,7 +882,14 @@ export function openJobRepository(path: string, options: { now?: () => string; r
     },
     async closeBaselineSession(session: string, actorScope = "local-owner") { ensureOpen(); return baselineStore.closeSession(session, actorScope); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
-    async readProjectionSnapshot(selection?: ProjectionSelection): Promise<AtlasDataset> { return transaction(() => selection ? projectionSlice.read({ seeds: selection, listingHistory: true }).base : baseSnapshot()); },
+    async readProjectionSnapshot(selection?: ProjectionSelection, exactListingUrl?: string): Promise<AtlasDataset> {
+      return transaction(() => {
+        if (!selection) return baseSnapshot();
+        const linked = exactListingUrl ? db.prepare("SELECT id FROM listings WHERE json_extract(document,'$.canonicalUrl')=?").all(exactListingUrl) as { id: string }[] : [];
+        const seeds = linked.length ? { ...selection, listings: [...(selection.listings ?? []), ...linked.map(row => row.id)] } : selection;
+        return projectionSlice.read({ seeds, listingHistory: true }).base;
+      });
+    },
     async readOfficeAddressTarget(input: OfficeAddressCandidatesInput) {
       const parsed = checked(OfficeAddressCandidatesInputSchema, input);
       return transaction(() => {
@@ -1269,7 +1283,8 @@ export function openJobRepository(path: string, options: { now?: () => string; r
         if (cached) return checked(ImportReceiptSchema, cached);
         const slice = projectionSlice.read({ incoming });
         const { current, base } = slice;
-        if (importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision) throw new RepositoryError("stale-version");
+        if ((importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision)
+          || (importOptions.projectedRevision !== undefined && current.revision !== importOptions.projectedRevision)) throw new RepositoryError("stale-version");
         const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
         const nextBase = merged(base, incoming);
         if (run) validateRunDelta(incoming, nextBase, base, run);
