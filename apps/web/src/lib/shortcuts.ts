@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ShortcutId =
+  | "commandPalette"
   | "undo"
   | "redo"
   | "save"
@@ -31,9 +32,10 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   { id: "redo", category: "edit", defaultSpec: "mod+shift+z", zh: "重做修改", en: "Redo", descZh: "恢复刚刚撤销的简历修改", descEn: "Redo the last undone edit" },
   { id: "save", category: "edit", defaultSpec: "mod+s", zh: "立即保存", en: "Save now", descZh: "立即持久化当前简历文档", descEn: "Save the current resume immediately" },
   { id: "history", category: "edit", defaultSpec: "mod+shift+s", zh: "历史版本", en: "Version history", descZh: "打开版本历史与回滚面板", descEn: "Open version history and restore panel" },
+  { id: "commandPalette", category: "view", defaultSpec: "mod+k", zh: "全局命令面板", en: "Command palette", descZh: "快速搜索并执行任意操作、模板或工作台切换", descEn: "Search and run any action, template, or workspace jump" },
   { id: "focusMode", category: "view", defaultSpec: "mod+shift+f", zh: "切换专注模式", en: "Toggle focus mode", descZh: "隐藏桌面顶栏，专注编辑与预览", descEn: "Hide desktop chrome for focused editing" },
   { id: "toggleDesign", category: "view", defaultSpec: "mod+shift+d", zh: "切换内容 / 设计", en: "Toggle Content / Design", descZh: "在内容编辑与版式设计间切换", descEn: "Switch between Content and Design tabs" },
-  { id: "findJobs", category: "view", defaultSpec: "mod+k", zh: "按简历找岗位", en: "Find jobs with resume", descZh: "唤起按简历匹配岗位的搜索窗口", descEn: "Open resume-based job discovery" },
+  { id: "findJobs", category: "view", defaultSpec: "mod+j", zh: "按简历找岗位", en: "Find jobs with resume", descZh: "唤起按简历匹配岗位的搜索窗口", descEn: "Open resume-based job discovery" },
   { id: "openSettings", category: "view", defaultSpec: "mod+,", zh: "打开系统设置", en: "Open Settings", descZh: "打开系统设置与快捷键配置", descEn: "Open system settings window" },
   { id: "switchResume", category: "navigation", defaultSpec: "alt+1", zh: "切到简历工作室", en: "Go to Resume Studio", descZh: "快速切换到简历工作室", descEn: "Switch to Resume Studio" },
   { id: "switchOpportunities", category: "navigation", defaultSpec: "alt+2", zh: "切到机会与投递", en: "Go to Opportunities", descZh: "快速切换到机会与投递", descEn: "Switch to Opportunities" },

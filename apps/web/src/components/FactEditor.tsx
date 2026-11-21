@@ -42,11 +42,12 @@ type Props = {
   issueNavigation?: IssueNavigationRequest | null;
   onDismissIssue?: () => void;
   writingFocus?: { key: string; experienceId?: string; locale: "zh" | "en"; requestId: number } | null;
+  focusAnchor?: { anchor: string; requestId: number } | null;
 };
 
 type ViewMode = "bilingual" | "zh" | "en";
 
-export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue, writingFocus }: Props) {
+export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue, writingFocus, focusAnchor }: Props) {
   const { t, locale } = useUiPreferences();
   const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
     { value: "work", label: t("工作经历", "Work experience") },
@@ -130,6 +131,31 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
     });
     return () => cancelAnimationFrame(frame);
   }, [writingFocus]);
+
+  useEffect(() => {
+    if (!focusAnchor) return;
+    const { anchor } = focusAnchor;
+    if (anchor.startsWith("profile:") || anchor === "skills" || anchor === "targetRoles") {
+      setActiveTab("profile");
+    } else if (anchor.startsWith("experience:")) {
+      const expId = anchor.slice("experience:".length);
+      setActiveTab("experiences");
+      setCollapsedExps(previous => ({ ...previous, [expId]: false }));
+    } else if (anchor.startsWith("claim:")) {
+      const claimId = anchor.slice("claim:".length);
+      const ownerExp = factBase.experiences.find(exp => exp.claims.some(c => c.id === claimId));
+      setActiveTab("experiences");
+      if (ownerExp) setCollapsedExps(previous => ({ ...previous, [ownerExp.id]: false }));
+    }
+    const frame = requestAnimationFrame(() => {
+      const target = [...(scrollerRef.current?.querySelectorAll<HTMLElement>("[data-editor-anchor]") ?? [])].find(el => el.dataset.editorAnchor === anchor);
+      if (!target) return;
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      const field = target.querySelector<HTMLElement>("textarea, input");
+      field?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusAnchor, factBase.experiences]);
 
   useEffect(() => () => {
     if (pendingFollowFrameRef.current !== undefined) cancelAnimationFrame(pendingFollowFrameRef.current);

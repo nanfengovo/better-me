@@ -78,9 +78,9 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { Maximize2, Check, Download, FileText, GitBranch, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
-import { Button, SegmentedControl, SelectMenu } from "./design-system";
-import { formatShortcut, isMacPlatform, matchesShortcut, useShortcuts } from "./lib/shortcuts";
+import { Maximize2, Check, Download, FileText, GitBranch, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X, Keyboard, Layout, Compass, Bot, Zap, Undo2, Redo2, SlidersHorizontal } from "lucide-react";
+import { Button, CommandPalette, SegmentedControl, SelectMenu, type CommandItem } from "./design-system";
+import { formatShortcut, formatShortcutTokens, isMacPlatform, matchesShortcut, useShortcuts } from "./lib/shortcuts";
 import { useDocumentUndo } from "./lib/useDocumentUndo";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 const AgentCompanion = lazy(() => import("./components/AgentCompanion").then(module => ({ default: module.AgentCompanion })));
@@ -185,6 +185,8 @@ export function App() {
   const recommendationRequestRef = useRef(0);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [editorFocusAnchor, setEditorFocusAnchor] = useState<{ anchor: string; requestId: number } | null>(null);
   const [actionError, setActionError] = useState("");
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +207,13 @@ export function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof Element && (event.target.closest(".confirmation-dialog") || event.target.closest('[data-recording="true"]'))) return;
       const modalOpen = isJdMatchOpen || isAgentDrawerOpen || isImportModalOpen || isAiConfigOpen || isNetworkSettingsOpen;
+
+      if (matchesShortcut(event, shortcuts.commandPalette, mac)) {
+        event.preventDefault();
+        setIsCommandPaletteOpen((open) => !open);
+        return;
+      }
+      if (isCommandPaletteOpen) return;
 
       if (matchesShortcut(event, shortcuts.openSettings, mac)) {
         event.preventDefault();
@@ -258,7 +267,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [shortcuts, flush, page, isJdMatchOpen, isAgentDrawerOpen, isImportModalOpen, isAiConfigOpen, isNetworkSettingsOpen, docUndo, update, setPage, setWorkspaceTab, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shortcuts, flush, page, isCommandPaletteOpen, isJdMatchOpen, isAgentDrawerOpen, isImportModalOpen, isAiConfigOpen, isNetworkSettingsOpen, docUndo, update, setPage, setWorkspaceTab, t]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isMenuOpen) return;
     const close = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setIsMenuOpen(false); };
@@ -783,6 +792,183 @@ export function App() {
   };
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
   const saveShortcutLabel = formatShortcut(shortcuts.save);
+  const cmdShortcutLabel = formatShortcut(shortcuts.commandPalette);
+  const mac = isMacPlatform();
+  const quickTemplates = [
+    { id: "zh-classic", zh: "经典正式", en: "Classic", keywords: "classic 经典 正式" },
+    { id: "en-ats", zh: "极简单栏 · ATS", en: "Minimal ATS", keywords: "ats plain minimal 极简 单栏" },
+    { id: "clean-modern", zh: "现代专业", en: "Modern professional", keywords: "modern 现代 技术" },
+    { id: "editorial", zh: "编辑部", en: "Editorial", keywords: "editorial 编辑 衬线" },
+    { id: "rendercv-engineeringresumes", zh: "RenderCV · Engineering", en: "RenderCV · Engineering", keywords: "rendercv engineering 工程师" },
+  ] as const;
+  const commandItems: CommandItem[] = isCommandPaletteOpen
+    ? [
+        {
+          id: "action-find-jobs",
+          group: t("常用操作", "Actions"),
+          label: t("按简历找岗位", "Find jobs with this resume"),
+          keywords: "jobs search discovery 找岗位 招聘",
+          icon: <Search size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.findJobs, mac),
+          onSelect: () => { setPage("resume"); openResumeDiscovery(); },
+        },
+        {
+          id: "action-save",
+          group: t("常用操作", "Actions"),
+          label: t("立即保存当前简历", "Save resume now"),
+          keywords: "save persist flush 保存",
+          icon: <Check size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.save, mac),
+          onSelect: () => { void flush(); },
+        },
+        {
+          id: "action-undo",
+          group: t("常用操作", "Actions"),
+          label: t("撤销修改", "Undo edit"),
+          keywords: "undo revert 撤销",
+          icon: <Undo2 size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.undo, mac),
+          disabled: !docUndo.canUndo,
+          onSelect: () => {
+            const current = docRef.current;
+            if (!current) return;
+            const prev = docUndo.undo(current);
+            if (!prev) return;
+            restoreOperationRef.current += 1;
+            setIsRestoring(false);
+            setActionError("");
+            docRef.current = prev;
+            update(prev);
+            showUndoFeedback(t("已撤销修改", "Undone"));
+          },
+        },
+        {
+          id: "action-redo",
+          group: t("常用操作", "Actions"),
+          label: t("重做修改", "Redo edit"),
+          keywords: "redo 重做",
+          icon: <Redo2 size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.redo, mac),
+          disabled: !docUndo.canRedo,
+          onSelect: () => {
+            const current = docRef.current;
+            if (!current) return;
+            const next = docUndo.redo(current);
+            if (!next) return;
+            restoreOperationRef.current += 1;
+            setIsRestoring(false);
+            setActionError("");
+            docRef.current = next;
+            update(next);
+            showUndoFeedback(t("已重做修改", "Redone"));
+          },
+        },
+        {
+          id: "action-history",
+          group: t("常用操作", "Actions"),
+          label: t("打开历史版本", "Open version history"),
+          keywords: "history versions rollback 历史 版本",
+          icon: <GitBranch size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.history, mac),
+          onSelect: () => { setPage("resume"); setIsHistoryOpen(true); },
+        },
+        {
+          id: "action-toggle-design",
+          group: t("常用操作", "Actions"),
+          label: workspaceTab === "content" ? t("切换到版式设计", "Switch to Design") : t("切换到内容编辑", "Switch to Content"),
+          keywords: "design layout content 设计 版式 内容",
+          icon: <SlidersHorizontal size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.toggleDesign, mac),
+          onSelect: () => { setPage("resume"); setWorkspaceTab((tab) => (tab === "content" ? "design" : "content")); },
+        },
+        {
+          id: "action-focus-mode",
+          group: t("常用操作", "Actions"),
+          label: focused ? t("退出专注模式", "Exit focus mode") : t("进入专注模式", "Enter focus mode"),
+          keywords: "focus zen maximize 专注 全屏",
+          icon: <Maximize2 size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.focusMode, mac),
+          onSelect: () => { setPage("resume"); setFocused((v) => !v); },
+        },
+        {
+          id: "action-inventory",
+          group: t("常用操作", "Actions"),
+          label: t("盘点履历与最近变化", "Career inventory"),
+          keywords: "inventory career review 盘点 履历",
+          icon: <BookOpenCheck size={14} />,
+          onSelect: () => { setPage("resume"); openInventory(); },
+        },
+        {
+          id: "action-import",
+          group: t("常用操作", "Actions"),
+          label: t("导入简历 (PDF / DOCX / Markdown)", "Import resume"),
+          keywords: "import pdf docx markdown 导入",
+          icon: <Upload size={14} />,
+          onSelect: () => { setPage("resume"); setIsImportModalOpen(true); },
+        },
+        {
+          id: "action-shortcuts",
+          group: t("常用操作", "Actions"),
+          label: t("自定义全局快捷键", "Customize keyboard shortcuts"),
+          keywords: "settings shortcuts hotkeys keybindings 设置 快捷键",
+          icon: <Keyboard size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.openSettings, mac),
+          onSelect: () => openSystemSettings("shortcuts"),
+        },
+        {
+          id: "nav-resume",
+          group: t("工作台", "Workspaces"),
+          label: t("简历工作室", "Resume Studio"),
+          keywords: "resume editor studio 简历",
+          icon: <FileText size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.switchResume, mac),
+          onSelect: () => { setPage("resume"); setWorkspaceTab("content"); },
+        },
+        {
+          id: "nav-opportunities",
+          group: t("工作台", "Workspaces"),
+          label: t("机会与投递", "Opportunities"),
+          keywords: "opportunities jobs tracker 机会 投递",
+          icon: <Radar size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.switchOpportunities, mac),
+          onSelect: () => setPage("opportunities"),
+        },
+        {
+          id: "nav-atlas",
+          group: t("工作台", "Workspaces"),
+          label: t("岗位地图", "Opportunity Atlas"),
+          keywords: "atlas map 岗位 地图",
+          icon: <Compass size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.switchAtlas, mac),
+          onSelect: () => setPage("atlas"),
+        },
+        {
+          id: "nav-agent",
+          group: t("工作台", "Workspaces"),
+          label: t("AI 职业顾问", "AI Career Workspace"),
+          keywords: "agent advisor ai 职业顾问",
+          icon: <Bot size={14} />,
+          shortcutTokens: formatShortcutTokens(shortcuts.switchAgent, mac),
+          onSelect: () => setPage("agent"),
+        },
+        {
+          id: "nav-autopilot",
+          group: t("工作台", "Workspaces"),
+          label: t("Autopilot 工坊", "Autopilot Studio"),
+          keywords: "autopilot automation 自动 投递",
+          icon: <Zap size={14} />,
+          onSelect: () => setPage("autopilot"),
+        },
+        ...quickTemplates.map((tpl) => ({
+          id: `tpl-${tpl.id}`,
+          group: t("版式快切", "Quick Templates"),
+          label: t(`切换模板 · ${tpl.zh}`, `Template · ${tpl.en}`),
+          keywords: `template theme ${tpl.keywords}`,
+          icon: <Layout size={14} />,
+          onSelect: () => { setPage("resume"); setTemplate(tpl.id); },
+        })),
+      ]
+    : [];
 
   return <LocalAgentRuntimeProvider><BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell jobWatchControls={<BackgroundJobWatchCenter target={backgroundWatch} onCloseTarget={() => setBackgroundWatch(undefined)} onOpenMap={() => { setBackgroundWatch(undefined); setPage("atlas"); }} />} page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => openSystemSettings("connections")} />} />} onNavigate={next => { if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
@@ -899,7 +1085,7 @@ export function App() {
             readback={editionReadback && !editionReadback.identitySignal.aborted && editionReadback.workspaceKey === (doc.documentId ?? "default")
               && (activeResume.id === editionReadback.editionId || activeResume.id === editionReadback.receipt.sourceResumeId) ? editionReadback : undefined}
             workspaceKey={doc.documentId ?? "default"} config={llmConfig} onSave={saveReplacementEdition} />}
-            <FactEditor writingFocus={writingFocus} factBase={visibleFacts} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
+            <FactEditor writingFocus={writingFocus} focusAnchor={editorFocusAnchor} factBase={visibleFacts} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><Suspense fallback={null}><ResumeDesignPanel view={activeResume} factBase={visibleFacts} onChange={updateResume} /></Suspense></div>
 
         </div>
@@ -908,7 +1094,7 @@ export function App() {
           setPage("resume"); setWorkspaceTab("content");
           setWritingFocus({ key: writingTargetKey(target), locale: target.locale, experienceId: target.kind === "claim_text" ? target.experienceId : undefined, requestId: ++issueRequestIdRef.current });
           setPreviewTarget({ anchor: target.kind === "claim_text" ? `claim:${target.claimId}` : "profile:headline", source: "focus" });
-        }}><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} /></ResumeWritingCopilot></div>
+        }}><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} onSelectAnchor={(anchor) => { setWorkspaceTab("content"); setEditorFocusAnchor({ anchor, requestId: ++issueRequestIdRef.current }); }} /></ResumeWritingCopilot></div>
       </ResizableWorkspace>
       </div>
       {opportunitiesInitialized && <div className="secondary-workspace no-print" hidden={page !== "opportunities"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载机会工作区…", "Loading opportunity workspace…")}</div>}><OpportunityWorkspace seed={opportunitySeed} onSeedConsumed={() => setOpportunitySeed(null)} linkedResumeNames={linkedResumeNames} getCurrentResumeMaterial={currentResumeMaterial} getDecisionEvidence={currentOpportunityDecisionEvidence} getDecisionContext={currentOpportunityDecisionContext} onOpenJd={() => setIsJdMatchOpen(true)} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onCreateResume={createJobResume} onAnalyze={(job) => { openAgentWorkspace({ ...opportunityDecisionCareerJob(job), location: [job.location.city, job.location.region].filter(Boolean).join(" · ") || undefined, salary: job.salaryText || undefined }); }} /></Suspense></div>}
@@ -944,7 +1130,7 @@ export function App() {
           />
         </Suspense>
       </div>}
-      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("本地优先存储", "Local-first storage")}{undoFeedback && <span className="bm-undo-feedback"> · {undoFeedback}</span>}</span><span>{page === "resume" ? t(`${autoSaveDescription} · ${saveShortcutLabel} 立即保存`, `${autoSaveDescription} · ${saveShortcutLabel} to save now`) : page === "opportunities" ? t("变更需点击保存", "Save to apply changes") : page === "atlas" ? t("实时索引与地图同步", "Map & index synced") : page === "agent" ? t("AI 职业顾问工作台", "AI Career Workspace") : page === "autopilot" ? t("投递自动化工作台", "Autopilot Studio") : t("精选外部求职资源", "Curated career resources")}</span></footer>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("本地优先存储", "Local-first storage")}{undoFeedback && <span className="bm-undo-feedback"> · {undoFeedback}</span>}</span><span>{page === "resume" ? t(`${autoSaveDescription} · ${saveShortcutLabel} 保存 · ${cmdShortcutLabel} 命令面板`, `${autoSaveDescription} · ${saveShortcutLabel} save · ${cmdShortcutLabel} commands`) : page === "opportunities" ? t(`变更需点击保存 · ${cmdShortcutLabel} 命令面板`, `Save to apply changes · ${cmdShortcutLabel} commands`) : page === "atlas" ? t(`实时索引与地图同步 · ${cmdShortcutLabel} 命令面板`, `Map & index synced · ${cmdShortcutLabel} commands`) : page === "agent" ? t(`AI 职业顾问工作台 · ${cmdShortcutLabel} 命令面板`, `AI Career Workspace · ${cmdShortcutLabel} commands`) : page === "autopilot" ? t(`投递自动化工作台 · ${cmdShortcutLabel} 命令面板`, `Autopilot Studio · ${cmdShortcutLabel} commands`) : t(`精选外部求职资源 · ${cmdShortcutLabel} 命令面板`, `Curated career resources · ${cmdShortcutLabel} commands`)}</span></footer>
     </div></div></DesktopShell>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />
@@ -1011,6 +1197,14 @@ export function App() {
         else if (origin === "companion") window.dispatchEvent(new CustomEvent("betterme:open-companion"));
         else { setPage("resume"); setWorkspaceTab("content"); }
       }} />
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        items={commandItems}
+        placeholder={t("搜索命令、工作台或版式模板…", "Search actions, workspaces, or templates…")}
+        emptyLabel={t("未找到匹配的命令", "No matching commands")}
+        ariaLabel={t("全局命令面板", "Command palette")}
+      />
     </div>
   </AgentSidebarProvider></BetterMeAgentProvider></LocalAgentRuntimeProvider>;
 }

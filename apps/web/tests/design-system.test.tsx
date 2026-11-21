@@ -24,7 +24,7 @@ for (const [key, value] of Object.entries(globals)) {
 
 const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
-const { Button, SegmentedControl, SelectMenu, SplitButton, StatusPill, reorderList } = await import("../src/design-system/index.ts");
+const { Button, CommandPalette, HoldButton, SegmentedControl, SelectMenu, SplitButton, StatusPill, reorderList } = await import("../src/design-system/index.ts");
 
 let root: ReturnType<typeof createRoot> | undefined;
 
@@ -170,4 +170,65 @@ test("reorderList moves items cleanly without mutating the source array", () => 
   assert.deepEqual(reorderList(source, 1, 1), ["a", "b", "c", "d"]);
   assert.deepEqual(reorderList(source, -1, 2), ["a", "b", "c", "d"]);
   assert.deepEqual(source, ["a", "b", "c", "d"]);
+});
+
+test("CommandPalette filters items, runs active command on Enter, and closes on Escape", async () => {
+  let ran = "";
+  let closed = 0;
+  await mount(
+    h(CommandPalette, {
+      open: true,
+      onClose: () => { closed += 1; },
+      placeholder: "搜索命令…",
+      emptyLabel: "无匹配",
+      ariaLabel: "命令面板",
+      items: [
+        { id: "save", group: "常用操作", label: "立即保存", keywords: "save", shortcutTokens: ["⌘", "S"], onSelect: () => { ran = "save"; } },
+        { id: "ats", group: "版式快切", label: "切换极简 ATS", keywords: "ats plain", onSelect: () => { ran = "ats"; } },
+      ],
+    }),
+  );
+
+  const input = dom.document.querySelector<HTMLInputElement>(".bm-cmd-search input")!;
+  assert.ok(input);
+  assert.equal(dom.document.querySelectorAll('[role="option"]').length, 2);
+
+  // Navigate to second item and press Enter
+  await flush(() => input.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+  await flush(() => input.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+  assert.equal(ran, "ats");
+  assert.equal(closed, 1);
+
+  // Escape closes
+  await flush(() => dom.document.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  assert.equal(closed, 2);
+});
+
+test("HoldButton cancels on early release and confirms only after holding for holdMs", async () => {
+  let confirmed = 0;
+  await mount(
+    h(HoldButton, {
+      holdMs: 60,
+      holdingLabel: "继续按住…",
+      onConfirm: () => { confirmed += 1; },
+    }, "长按删除"),
+  );
+
+  const btn = dom.document.querySelector<HTMLButtonElement>(".bm-hold-btn")!;
+  // Early release must cancel safely
+  await flush(() => {
+    btn.dispatchEvent(new dom.PointerEvent("pointerdown", { button: 0, bubbles: true }));
+    btn.dispatchEvent(new dom.PointerEvent("pointerup", { button: 0, bubbles: true }));
+  });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  assert.equal(confirmed, 0);
+
+  // Holding past holdMs invokes onConfirm
+  await flush(() => {
+    btn.dispatchEvent(new dom.PointerEvent("pointerdown", { button: 0, bubbles: true }));
+  });
+  assert.equal(btn.dataset.holding, "true");
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 120)); });
+  assert.equal(confirmed, 1);
+  assert.equal(btn.dataset.holding, undefined);
 });

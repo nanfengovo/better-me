@@ -27,7 +27,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
 const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
-const { ResumePreview } = await import("../src/components/ResumePreview.tsx");
+const { ResumePreview, toAtsPlainText } = await import("../src/components/ResumePreview.tsx");
 let root: ReturnType<typeof createRoot> | undefined;
 
 async function flush(action: () => void = () => {}) {
@@ -273,4 +273,17 @@ test("reduced motion suppresses paper transitions while a template change still 
   await renderResume({ ...resume, templateId: "editorial" }, view);
   assert.equal(animations, 0);
   assert.equal(dom.document.querySelector(".resume-document")?.getAttribute("data-template"), "editorial");
+});
+
+test("toAtsPlainText strips embedded base64 images and markdown formatting for ATS parser view", () => {
+  const md = [
+    "# Alex Chen",
+    "![照片](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB)",
+    "**Senior Engineer** · [Portfolio](https://example.com)",
+    "- Reduced `p99` latency by *40%*",
+  ].join("\n\n");
+  const plain = toAtsPlainText(md);
+  assert.equal(plain.includes("data:image"), false);
+  assert.equal(plain.includes("照片"), false);
+  assert.equal(plain, "Alex Chen\n\nSenior Engineer · Portfolio (https://example.com)\n\n- Reduced p99 latency by 40%");
 });

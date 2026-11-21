@@ -5,7 +5,7 @@ import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type Projecte
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
 import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle } from "lucide-react";
-import { Button, SplitButton, type SplitButtonMenuEntry } from "../design-system";
+import { Button, SegmentedControl, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
@@ -20,14 +20,30 @@ type Props = {
   view?: ResumeView;
   onViewChange?: (view: ResumeView) => void;
   followTarget?: PreviewFollowTarget | null;
+  onSelectAnchor?: (anchor: string) => void;
 };
 
 const FOLLOW_PREFERENCE_KEY = "betterme.preview.follow.v1";
 
-export function ResumePreview({ resume, onTemplateChange, view, onViewChange, followTarget }: Props) {
+export function toAtsPlainText(markdown: string): string {
+  return markdown
+    // Strip embedded images (including base64 data URIs), which ATS text parsers ignore.
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function ResumePreview({ resume, onTemplateChange, view, onViewChange, followTarget, onSelectAnchor }: Props) {
   const { t, locale } = useUiPreferences();
   const printHint = t("在打印窗口选择「另存为 PDF」。如果预览出现日期、标题或网址，请关闭「页眉和页脚」（Chrome：更多设置），并逐页检查。", "Choose Save as PDF in the print dialog. If a date, title or URL appears, turn off Headers and footers (Chrome: More settings) and check each page.");
 
+  const [previewMode, setPreviewMode] = useState<"visual" | "ats">("visual");
+  const [atsCopied, setAtsCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
   const [exportNotes, setExportNotes] = useState<string[]>([]);
@@ -358,20 +374,92 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
         {copyError && <p role="status" className="preview-feedback preview-feedback-error">{copyError}</p>}
         {exportNotes.length > 0 && <details className="preview-export-notes"><summary>{t(`导出说明（${exportNotes.length}）`, `Export notes (${exportNotes.length})`)}</summary><ul role="status">{exportNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>}
       </div>
-      <div ref={canvasRef} className="resume-preview-canvas min-h-0 flex-1" data-pan-active={pan.active} data-panning={pan.dragging} {...pan.handlers} tabIndex={0} aria-describedby={panHelpId} aria-label={t("可滚动简历纸张", "Scrollable resume page")} onWheelCapture={pauseForManualPreview} onPointerDownCapture={pauseForManualPreview} onTouchStartCapture={pauseForManualPreview} onKeyDownCapture={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}>
-        <div ref={stageRef} className="resume-preview-stage" onLoadCapture={followCurrentTarget}>
-          <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
-            <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
+      {previewMode === "ats" ? (
+        <div className="bm-ats-view" role="region" aria-label={t("ATS 纯文本解析视角", "ATS plain-text parser view")}>
+          {(() => {
+            const plain = toAtsPlainText(projectedResumeToMarkdown(resume));
+            const charCount = plain.replace(/\s+/g, "").length;
+            const expCount = resume.experiences.length;
+            const claimCount = resume.experiences.reduce((sum, item) => sum + item.claims.length, 0);
+            return (
+              <div className="bm-ats-sheet">
+                <div className="bm-ats-header">
+                  <div className="bm-ats-stats">
+                    <strong>{t("ATS 解析器读取视角", "What a parser reads")}</strong>
+                    <span>·</span>
+                    <span>{t(`${charCount} 字`, `${charCount} chars`)}</span>
+                    <span>·</span>
+                    <span>{t(`${expCount} 段经历`, `${expCount} roles`)}</span>
+                    <span>·</span>
+                    <span>{t(`${claimCount} 条已展示要点`, `${claimCount} visible bullets`)}</span>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(plain);
+                        setAtsCopied(true);
+                        setTimeout(() => setAtsCopied(false), 1800);
+                      } catch {
+                        /* Clipboard may be unavailable in restricted contexts. */
+                      }
+                    }}
+                  >
+                    {atsCopied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                    <span>{atsCopied ? t("已复制纯文本", "Copied text") : t("复制纯文本", "Copy plain text")}</span>
+                  </Button>
+                </div>
+                <pre className="bm-ats-pre">{plain}</pre>
+              </div>
+            );
+          })()}
+        </div>
+      ) : (
+        <div
+          ref={canvasRef}
+          className="resume-preview-canvas min-h-0 flex-1"
+          data-pan-active={pan.active}
+          data-panning={pan.dragging}
+          {...pan.handlers}
+          tabIndex={0}
+          aria-describedby={panHelpId}
+          aria-label={t("可滚动简历纸张", "Scrollable resume page")}
+          onWheelCapture={pauseForManualPreview}
+          onPointerDownCapture={pauseForManualPreview}
+          onTouchStartCapture={pauseForManualPreview}
+          onClick={(event) => {
+            if (!onSelectAnchor || pan.active || pan.dragging) return;
+            const sel = window.getSelection?.();
+            if (sel && !sel.isCollapsed) return;
+            const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-preview-anchor]") : null;
+            const anchor = target?.dataset.previewAnchor;
+            if (anchor) onSelectAnchor(anchor);
+          }}
+          onKeyDownCapture={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}
+        >
+          <div ref={stageRef} className="resume-preview-stage" onLoadCapture={followCurrentTarget}>
+            <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
+              <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
       <div className="preview-bottom no-print">
         <div className="preview-display-controls">
-          <Button variant="ghost" size="xs" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></Button>
-          <Button variant="ghost" size="xs" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></Button>
-          {(view || resume.profile.avatarUrl) && <Button variant="ghost" size="xs" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></Button>}
+          <SegmentedControl
+            value={previewMode}
+            options={[{ value: "visual", label: t("视觉", "Visual") }, { value: "ats", label: t("ATS 解析", "ATS parser") }]}
+            onChange={setPreviewMode}
+            ariaLabel={t("预览视角切换", "Preview perspective")}
+          />
+          {previewMode === "visual" && <>
+            <Button variant="ghost" size="xs" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></Button>
+            <Button variant="ghost" size="xs" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></Button>
+            {(view || resume.profile.avatarUrl) && <Button variant="ghost" size="xs" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></Button>}
+          </>}
         </div>
-        <span id={panHelpId} className="preview-pan-help">{t("空格 + 拖动", "Space + drag")}</span>
+        <span id={panHelpId} className="preview-pan-help">{previewMode === "ats" ? t("未核实指标已安全过滤", "Unverified metrics filtered") : t("点击纸张定位 · 空格拖动", "Click to edit · Space + drag")}</span>
       </div>
     </section>
   );
