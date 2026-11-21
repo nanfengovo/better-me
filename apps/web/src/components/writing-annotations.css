@@ -1,17 +1,17 @@
-/* Categorical identity, deliberately independent of the workspace accent. */
-[data-annotation-tone="blue"]{--annotation-color:#2563eb}
-[data-annotation-tone="violet"]{--annotation-color:#7c3aed}
-[data-annotation-tone="teal"]{--annotation-color:#0f766e}
-[data-annotation-tone="amber"]{--annotation-color:#b45309}
-[data-annotation-tone="rose"]{--annotation-color:#be185d}
-[data-annotation-tone="cyan"]{--annotation-color:#0e7490}
-[data-annotation-tone]{--annotation-ink:var(--annotation-color);--annotation-soft:color-mix(in srgb,var(--annotation-color) 8%,var(--color-panel,#fff))}
+/* Refined editorial ink tones — calm contrast over paper without harsh neon glare. */
+[data-annotation-tone="blue"]{--annotation-color:#2c5f7c}
+[data-annotation-tone="violet"]{--annotation-color:#63518b}
+[data-annotation-tone="teal"]{--annotation-color:#1f6a5c}
+[data-annotation-tone="amber"]{--annotation-color:#a66321}
+[data-annotation-tone="rose"]{--annotation-color:#9e4458}
+[data-annotation-tone="cyan"]{--annotation-color:#286b7a}
+[data-annotation-tone]{--annotation-ink:var(--annotation-color);--annotation-soft:color-mix(in srgb,var(--annotation-color) 7%,var(--color-panel,#fff))}
 html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix(in srgb,var(--annotation-color) 54%,#fff)}
 
-.writing-note-index{display:flex;position:relative;flex:0 0 auto;align-content:flex-start;flex-wrap:wrap;gap:6px;max-height:78px;overflow:auto;overscroll-behavior:contain;padding:4px 2px 10px;scrollbar-width:thin}
-.writing-note-index[data-compact="true"]{flex-wrap:nowrap;max-height:44px;overflow-y:hidden}
-.writing-note-index button[data-annotation-id]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;min-height:28px;height:28px;padding:0;border:1px solid color-mix(in srgb,var(--annotation-color) 32%,var(--color-line));border-radius:8px;background:var(--annotation-soft);color:var(--annotation-ink);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;cursor:pointer;transform-origin:center;transition:transform 180ms cubic-bezier(.23,1,.32,1),background-color 180ms ease,border-color 180ms ease,color 150ms ease,box-shadow 180ms ease}
-.writing-note-index button[data-annotation-id][aria-pressed="true"]{background:var(--annotation-color);border-color:var(--annotation-color);color:#fff;box-shadow:0 0 0 2px var(--color-panel),0 0 0 3px var(--annotation-color);animation:writing-index-select 260ms cubic-bezier(.23,1,.32,1)}
+.writing-note-index{display:flex;position:relative;flex:0 0 auto;align-content:flex-start;flex-wrap:wrap;gap:5px;max-height:66px;overflow:auto;overscroll-behavior:contain;padding:3px 2px 8px;scrollbar-width:thin}
+.writing-note-index[data-compact="true"]{flex-wrap:nowrap;max-height:38px;overflow-y:hidden}
+.writing-note-index button[data-annotation-id]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;min-height:24px;height:24px;padding:0;border:1px solid color-mix(in srgb,var(--annotation-color) 28%,var(--color-line));border-radius:999px;background:var(--annotation-soft);color:var(--annotation-ink);font-size:10.5px;font-weight:650;font-variant-numeric:tabular-nums;cursor:pointer;transform-origin:center;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease,border-color 160ms ease,color 140ms ease,box-shadow 160ms ease}
+.writing-note-index button[data-annotation-id][aria-pressed="true"]{background:var(--annotation-color);border-color:var(--annotation-color);color:#fff;box-shadow:0 0 0 2px var(--color-panel),0 0 0 3.5px color-mix(in srgb,var(--annotation-color) 65%,transparent);animation:writing-index-select 220ms cubic-bezier(.23,1,.32,1)}
 .writing-note-index button:disabled{opacity:.5;cursor:not-allowed}
 .writing-note-index button:focus-visible{outline:2px solid var(--annotation-ink);outline-offset:3px;transition:none}
 .writing-note-index button:active:not(:disabled){transform:scale(.97)}
@@ -33,9 +33,9 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
 /* Viewport-coordinate SVG is portaled to body: container transforms/overflow
    must never move or cut the link between the paper and the Agent sidebar. */
 .writing-overlay{position:fixed;inset:0;display:block;width:100%;height:100%;z-index:35;pointer-events:none;overflow:hidden;animation:none}
-.writing-overlay .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 9%,transparent);stroke:color-mix(in srgb,var(--annotation-color) 38%,transparent);stroke-width:.8}
-.writing-overlay [data-active="true"] .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 19%,transparent);stroke:var(--annotation-color);stroke-width:1.5}
-.writing-overlay .writing-connector,.writing-overlay .writing-connector-halo{fill:none;stroke:var(--annotation-color);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:0;opacity:1;animation:writing-connector-draw 320ms cubic-bezier(.23,1,.32,1) both}
+.writing-overlay .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 6%,transparent);stroke:color-mix(in srgb,var(--annotation-color) 42%,transparent);stroke-width:.9;stroke-dasharray:4 3}
+.writing-overlay [data-active="true"] .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 13%,transparent);stroke:var(--annotation-color);stroke-width:1.4;stroke-dasharray:5 3}
+.writing-overlay .writing-connector,.writing-overlay .writing-connector-halo{fill:none;stroke:var(--annotation-color);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:0;opacity:.92;animation:writing-connector-draw 260ms cubic-bezier(.23,1,.32,1) both}
 .writing-overlay .writing-connector-halo{stroke:#fff;stroke-width:5;opacity:.88;animation-duration:260ms}
 .writing-overlay .writing-annotation-badge,.writing-overlay .writing-connector-end{fill:var(--annotation-color);stroke:#fff;stroke-width:1.5}
 .writing-overlay .writing-annotation-number{fill:#fff;font:700 10px system-ui,sans-serif}

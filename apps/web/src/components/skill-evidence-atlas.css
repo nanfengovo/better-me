@@ -93,70 +93,114 @@
 }
 .bm-keycap-odometer {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--ui-surface-soft);
-  color: var(--ui-text);
+  color: var(--ui-text-secondary);
   border: 1px solid var(--ui-border);
+}
+.bm-keycap-progress {
+  height: 3px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--ui-surface-soft);
+  overflow: hidden;
+}
+.bm-keycap-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ui-accent);
+  transition: width 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .bm-keycap-grid {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   align-content: start;
-  gap: 10px;
-  padding: 4px 2px 10px;
+  gap: 12px;
+  padding: 6px 4px 14px;
 }
 
+/* Sculpted double-layer mechanical keycap (Naresh Khatri tactile craft + Calm Craft palette) */
 .bm-keycap {
+  --kc-dot: var(--ui-accent);
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 8px;
-  min-height: 76px;
-  padding: 10px 11px 11px;
-  border-radius: 12px;
-  border: 1px solid var(--ui-border-strong, var(--ui-border));
-  background: linear-gradient(180deg, var(--ui-surface-raised, var(--ui-surface)) 0%, var(--ui-surface) 100%);
+  gap: 10px;
+  min-height: 82px;
+  padding: 11px 12px 12px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--ui-border-strong) 85%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-surface) 98%, #fff) 0%, var(--ui-surface-raised, var(--ui-surface)) 72%, color-mix(in srgb, var(--ui-surface-soft) 90%, var(--ui-surface)) 100%);
   color: var(--ui-text);
   text-align: left;
   cursor: pointer;
-  /* Tactile 3D mechanical keycap lip */
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 4px 0 color-mix(in srgb, var(--ui-text) 14%, transparent),
-    0 6px 12px rgba(15, 23, 42, 0.08);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -2px 4px rgba(15, 23, 42, 0.04),
+    0 5px 0 color-mix(in srgb, var(--ui-text) 14%, var(--ui-border)),
+    0 9px 18px -4px rgba(15, 23, 42, 0.12);
   transform: translateY(0);
-  transition: transform 95ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 95ms ease, border-color 120ms ease, background-color 120ms ease;
+  transition: transform 95ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 95ms ease, border-color 140ms ease, background 140ms ease;
 }
+.bm-keycap[data-tone="amber"] { --kc-dot: #c27824; }
+.bm-keycap[data-tone="slate"] { --kc-dot: #4b6884; }
+.bm-keycap[data-tone="teal"] { --kc-dot: #1f7a6b; }
 html[data-theme="dark"] .bm-keycap {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-surface-raised) 92%, #fff 4%) 0%, var(--ui-surface) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 4px 0 rgba(0, 0, 0, 0.58),
-    0 6px 14px rgba(0, 0, 0, 0.32);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+    0 5px 0 rgba(0, 0, 0, 0.72),
+    0 10px 20px rgba(0, 0, 0, 0.42);
+}
+.bm-keycap-top {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+.bm-keycap-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex: none;
+  margin-top: 4px;
+  background: color-mix(in srgb, var(--kc-dot) 32%, var(--ui-border));
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.bm-keycap[data-visited="true"] .bm-keycap-led {
+  background: var(--kc-dot);
+}
+.bm-keycap[aria-pressed="true"] .bm-keycap-led {
+  background: var(--kc-dot);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--kc-dot) 22%, transparent);
 }
 .bm-keycap:hover {
-  border-color: color-mix(in srgb, var(--ui-accent) 55%, var(--ui-border));
+  border-color: color-mix(in srgb, var(--kc-dot) 55%, var(--ui-border));
   transform: translateY(1px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 3px 0 color-mix(in srgb, var(--ui-accent) 28%, transparent),
-    0 4px 10px rgba(15, 23, 42, 0.08);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.78),
+    0 4px 0 color-mix(in srgb, var(--kc-dot) 30%, var(--ui-border)),
+    0 7px 14px -3px rgba(15, 23, 42, 0.12);
 }
 .bm-keycap:active,
 .bm-keycap[aria-pressed="true"] {
-  transform: translateY(3px);
-  border-color: var(--ui-accent);
-  background: color-mix(in srgb, var(--ui-accent) 11%, var(--ui-surface));
+  transform: translateY(4px);
+  border-color: var(--kc-dot);
+  background: color-mix(in srgb, var(--kc-dot) 9%, var(--ui-surface));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 1px 0 color-mix(in srgb, var(--ui-accent) 45%, transparent),
+    inset 0 2px 4px rgba(15, 23, 42, 0.06),
+    0 1px 0 color-mix(in srgb, var(--kc-dot) 45%, var(--ui-border)),
     0 2px 6px rgba(15, 23, 42, 0.08);
 }
 .bm-keycap-name {
@@ -196,6 +240,7 @@ html[data-theme="dark"] .bm-keycap {
   border-radius: 16px;
   background: var(--ui-surface);
   border: 1px solid var(--ui-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), inset 0 2px 0 color-mix(in srgb, var(--ui-accent) 42%, transparent);
   overflow: hidden;
 }
 .bm-field-report-head {

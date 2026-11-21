@@ -851,7 +851,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
         if (tab !== "screenshot") return;
         const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
         if (files.length) { event.preventDefault(); void addScreenshots(files); }
-      }} className="flex h-full max-h-[92vh] w-full max-w-5xl flex-col rounded-2xl bg-[#fbfaf7] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      }} className={`flex ${report || loading ? "h-full max-h-[92vh] max-w-5xl" : "max-h-[88vh] max-w-3xl"} w-full flex-col rounded-2xl bg-[#fbfaf7] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 bg-slate-50/70">
           <div className="flex items-center gap-2.5">

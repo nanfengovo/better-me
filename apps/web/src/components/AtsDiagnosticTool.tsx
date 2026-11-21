@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, FileSearch, RotateCcw, ShieldCheck, Sparkles, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, FileSearch, RotateCcw, Sparkles, X } from "lucide-react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { DEMO_ATS_SAMPLE, diagnoseAtsResume } from "../lib/ats-diagnostics";
 import { Button, EmptyState, PageHeader, StatusPill } from "../design-system";
@@ -65,7 +65,6 @@ export function AtsDiagnosticTool({
         )}
         meta={
           <StatusPill tone="accent">
-            <ShieldCheck size={11} aria-hidden="true" />
             {t("文本绝不离开本机", "Never leaves your device")}
           </StatusPill>
         }

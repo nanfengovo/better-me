@@ -38,6 +38,7 @@ export function SkillEvidenceAtlas({
   const [mode, setMode] = useState<"skills" | "timeline">("skills");
   const [query, setQuery] = useState("");
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [exploredIds, setExploredIds] = useState<string[]>([]);
   const [pressCount, setPressCount] = useState(0);
 
   useEffect(() => {
@@ -223,11 +224,20 @@ export function SkillEvidenceAtlas({
           <div className="bm-atlas-body" data-mode="skills">
             <div className="bm-keycap-deck-panel">
               <div className="bm-keycap-deck-head">
-                <span>{t("点击或方向键切换技能键帽（纯 DOM 可搜索）", "Click any keycap to inspect evidence (100% searchable DOM)")}</span>
-                <span className="bm-keycap-odometer" title={t("交互计数", "Keycap presses")}>
-                  {String(pressCount).padStart(4, "0")}
+                <span>{t("按下任意机械键帽追溯真实项目证据", "Press any keycap to trace verified project evidence")}</span>
+                <span className="bm-keycap-odometer" title={t("已探索能力节点与交互次数", "Explored skills and keycap presses")}>
+                  {t(`已探索 ${Math.max(exploredIds.length, activeSkill ? 1 : 0)}/${filteredSkills.length}`, `${Math.max(exploredIds.length, activeSkill ? 1 : 0)}/${filteredSkills.length} explored`)}
+                  {pressCount > 0 ? ` · ${pressCount}` : ""}
                 </span>
               </div>
+              {filteredSkills.length > 0 && (
+                <div className="bm-keycap-progress" aria-hidden="true">
+                  <div
+                    className="bm-keycap-progress-fill"
+                    style={{ width: `${Math.min(100, Math.round((Math.max(exploredIds.length, activeSkill ? 1 : 0) / filteredSkills.length) * 100))}%` }}
+                  />
+                </div>
+              )}
               {filteredSkills.length === 0 ? (
                 <EmptyState
                   compact
@@ -237,20 +247,28 @@ export function SkillEvidenceAtlas({
                 />
               ) : (
                 <div className="bm-keycap-grid" role="group" aria-label={t("技能键帽矩阵", "Skill keycap deck")}>
-                  {filteredSkills.map((skill) => {
+                  {filteredSkills.map((skill, idx) => {
                     const active = activeSkill?.id === skill.id;
+                    const visited = active || exploredIds.includes(skill.id);
+                    const tone = idx % 4 === 0 ? "emerald" : idx % 4 === 1 ? "amber" : idx % 4 === 2 ? "slate" : "teal";
                     return (
                       <button
                         key={skill.id}
                         type="button"
                         className="bm-keycap"
+                        data-tone={tone}
+                        data-visited={visited ? "true" : undefined}
                         aria-pressed={active}
                         onClick={() => {
                           setSelectedSkillId(skill.id);
+                          setExploredIds((prev) => (prev.includes(skill.id) ? prev : [...prev, skill.id]));
                           setPressCount((c) => c + 1);
                         }}
                       >
-                        <span className="bm-keycap-name">{skill.name}</span>
+                        <span className="bm-keycap-top">
+                          <span className="bm-keycap-name">{skill.name}</span>
+                          <span className="bm-keycap-led" aria-hidden="true" />
+                        </span>
                         <span className="bm-keycap-meta">
                           <span>{t(`${skill.experienceCount}段 · ${skill.claimCount}条`, `${skill.experienceCount}r · ${skill.claimCount}c`)}</span>
                           {skill.verifiedMetricCount > 0 && (

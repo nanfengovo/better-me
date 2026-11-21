@@ -380,18 +380,18 @@ export function ResumeImportModal({
 
   return (
     <dialog ref={dialogRef} tabIndex={-1} onKeyDown={trapDialogTab} aria-labelledby="resume-import-title" onCancel={event => { event.preventDefault(); if (!isImporting) onClose(); }} className="resume-import-dialog">
-      <div className="flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+      <div className={`flex w-full flex-col rounded-2xl bg-[var(--ui-surface)] shadow-2xl border border-[var(--ui-border)] overflow-hidden ${extracted ? "h-[90vh] max-h-[820px] max-w-4xl" : "max-h-[86vh] max-w-2xl"}`}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/80">
+        <div className="flex items-center justify-between border-b border-[var(--ui-border)] px-6 py-4 bg-[var(--ui-surface-raised)]">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--ui-action)] text-[var(--ui-on-action)] shadow-xs">
               <UploadCloud className="h-5 w-5" />
             </div>
             <div>
-              <h2 id="resume-import-title" className="text-base font-bold text-slate-900">
+              <h2 id="resume-import-title" className="text-base font-bold text-[var(--ui-text)]">
                 {t("导入简历与自动结构化", "Import and structure a resume")}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--ui-text-muted)]">
                 {t("支持 PDF、Word、图片、HTML、MD、TXT · 结构化内容导入，原版式需另保留", "PDF, Word, images, HTML, MD and TXT · Imports structured content; keep the original file for its layout")}
               </p>
             </div>
@@ -401,7 +401,7 @@ export function ResumeImportModal({
             disabled={isImporting}
             aria-label={t("关闭导入窗口", "Close import dialog")}
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition"
+            className="rounded-lg p-1.5 text-[var(--ui-text-muted)] hover:bg-[var(--ui-hover)] hover:text-[var(--ui-text)] transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -418,10 +418,10 @@ export function ResumeImportModal({
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition cursor-pointer ${
+                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-9 text-center transition cursor-pointer ${
                   dragActive
-                    ? "border-blue-500 bg-blue-50/60"
-                    : "border-slate-300 bg-slate-50/50 hover:border-blue-400 hover:bg-blue-50/20"
+                    ? "border-[var(--ui-accent)] bg-[var(--ui-accent-soft)]"
+                    : "border-[var(--ui-border-strong)] bg-[var(--ui-surface-raised)] hover:border-[var(--ui-accent)]"
                 }`}
               >
                 <input
@@ -432,34 +432,31 @@ export function ResumeImportModal({
                   className="hidden"
                 />
 
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-3">
-                  <UploadCloud className="h-7 w-7" />
+                <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-[var(--ui-accent-soft)] text-[var(--ui-accent)] mb-3.5 border border-[var(--ui-border)]">
+                  <UploadCloud className="h-6 w-6" />
                 </div>
-                <button type="button" className="studio-button" disabled={isExtracting} onClick={() => fileInputRef.current?.click()}>
+                <button type="button" className="studio-button primary" disabled={isExtracting} onClick={() => fileInputRef.current?.click()}>
                   {t("选择简历文件（也可拖放）", "Choose a resume file (or drop it here)")}
                 </button>
-                <p className="text-xs text-slate-500 max-w-md mb-4">
+                <p className="text-xs text-[var(--ui-text-secondary)] max-w-md mt-3 mb-4 leading-relaxed">
                   {t("提取文本后可选择离线规则或 AI 解析，核对后保存为结构化事实库（FactBase）。", "Extract text, choose offline or AI parsing, then review it before saving to your structured fact base.")}
                 </p>
 
                 {/* Badges */}
-                <div className="flex flex-wrap justify-center gap-1.5 text-[11px] font-medium text-slate-600">
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">
-                    {t("📄 PDF (文字/扫描)", "📄 PDF (text/scanned)")}
+                <div className="flex flex-wrap justify-center gap-1.5 text-[11px] font-medium text-[var(--ui-text-secondary)]">
+                  <span className="rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-2.5 py-1">
+                    {t("PDF (文字/扫描)", "PDF (text/scanned)")}
                   </span>
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">
-                    📝 Word (DOCX / DOC)
+                  <span className="rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-2.5 py-1">
+                    Word (DOCX / DOC)
                   </span>
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">
-                    🌐 HTML
+                  <span className="rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-2.5 py-1">
+                    HTML / Markdown / TXT
                   </span>
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">
-                    ⚡ Markdown / TXT
+                  <span className="rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-2.5 py-1">
+                    {t("JSON 备份 / JSON Resume", "JSON Backup / JSON Resume")}
                   </span>
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">
-                    {t("💾 JSON 备份", "💾 JSON backup")}
-                  </span>
-                  <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5">{t("图片 JPG / PNG / WebP", "Images: JPG / PNG / WebP")}</span>
+                  <span className="rounded-md bg-[var(--ui-surface)] border border-[var(--ui-border)] px-2.5 py-1">{t("图片 JPG / PNG / WebP", "Images JPG / PNG / WebP")}</span>
                 </div>
               </div>
 
