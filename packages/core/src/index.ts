@@ -4,6 +4,7 @@ export * from "./schema/resume.js";
 export * from "./schema/resume-theme.js";
 export * from "./themes/resolver.js";
 export * from "./validation/claims.js";
+export * from "./validation/rewrite-preservation.js";
 export * from "./project/resume-projection.js";
 export * from "./project/career-task-resume.js";
 export * from "./project/jd-match-readiness.js";

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -7,9 +8,11 @@ import {
   Crosshair,
   Edit3,
   Lightbulb,
+  ShieldAlert,
   Target,
   X,
 } from "lucide-react";
+import { checkRewriteFactPreservation } from "@better-me/core";
 import { triggerAgentGuide } from "../../lib/agent-guide";
 import type { MatchProposal, ProposalDecision } from "../../services/agent-client";
 import type { TranslateFn } from "./AgentReplyActionsCard";
@@ -65,6 +68,7 @@ export function AgentProposalListSection({
   onChangeEditedText,
   getClaimText,
 }: AgentProposalListSectionProps) {
+  const [verifiedNovelIds, setVerifiedNovelIds] = useState<Record<string, boolean>>({});
   return (
     <div
       className={`flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0 agent-custom-scrollbar ${
@@ -172,6 +176,13 @@ export function AgentProposalListSection({
 
         const displayText = isEdited ? decision.editedSuggestion : proposal.suggestion;
         const currentOriginalClaim = getClaimText(proposal.profileEntryId);
+        const preservationGuard =
+          currentOriginalClaim && proposal.evidenceType !== "gap"
+            ? checkRewriteFactPreservation({ sourceText: currentOriginalClaim, candidateText: displayText })
+            : null;
+        const hasNovelNumbers = Boolean(preservationGuard && !preservationGuard.ok);
+        const novelKey = `${proposal.id}:${displayText}`;
+        const novelVerified = Boolean(verifiedNovelIds[novelKey]);
         const evidenceBorder =
           proposal.evidenceType === "verified"
             ? "border-l-emerald-500"
@@ -290,6 +301,35 @@ export function AgentProposalListSection({
               <Lightbulb size={12} className="text-amber-400 shrink-0 mt-0.5" />
               <span>{proposal.rationale}</span>
             </p>
+            {hasNovelNumbers && preservationGuard && (
+              <div
+                role="alert"
+                className={`rounded-lg border px-2.5 py-2 text-[11px] space-y-1.5 ${
+                  isDark
+                    ? "border-amber-500/40 bg-amber-950/30 text-amber-200"
+                    : "border-amber-300 bg-amber-50 text-amber-950"
+                }`}
+              >
+                <div className="flex items-start gap-1.5">
+                  <ShieldAlert size={13} className="shrink-0 mt-0.5 text-amber-500" aria-hidden="true" />
+                  <span>
+                    <strong>{t("事实保真守卫：", "Fact-Preservation Guard: ")}</strong>
+                    {t(
+                      `检测到原文未出现的新增数字（${preservationGuard.novelNumbers.join("、")}），已禁止静默采纳。请点「微调」删改，或先核实真实依据。`,
+                      `Novel number(s) not found in the original claim (${preservationGuard.novelNumbers.join(", ")}). Edit to remove or confirm real evidence first.`,
+                    )}
+                  </span>
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={novelVerified}
+                    onChange={(event) => setVerifiedNovelIds((prev) => ({ ...prev, [novelKey]: event.target.checked }))}
+                  />
+                  <span>{t("我确认上述新增数字均有真实依据，允许采纳", "I verified these new numbers are factual and allow accepting")}</span>
+                </label>
+              </div>
+            )}
             {onLinkRequirement && linkableRequirements?.has(proposal.jdItem) && <button type="button"
               className={`text-[11px] cursor-pointer hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
               onClick={() => onLinkRequirement(proposal.jdItem)}>{t("加入成长计划", "Link to growth plan")}</button>}
@@ -387,8 +427,10 @@ export function AgentProposalListSection({
 
                 <button
                   type="button"
+                  disabled={hasNovelNumbers && !novelVerified}
                   onClick={() => onDecision(proposal.id, "accepted")}
-                  className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  title={hasNovelNumbers && !novelVerified ? t("请先核实新增数字或点击微调删改", "Verify novel numbers or edit before accepting") : undefined}
+                  className={`agent-btn-press inline-flex items-center gap-1 h-[30px] px-3 rounded-lg text-xs font-semibold transition disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer ${
                     isAccepted
                       ? "bg-emerald-600 text-white shadow-xs"
                       : isDark

@@ -34,7 +34,7 @@ import { AgentTaskNavigation, type AgentTaskView } from "./components/AgentTaskN
 import { openSystemSettings } from "./lib/settings-navigation";
 import type { MatchProposal, ResumeTextReference } from "./services/agent-client";
 import type { CareerTask, ResumeProposalTarget } from "@better-me/agent-contracts";
-import { applyResumeProposal, createResumeAgentContext } from "./lib/resume-agent-context";
+import { applyResumeProposal, createResumeAgentContext, type ResumeProposalWrite } from "./lib/resume-agent-context";
 import { approveCareerTaskStatement } from "./lib/career-task-facts";
 import { inspectCareerTaskWorkspace, resumeSaveCommand, type WorkspaceReceiptRequest, type WorkspaceReceiptInspection } from "./lib/career-task-reconciliation";
 import { defaultCareerTaskClient } from "./services/career-task-client";
@@ -351,14 +351,16 @@ export function App() {
     const current = docRef.current; if (!current) return;
     edit({ ...current, resumeViews: current.resumeViews.map((item) => item.id === view.id ? { ...view, updatedAt: new Date().toISOString() } : item) });
   }
-  async function handleApplyResumeProposal(proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) {
+  async function handleApplyResumeProposal(proposal: ResumeProposalWrite) {
     if (status.externalConflict) return { ok: false, message: t("另一窗口有尚未处理的简历修改；为保护双方内容，本次未写入。请先处理窗口冲突后重新生成建议。", "Another window has resume edits. Nothing was written; resolve the window conflict and regenerate the proposal.") };
     const current = docRef.current;
     if (!current) return { ok: false, message: t("简历尚未就绪，未写入。", "The resume is not ready. Nothing was written.") };
     const applied = applyResumeProposal(current, proposal);
-    if (!applied.ok) return { ok: false, message: applied.reason === "conflict"
-      ? t("建议生成后原文已变化或目标已删除；未写入。请重新读取简历并生成建议。", "The source changed or target was removed after this proposal was generated. Nothing was written; regenerate it from the current resume.")
-      : t("建议内容无效，未写入。", "The proposed text is invalid. Nothing was written.") };
+    if (!applied.ok) return { ok: false, message: applied.reason === "novel_numbers"
+      ? t(`事实保真守卫已拦截：检测到原文未出现的新增数字（${applied.novelNumbers.join("、")}），请先核实或删除后再提交。`, `Blocked by Fact-Preservation Guard: novel number(s) not in source (${applied.novelNumbers.join(", ")}). Verify or remove before applying.`)
+      : applied.reason === "conflict"
+        ? t("建议生成后原文已变化或目标已删除；未写入。请重新读取简历并生成建议。", "The source changed or target was removed after this proposal was generated. Nothing was written; regenerate it from the current resume.")
+        : t("建议内容无效，未写入。", "The proposed text is invalid. Nothing was written.") };
     const view = current.resumeViews.find(item => item.id === current.activeResumeId)!;
     const nextView = applied.document.resumeViews.find(item => item.id === current.activeResumeId)!;
     const previous = resolveResumeFactBase(current.factBase, view);
@@ -368,7 +370,7 @@ export function App() {
     edit({ ...applied.document, resumeViews: rebaseViewTextStyles(previous, next, synced, isolated ? view.id : undefined) });
     return { ok: true, message: t("已批准并提交到简历保存流程。草稿立即受保护；完整版本按当前自动保存设置保存，可在历史版本中恢复。", "Approved and submitted to the resume save flow. The draft is protected immediately; the complete version follows your autosave setting and can be restored from history.") };
   }
-  async function handleApplyWritingProposal(proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) {
+  async function handleApplyWritingProposal(proposal: ResumeProposalWrite) {
     const before = docRef.current;
     if (status.externalConflict || !await protectEdit(t("伴写修改前", "Before writing suggestion"))) return { ok: false, message: t("未能保护修改前的版本，本次没有写入；请先保存或下载备份。", "Could not protect the previous version. Nothing was written; save or download a backup first.") };
     if (docRef.current !== before) return { ok: false, message: t("简历已切换或原文有新修改，本次没有写入，请重新核对。", "Resume changed. Nothing was written; review the suggestion again.") };

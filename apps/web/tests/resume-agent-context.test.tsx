@@ -167,3 +167,42 @@ test("a reviewed sentence never updates two ambiguous claims, even when they hav
   assert.deepEqual(applyResumeProposal(doc, { targetRef: first.targetRef, originalText: first.text, proposedText: "虚构候选" }), { ok: false, reason: "conflict" });
   assert.equal(active.isolatedFactBase, undefined);
 });
+
+test("applyResumeProposal blocks fabricated novel numbers by default, permits grounded supplements, and honors explicit override", () => {
+  const doc = createInitialDocument("2026-01-01T00:00:00.000Z");
+  const active = doc.resumeViews[0]!;
+  const first = createResumeAgentContext(doc.factBase, active).experiences.flatMap(e => e.claims)[0]!;
+
+  // Hallucinated percentage & scale not in source must fail closed
+  const blocked = applyResumeProposal(doc, {
+    targetRef: first.targetRef,
+    originalText: first.text,
+    proposedText: `${first.text}，并将吞吐提升 88%，节省成本 200万。`,
+  });
+  assert.equal(blocked.ok, false);
+  if (!blocked.ok) {
+    assert.equal(blocked.reason, "novel_numbers");
+    if (blocked.reason === "novel_numbers") {
+      assert.ok(blocked.novelNumbers.includes("88%"));
+      assert.ok(blocked.novelNumbers.includes("200万"));
+    }
+  }
+
+  // Same numbers grounded in user-confirmed additionalFactTexts succeed
+  const grounded = applyResumeProposal(doc, {
+    targetRef: first.targetRef,
+    originalText: first.text,
+    proposedText: `${first.text}，并将吞吐提升 88%，节省成本 200万。`,
+    additionalFactTexts: ["实测吞吐提升 88%，全年节省成本 200万。"],
+  });
+  assert.equal(grounded.ok, true);
+
+  // Explicit human override also succeeds
+  const overridden = applyResumeProposal(doc, {
+    targetRef: first.targetRef,
+    originalText: first.text,
+    proposedText: `${first.text}，并将吞吐提升 88%。`,
+    allowNovelNumbers: true,
+  });
+  assert.equal(overridden.ok, true);
+});

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
-import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LocateFixed, Pause, RotateCcw, Settings2, Sparkles, Square, X } from "lucide-react";
-import type { LlmConfig } from "@better-me/core";
+import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LocateFixed, Pause, RotateCcw, Settings2, ShieldAlert, Sparkles, Square, X } from "lucide-react";
+import { checkRewriteFactPreservation, type LlmConfig } from "@better-me/core";
 import type { InventorySession } from "@better-me/agent-contracts";
 import { inventoryRefinements } from "../lib/inventory-refinements";
 import { choiceLabels } from "../lib/inventory-interview";
@@ -98,6 +98,7 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
   const [storageError, setStorageError] = useState("");
   const [confirmedAnswer, setConfirmedAnswer] = useState(false);
   const [confirmedProposal, setConfirmedProposal] = useState(false);
+  const [confirmedNovelNumbers, setConfirmedNovelNumbers] = useState(false);
   const [understandingSource, setUnderstandingSource] = useState<WritingSource>();
   const [projectContexts, setProjectContexts] = useState<Record<string, { sourceKey?: string; sourceText: string; context: ConfirmedWritingProjectContext }>>({});
   const [understandingSessions, setUnderstandingSessions] = useState<Record<string, UnderstandingSession>>({});
@@ -412,10 +413,14 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
     if (!proposal || writeLock.current || (!undo && !confirmedProposal)) return;
     writeLock.current = true; setApplying(true);
     try {
-      const result = await onApply(proposal);
+      const result = await onApply({
+        ...proposal,
+        additionalFactTexts: !undo && note.answer.trim() ? [note.answer] : undefined,
+        allowNovelNumbers: undo || confirmedNovelNumbers,
+      });
       if (!alive.current) return;
       setMessage(result.ok && undo ? "已撤销这次伴写修改，恢复了修改前的原文；其他字段保持不变。" : result.message);
-      if (result.ok) { changeNote(note.id, { state: undo ? "dismissed" : "applied" }); setConfirmedProposal(false); if (!undo) agent?.track({ id: `writing-applied:${note.id}`, kind: "resume-applied", label: `${note.source.label}：本人采用了一条表达建议，未自动认证能力。`, origin: "writing" }); }
+      if (result.ok) { changeNote(note.id, { state: undo ? "dismissed" : "applied" }); setConfirmedProposal(false); setConfirmedNovelNumbers(false); if (!undo) agent?.track({ id: `writing-applied:${note.id}`, kind: "resume-applied", label: `${note.source.label}：本人采用了一条表达建议，未自动认证能力。`, origin: "writing" }); }
     } catch { if (alive.current) setMessage("本次修改未能确认保存，请先检查原文与保存状态；你的补充和候选仍在，不会自动重试写入。"); }
     finally { writeLock.current = false; if (alive.current) setApplying(false); }
   }
@@ -658,15 +663,31 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
         <details className="writing-send-details"><summary>本次发送范围与授权</summary><small>{hostWriting?"原句与本人补充仅交接到同一岗位任务面板，核对资料、底座和预算后再启动；不借用旧项目共识、记忆或目录授权。已有任务不会重置预算或自动扩大范围。":<>发送本条原文、本人补充{shareProjectContext && usableContext ? "及已确认项目术语背景" : ""}。不自动附带姓名、联系方式或其他简历字段；共享记忆由「模型与工具」中的简历伴写开关单独控制。项目共识、文件只读授权、本人贡献确认不能互相代替。请勿填入敏感信息。</>}</small></details>
         {focusedNote.rationale && <p>{focusedNote.rationale}</p>}
         {!hostWriting && focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), evidenceQuotes: [focusedNote.answer.trim()], rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
-        {focusedNote.proposedText && <section className="writing-diff" aria-label="修改对照">
+        {focusedNote.proposedText && (() => {
+          const grounding = checkRewriteFactPreservation({
+            sourceText: writingOriginal(focusedNote.source),
+            candidateText: focusedNote.proposedText,
+            additionalFactTexts: focusedNote.answer.trim() ? [focusedNote.answer] : undefined,
+          });
+          return <section className="writing-diff" aria-label="修改对照">
           <label>原文</label><del>{writingOriginal(focusedNote.source)}</del>
           <label htmlFor="writing-proposal">候选表达 · 可继续编辑</label>
-          <textarea id="writing-proposal" rows={4} maxLength={12000} value={focusedNote.proposedText} onChange={e => { stop(); changeNote(focusedNote.id, { proposedText: e.target.value, evidenceQuotes: undefined }); setConfirmedProposal(false); }} />
+          <textarea id="writing-proposal" rows={4} maxLength={12000} value={focusedNote.proposedText} onChange={e => { stop(); changeNote(focusedNote.id, { proposedText: e.target.value, evidenceQuotes: undefined }); setConfirmedProposal(false); setConfirmedNovelNumbers(false); }} />
+          {!grounding.ok && (
+            <div role="alert" style={{ display: "grid", gap: "6px", padding: "9px 11px", borderRadius: "9px", border: "1px solid color-mix(in srgb, var(--ui-warning, #d97706) 45%, transparent)", background: "color-mix(in srgb, var(--ui-warning, #d97706) 10%, transparent)", fontSize: "12px" }}>
+              <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <ShieldAlert size={14} aria-hidden="true" />
+                {t(`事实保真守卫 · 检测到原文和补充中未出现的新增数字：${grounding.novelNumbers.join("、")}`, `Fact-Preservation Guard · Novel number(s) not in source or input: ${grounding.novelNumbers.join(", ")}`)}
+              </strong>
+              <label className="writing-check"><input type="checkbox" checked={confirmedNovelNumbers} onChange={e => setConfirmedNovelNumbers(e.target.checked)} />{t("我确认这些新增数字有真实依据（否则请直接在上方删除或修改）", "I confirm these new numbers are factual (otherwise edit them out above)")}</label>
+            </div>
+          )}
           <details className="writing-candidate-evidence" open><summary>候选引用依据 · 请逐句核对</summary>{focusedNote.evidenceQuotes?.length ? focusedNote.evidenceQuotes.map((quote, index) => <blockquote key={index}>{quote}</blockquote>) : <p>候选已手动编辑或没有保留引用，请重新核对与原文、本人补充是否一致。</p>}<small>引用已校验来自本条原文或你的补充；这不是外部事实认证，也不能证明候选每句话都成立。项目代码、设计方案与 Agent 猜测不作为个人成果依据。</small></details>
           <label className="writing-check"><input type="checkbox" checked={confirmedProposal} onChange={e => setConfirmedProposal(e.target.checked)} />我已逐字核对，没有夸大或新增不实事实</label>
-          {!hostWriting&&<button className="writing-primary" disabled={applying || !confirmedProposal || !focusedNote.proposedText.trim()} onClick={() => void apply(focusedNote)}>{applying ? "正在保护版本并保存…" : "确认采用到简历"}</button>}
+          {!hostWriting&&<button className="writing-primary" disabled={applying || !confirmedProposal || (!grounding.ok && !confirmedNovelNumbers) || !focusedNote.proposedText.trim()} onClick={() => void apply(focusedNote)}>{applying ? "正在保护版本并保存…" : "确认采用到简历"}</button>}
           <small>{hostWriting?"旧旁写候选保留供查看，未作为本人陈述发送。请从原句与本人补充交给岗位任务重新取证审阅，批准后另存岗位版。":"仅替换这一字段，不改变事实核实状态。手动编辑原文后本建议失效。"}</small>
-        </section>}
+        </section>;
+        })()}
         <button onClick={collapseAgent}>收起，继续写</button>
         </div>
         <div className="writing-review-compose" role="region" aria-label="伴写输入">

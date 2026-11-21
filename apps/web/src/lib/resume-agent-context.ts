@@ -1,4 +1,4 @@
-import { isResumeProfileVisible, isResumeSectionVisible, projectResume, resolveResumeFactBase, snapshotResumeFacts, type FactBase, type ProjectedResume, type ResumeView } from "@better-me/core";
+import { checkRewriteFactPreservation, isResumeProfileVisible, isResumeSectionVisible, projectResume, resolveResumeFactBase, snapshotResumeFacts, type FactBase, type ProjectedResume, type ResumeView, type RewritePreservationReport } from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import type { BetterMeDocument } from "@better-me/storage";
 
@@ -6,11 +6,25 @@ export type ResumeProposalWrite = {
   targetRef: ResumeProposalTarget;
   originalText: string;
   proposedText: string;
+  /** Optional user-confirmed supplement texts that may also ground numbers in `proposedText`. */
+  additionalFactTexts?: readonly string[];
+  /** Explicit human override after reviewing novel numbers flagged by the Fact-Preservation Guard. */
+  allowNovelNumbers?: boolean;
 };
 
 export type ResumeProposalApplyResult =
   | { ok: true; document: BetterMeDocument }
-  | { ok: false; reason: "conflict" | "invalid" };
+  | { ok: false; reason: "conflict" | "invalid" }
+  | { ok: false; reason: "novel_numbers"; novelNumbers: string[] };
+
+/** Run the deterministic `_novel_numbers` fact-preservation guard on a proposed resume rewrite. */
+export function auditResumeProposal(proposal: Pick<ResumeProposalWrite, "originalText" | "proposedText" | "additionalFactTexts">): RewritePreservationReport {
+  return checkRewriteFactPreservation({
+    sourceText: proposal.originalText,
+    candidateText: proposal.proposedText,
+    additionalFactTexts: proposal.additionalFactTexts,
+  });
+}
 
 export type CompanionResumeSummary = {
   headline?: string;
@@ -115,6 +129,12 @@ export function applyResumeProposal(
   const source = resolveResumeFactBase(document.factBase, active);
   // The bilingual writing editor may explicitly review either language.
   if (findResumeContextSource(createResumeAgentContext(document.factBase, { ...active, locale: targetRef.locale }), targetRef) !== originalText) return { ok: false, reason: "conflict" };
+  if (!proposal.allowNovelNumbers) {
+    const preservation = auditResumeProposal(proposal);
+    if (!preservation.ok) {
+      return { ok: false, reason: "novel_numbers", novelNumbers: preservation.novelNumbers };
+    }
+  }
   const effective = active.isolatedFactBase ?? snapshotResumeFacts(source, now);
   const finish = (factBase: FactBase): ResumeProposalApplyResult => ({ ok: true, document: {
     ...document, resumeViews: document.resumeViews.map(view => view.id === active.id ? { ...view, isolatedFactBase: factBase, updatedAt: now } : view),
