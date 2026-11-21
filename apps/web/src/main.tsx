@@ -17,6 +17,7 @@ import "./components/studio-workbench.css";
 import "./components/studio-materials.css";
 import "./design-system/tokens.css";
 import "./design-system/primitives.css";
+import "./components/skill-evidence-atlas.css";
 
 const loadApp = () => import("./App").then(module => ({ default: module.App }));
 const PublicLanding = lazy(() => import("./components/PublicLanding").then(m => ({ default: m.PublicLanding })));

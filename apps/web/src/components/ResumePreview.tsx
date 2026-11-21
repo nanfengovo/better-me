@@ -5,7 +5,6 @@ import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type Projecte
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
 import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle, FileSearch, Scissors } from "lucide-react";
-import "./skill-evidence-atlas.css";
 import { Button, SegmentedControl, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";

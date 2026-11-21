@@ -6,7 +6,6 @@ import { Bold, Italic, Underline, Highlighter, RemoveFormatting, Type, ChevronDo
 import { formatSelection, type TextStylePatch } from "../lib/text-formatting";
 import { HighlightColorPicker } from "./HighlightColorPicker";
 import { applyInlineWritingAction, BULLET_SCAFFOLDS, type InlineWritingActionId } from "../lib/inline-writing-actions";
-import "./skill-evidence-atlas.css";
 
 type Props = {
   value: string;
