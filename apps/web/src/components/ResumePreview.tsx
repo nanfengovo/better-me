@@ -4,7 +4,7 @@ import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId, useMe
 import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
 import { getResumePrintCss } from "../lib/resume-print";
 import { canExportDocxPhoto, projectedResumeToDocx } from "../lib/docx-export";
-import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle } from "lucide-react";
+import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, HelpCircle, FileSearch } from "lucide-react";
 import { Button, SegmentedControl, SplitButton, type SplitButtonMenuEntry } from "../design-system";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
 import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
@@ -21,6 +21,7 @@ type Props = {
   onViewChange?: (view: ResumeView) => void;
   followTarget?: PreviewFollowTarget | null;
   onSelectAnchor?: (anchor: string) => void;
+  onOpenAtsDiagnostics?: () => void;
 };
 
 const FOLLOW_PREFERENCE_KEY = "betterme.preview.follow.v1";
@@ -38,7 +39,7 @@ export function toAtsPlainText(markdown: string): string {
     .trim();
 }
 
-export function ResumePreview({ resume, onTemplateChange, view, onViewChange, followTarget, onSelectAnchor }: Props) {
+export function ResumePreview({ resume, onTemplateChange, view, onViewChange, followTarget, onSelectAnchor, onOpenAtsDiagnostics }: Props) {
   const { t, locale } = useUiPreferences();
   const printHint = t("在打印窗口选择「另存为 PDF」。如果预览出现日期、标题或网址，请关闭「页眉和页脚」（Chrome：更多设置），并逐页检查。", "Choose Save as PDF in the print dialog. If a date, title or URL appears, turn off Headers and footers (Chrome: More settings) and check each page.");
 
@@ -393,22 +394,30 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
                     <span>·</span>
                     <span>{t(`${claimCount} 条已展示要点`, `${claimCount} visible bullets`)}</span>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(plain);
-                        setAtsCopied(true);
-                        setTimeout(() => setAtsCopied(false), 1800);
-                      } catch {
-                        /* Clipboard may be unavailable in restricted contexts. */
-                      }
-                    }}
-                  >
-                    {atsCopied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                    <span>{atsCopied ? t("已复制纯文本", "Copied text") : t("复制纯文本", "Copy plain text")}</span>
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    {onOpenAtsDiagnostics && (
+                      <Button variant="tinted" size="xs" onClick={onOpenAtsDiagnostics}>
+                        <FileSearch size={12} aria-hidden="true" />
+                        <span>{t("ATS 评分与 JD 诊断", "ATS & JD Check")}</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(plain);
+                          setAtsCopied(true);
+                          setTimeout(() => setAtsCopied(false), 1800);
+                        } catch {
+                          /* Clipboard may be unavailable in restricted contexts. */
+                        }
+                      }}
+                    >
+                      {atsCopied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+                      <span>{atsCopied ? t("已复制纯文本", "Copied text") : t("复制纯文本", "Copy plain text")}</span>
+                    </Button>
+                  </div>
                 </div>
                 <pre className="bm-ats-pre">{plain}</pre>
               </div>

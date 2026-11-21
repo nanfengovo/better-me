@@ -3,14 +3,14 @@ import { captureIdentityLease, privateStorage as localStorage } from "./lib/iden
 import { useWorkspaceNavigation } from "./lib/workspace-navigation";
 import { WorkspaceRecoveryNotice } from "./components/WorkspaceRecoveryNotice";
 import {
-  projectResume, scanFactBase, createDefaultResumeView, syncResumeViewsWithFactBase, getJdMatchReadiness,
+  projectResume, projectedResumeToMarkdown, scanFactBase, createDefaultResumeView, syncResumeViewsWithFactBase, getJdMatchReadiness,
   LlmConfigSchema, resolveResumeFactBase, careerTaskSourceFingerprint, careerTaskCommandFingerprint, createCareerTaskResume,
   type CareerTaskResumeCommand, type CareerTaskResumeReceipt, type FactBase, type Locale, type ResumeView, type LlmConfig, type TextStyleRange, type ClaimIssue,
 } from "@better-me/core";
 import { createInitialDocument, exportDocumentJson, parseDocumentJson, DocumentSchema, documentFingerprint, type BetterMeDocument, type DocumentVersion, type DocumentFieldChange } from "@better-me/storage";
 import { ResumeReplacementEditor, type EditionReadbackNotice } from "./components/ResumeReplacementEditor";
 import { FactEditor } from "./components/FactEditor";
-import { ResumePreview } from "./components/ResumePreview";
+import { ResumePreview, toAtsPlainText } from "./components/ResumePreview";
 import { BookOpenCheck, Radar, Search } from "lucide-react";
 import { BackgroundJobWatchCenter, type BackgroundWatchTarget } from "./components/BackgroundJobWatch";
 import { resumeDiscoveryCriteria } from "./lib/resume-discovery-criteria";
@@ -78,7 +78,7 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { Maximize2, Check, Download, FileText, GitBranch, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X, Keyboard, Layout, Compass, Bot, Zap, Undo2, Redo2, SlidersHorizontal } from "lucide-react";
+import { Maximize2, Check, Download, FileSearch, FileText, GitBranch, Globe, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X, Keyboard, Layout, Compass, Bot, Zap, Undo2, Redo2, SlidersHorizontal } from "lucide-react";
 import { Button, CommandPalette, SegmentedControl, SelectMenu, type CommandItem } from "./design-system";
 import { formatShortcut, formatShortcutTokens, isMacPlatform, matchesShortcut, useShortcuts } from "./lib/shortcuts";
 import { useDocumentUndo } from "./lib/useDocumentUndo";
@@ -114,6 +114,7 @@ const VersionHistoryPanel = lazy(() => import("./components/VersionHistoryPanel"
 const AiConfigModal = lazy(() => import("./components/AiConfigModal").then(module => ({ default: module.AiConfigModal })));
 const JdMatchModal = lazy(() => import("./components/JdMatchModal").then(module => ({ default: module.JdMatchModal })));
 const JdMatchDrawer = lazy(() => import("./components/JdMatchDrawer").then(module => ({ default: module.JdMatchDrawer })));
+const AtsDiagnosticTool = lazy(() => import("./components/AtsDiagnosticTool").then(module => ({ default: module.AtsDiagnosticTool })));
 const LLM_CONFIG_KEY = "better-me:llm-config";
 function downloadJson(content: string, fileName: string) {
   const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
@@ -186,6 +187,7 @@ export function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAtsDiagnosticsOpen, setIsAtsDiagnosticsOpen] = useState(false);
   const [editorFocusAnchor, setEditorFocusAnchor] = useState<{ anchor: string; requestId: number } | null>(null);
   const [actionError, setActionError] = useState("");
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
@@ -907,6 +909,22 @@ export function App() {
           onSelect: () => { setPage("resume"); setIsImportModalOpen(true); },
         },
         {
+          id: "action-ats-diagnostics",
+          group: t("常用操作", "Actions"),
+          label: t("ATS 纯文本与 JD 深度诊断（本地零 LLM）", "ATS & JD Diagnostics (Local, Zero-LLM)"),
+          keywords: "ats score diagnostic checker keywords writing quality 诊断 评分 体检",
+          icon: <FileSearch size={14} />,
+          onSelect: () => setIsAtsDiagnosticsOpen(true),
+        },
+        {
+          id: "action-public-landing",
+          group: t("常用操作", "Actions"),
+          label: t("打开公开产品主页 (Landing Page)", "Open Public Landing Page"),
+          keywords: "landing home showcase product tour 主页 官网 展示",
+          icon: <Globe size={14} />,
+          onSelect: () => window.dispatchEvent(new CustomEvent("betterme:open-public-view", { detail: "landing" })),
+        },
+        {
           id: "action-shortcuts",
           group: t("常用操作", "Actions"),
           label: t("自定义全局快捷键", "Customize keyboard shortcuts"),
@@ -1094,7 +1112,7 @@ export function App() {
           setPage("resume"); setWorkspaceTab("content");
           setWritingFocus({ key: writingTargetKey(target), locale: target.locale, experienceId: target.kind === "claim_text" ? target.experienceId : undefined, requestId: ++issueRequestIdRef.current });
           setPreviewTarget({ anchor: target.kind === "claim_text" ? `claim:${target.claimId}` : "profile:headline", source: "focus" });
-        }}><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} onSelectAnchor={(anchor) => { setWorkspaceTab("content"); setEditorFocusAnchor({ anchor, requestId: ++issueRequestIdRef.current }); }} /></ResumeWritingCopilot></div>
+        }}><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} onSelectAnchor={(anchor) => { setWorkspaceTab("content"); setEditorFocusAnchor({ anchor, requestId: ++issueRequestIdRef.current }); }} onOpenAtsDiagnostics={() => setIsAtsDiagnosticsOpen(true)} /></ResumeWritingCopilot></div>
       </ResizableWorkspace>
       </div>
       {opportunitiesInitialized && <div className="secondary-workspace no-print" hidden={page !== "opportunities"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载机会工作区…", "Loading opportunity workspace…")}</div>}><OpportunityWorkspace seed={opportunitySeed} onSeedConsumed={() => setOpportunitySeed(null)} linkedResumeNames={linkedResumeNames} getCurrentResumeMaterial={currentResumeMaterial} getDecisionEvidence={currentOpportunityDecisionEvidence} getDecisionContext={currentOpportunityDecisionContext} onOpenJd={() => setIsJdMatchOpen(true)} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onCreateResume={createJobResume} onAnalyze={(job) => { openAgentWorkspace({ ...opportunityDecisionCareerJob(job), location: [job.location.city, job.location.region].filter(Boolean).join(" · ") || undefined, salary: job.salaryText || undefined }); }} /></Suspense></div>}
@@ -1205,6 +1223,24 @@ export function App() {
         emptyLabel={t("未找到匹配的命令", "No matching commands")}
         ariaLabel={t("全局命令面板", "Command palette")}
       />
+      {isAtsDiagnosticsOpen && (
+        <div
+          className="bm-ats-modal-backdrop"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setIsAtsDiagnosticsOpen(false);
+          }}
+        >
+          <div className="bm-ats-modal-dialog" role="dialog" aria-modal="true" aria-label={t("ATS 纯文本与 JD 匹配诊断", "ATS & JD Diagnostics")}>
+            <Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在打开 ATS 诊断…", "Opening ATS diagnostics…")}</div>}>
+              <AtsDiagnosticTool
+                initialResumeText={toAtsPlainText(projectedResumeToMarkdown(projected))}
+                onClose={() => setIsAtsDiagnosticsOpen(false)}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
     </div>
   </AgentSidebarProvider></BetterMeAgentProvider></LocalAgentRuntimeProvider>;
 }
