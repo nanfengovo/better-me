@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "turbo run dev --filter=@better-me/web",
+    "mcp:start": "pnpm --filter @better-me/agent-host mcp:start",
     "desktop": "pnpm --filter @better-me/desktop dev",
     "desktop:build": "turbo run build --filter=@better-me/desktop --filter=@better-me/web",
     "desktop:dist": "node apps/desktop/scripts/distribute.mjs",
